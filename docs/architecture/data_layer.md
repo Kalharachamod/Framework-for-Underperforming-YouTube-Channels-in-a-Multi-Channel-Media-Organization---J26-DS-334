@@ -4,6 +4,7 @@ Status: **storage infrastructure implemented** (STEP 02): data-path configuratio
 Shared schemas implemented in STEP 03 (`shared/schemas/`, see [schemas.md](schemas.md)).
 Schema → Parquet dataset storage implemented in STEP 04 (`shared/utils/datasets.py`, see [dataset_storage.md](dataset_storage.md)).
 DuckDB analytical query layer implemented in STEP 05 (`shared/utils/analytics.py`, see [analytics.md](analytics.md)).
+Research snapshot management implemented in STEP 06 (`shared/utils/snapshots.py`, see [snapshots.md](snapshots.md)).
 **Not implemented yet:** YouTube API collection, privacy hashing, and all component research logic.
 
 ## Purpose

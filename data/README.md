@@ -5,7 +5,7 @@ Raw, processed, snapshot and external data. **Contents are git-ignored** (public
 | Folder | Contents |
 |---|---|
 | `raw/` | API responses as collected; never edited |
-| `snapshots/` | Normalised Parquet tables, one partition per `snapshot_date` (shared by all components) |
+| `snapshots/<YYYY-MM-DD>/` | One research snapshot per UTC collection day; `_snapshot.json` marks it complete and immutable (see [snapshots.md](../docs/architecture/snapshots.md)) |
 | `features/` | Model-ready feature tables (Parquet) |
 | `processed/<dataset>.parquet` | Latest channels / videos / comments, one row per ID |
 | `processed/component_N/` | Component-specific Parquet outputs |

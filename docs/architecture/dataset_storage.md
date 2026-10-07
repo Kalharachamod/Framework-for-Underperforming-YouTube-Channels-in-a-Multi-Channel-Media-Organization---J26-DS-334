@@ -92,7 +92,8 @@ data/snapshots/
 - The folder is the **UTC date of `collected_at`**. A run that crosses midnight UTC is split across two folders.
 - Storing new data only rewrites the folder for that data's date. Other dates are never touched.
 - Two runs on the same day are both kept in that day's file, with different `collected_at` values.
-- To reproduce an analysis, record which snapshot dates it used. Past snapshot rows only change if the exact same observation is re-stored.
+- To reproduce an analysis, record which snapshot dates it used.
+- When a day's collection is finished, seal it with `create_snapshot(day)`. After that, `store_records` refuses to write to that day (`SnapshotImmutableError`). See [snapshots.md](snapshots.md).
 
 ## Reading
 

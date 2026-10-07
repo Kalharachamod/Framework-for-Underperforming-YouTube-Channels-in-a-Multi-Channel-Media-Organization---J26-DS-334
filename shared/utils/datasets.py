@@ -14,6 +14,9 @@ is kept in two forms:
 YouTube published it. Only ``collected_at`` decides which observation is newer.
 
 Single writer assumed: run one collector at a time.
+
+A snapshot day sealed by ``shared.utils.snapshots.create_snapshot`` (it holds a
+``_snapshot.json`` manifest) is immutable: ``store_records`` refuses to write to it.
 """
 
 from __future__ import annotations
@@ -50,10 +53,20 @@ DATASETS: dict[str, DatasetSpec] = {
 }
 
 COLLECTED_AT = "collected_at"
+MANIFEST_NAME = "_snapshot.json"
 
 
 class DuplicateRecordError(ValueError):
     """One batch holds two different versions of the same record at the same collected_at."""
+
+
+class SnapshotImmutableError(RuntimeError):
+    """A write would change a sealed (complete) snapshot."""
+
+
+def is_sealed(snapshot_date: date | str) -> bool:
+    """True when the snapshot day has been sealed by ``create_snapshot``."""
+    return (snapshot_dir(snapshot_date) / MANIFEST_NAME).exists()
 
 
 @dataclass
@@ -100,9 +113,15 @@ def store_records(dataset: str, records: Iterable[ResearchRecord | Mapping[str, 
     summary = StoreSummary(dataset=spec.name, received=len(batch))
     if batch.empty:
         return summary
+    snap_dates = batch[COLLECTED_AT].dt.strftime("%Y-%m-%d")
+    sealed = sorted(day for day in snap_dates.unique() if is_sealed(day))
+    if sealed:
+        raise SnapshotImmutableError(
+            f"{spec.name}: snapshot(s) {sealed} are sealed and cannot be changed; "
+            "use reopen_snapshot(..., confirm=True) to change one deliberately"
+        )
     existing_latest = _read_conformed(spec, latest_path(spec.name))
 
-    snap_dates = batch[COLLECTED_AT].dt.strftime("%Y-%m-%d")
     for day, rows in batch.groupby(snap_dates, sort=True):
         path, added = _append_snapshot(spec, snapshot_path(spec.name, day), rows)
         summary.snapshot_files.append(path)
