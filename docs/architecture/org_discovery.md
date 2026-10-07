@@ -76,6 +76,6 @@ A confirmed list is not overwritten without `--overwrite`.
 
 ## Security
 
-- The API key is read from `.env` (`YOUTUBE_API_KEY`) and is **removed from every error message**, because Google's errors include the request URL, and that URL contains the key.
+- Discovery uses the shared API client ([youtube_api.md](youtube_api.md)): the key comes from `.env`, is never shown, and is removed from every error message.
 - Quota errors are reported clearly (`quotaExceeded`).
 - Discovery files contain public channel information only.

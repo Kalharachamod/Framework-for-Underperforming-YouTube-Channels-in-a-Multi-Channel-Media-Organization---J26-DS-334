@@ -245,7 +245,7 @@ cp .env.example .env          # Windows PowerShell: Copy-Item .env.example .env
 
 | Variable | Purpose |
 |---|---|
-| `YOUTUBE_API_KEY` | YouTube Data API v3 key |
+| `YOUTUBE_API_KEY` | YouTube Data API v3 key (setup: [docs/architecture/youtube_api.md](docs/architecture/youtube_api.md)) |
 | `COMMENTER_HASH_SALT` | Secret salt for hashing commenter IDs (shared within the team, never committed) |
 | `VITE_API_URL` | Backend URL for the dashboard (default `http://localhost:8000`) |
 

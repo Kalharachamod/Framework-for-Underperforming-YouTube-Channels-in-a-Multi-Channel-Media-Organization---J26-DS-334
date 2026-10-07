@@ -10,8 +10,7 @@ pydantic>=2.7
 # Configuration
 python-dotenv>=1.0
 
-# YouTube Data API v3 collection (used from the collection step onwards)
-google-api-python-client>=2.140
+# YouTube Data API v3: accessed over HTTPS with the standard library (shared/data_collection/youtube_client.py)
 
 # Testing
 pytest>=8.0

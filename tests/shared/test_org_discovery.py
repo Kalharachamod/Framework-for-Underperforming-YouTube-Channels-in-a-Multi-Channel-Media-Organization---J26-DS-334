@@ -10,7 +10,12 @@ import pytest
 
 from shared.data_collection import discover as cli
 from shared.data_collection import org_discovery as od
-from shared.data_collection.youtube_client import YouTubeAPIError, YouTubeClient, _sanitized_error
+from shared.data_collection.youtube_client import (
+    HttpResult,
+    MissingAPIKeyError,
+    QuotaExceededError,
+    YouTubeClient,
+)
 
 
 def channel(cid, title, *, handle=None, description="", subs=1000, country="LK", hidden=False):
@@ -38,48 +43,36 @@ SEARCH = ["UC_main", "UC_news", "UC_edu", "UC_fan", "UC_other"]  # Pulse is NOT 
 LINKS = {"UC_main": ["UC_news", "UC_pulse", "UC_edu"], "UC_news": ["UC_main"], "UC_pulse": ["UC_main"]}
 
 
-class FakeRequest:
-    def __init__(self, payload):
-        self.payload = payload
-
-    def execute(self, num_retries=0):
-        if isinstance(self.payload, Exception):
-            raise self.payload
-        return self.payload
-
-
 class FakeYouTube:
-    """Mimics the googleapiclient resource methods the client uses."""
+    """Mocked HTTP transport answering like the YouTube API (no network)."""
 
-    def __init__(self, error=None):
-        self.error = error
+    def __init__(self, error_status=None, error_body=None):
+        self.error_status = error_status
+        self.error_body = error_body
         self.calls = []
 
-    def search(self):
-        return self
-
-    def channels(self):
-        return self
-
-    def channelSections(self):
-        return self
-
-    def list(self, **params):
-        self.calls.append(params)
-        if self.error:
-            return FakeRequest(self.error)
-        if params.get("type") == "channel":
-            return FakeRequest({"items": [{"id": {"channelId": c}} for c in SEARCH]})
-        if "channelId" in params:
+    def __call__(self, url, params, timeout):
+        self.calls.append((url.rsplit("/", 1)[-1], dict(params)))
+        if self.error_status:
+            return HttpResult(self.error_status, {}, json.dumps(self.error_body).encode())
+        resource = url.rsplit("/", 1)[-1]
+        if resource == "search":
+            body = {"items": [{"id": {"channelId": c}} for c in SEARCH]}
+        elif resource == "channelSections":
             ids = LINKS.get(params["channelId"], [])
-            return FakeRequest({"items": [{"contentDetails": {"channels": ids}}] if ids else []})
-        ids = params["id"].split(",")
-        return FakeRequest({"items": [CHANNELS[i] for i in ids if i in CHANNELS]})
+            body = {"items": [{"contentDetails": {"channels": ids}}] if ids else []}
+        else:
+            body = {"items": [CHANNELS[i] for i in params["id"].split(",") if i in CHANNELS]}
+        return HttpResult(200, {}, json.dumps(body).encode())
+
+
+def make_client(transport=None):
+    return YouTubeClient(api_key="TEST_KEY_NOT_REAL", transport=transport or FakeYouTube(), sleep=lambda s: None)
 
 
 @pytest.fixture
 def client():
-    return YouTubeClient(service=FakeYouTube())
+    return make_client()
 
 
 @pytest.fixture
@@ -128,7 +121,7 @@ def test_unrelated_channel_low(result):
 
 def test_ranking_is_deterministic(client):
     a = od.discover_organization("Testorg", client)
-    b = od.discover_organization("Testorg", YouTubeClient(service=FakeYouTube()))
+    b = od.discover_organization("Testorg", make_client())
     assert [c.channel_id for c in a.candidates] == [c.channel_id for c in b.candidates]
     assert a.candidates[-1].channel_id == "UC_other"
 
@@ -141,12 +134,15 @@ def test_quota_accounting(result):
 
 def test_no_self_website_evidence():
     only = {"UC_solo": channel("UC_solo", "Solo Org", description="www.soloorg.lk")}
-    fake = FakeYouTube()
-    fake.list = lambda **p: FakeRequest(
-        {"items": [{"id": {"channelId": "UC_solo"}}]} if p.get("type") == "channel"
-        else {"items": []} if "channelId" in p else {"items": [only[i] for i in p["id"].split(",") if i in only]}
-    )
-    r = od.discover_organization("Solo Org", YouTubeClient(service=fake))
+
+    def transport(url, params, timeout):
+        resource = url.rsplit("/", 1)[-1]
+        body = ({"items": [{"id": {"channelId": "UC_solo"}}]} if resource == "search"
+                else {"items": []} if resource == "channelSections"
+                else {"items": [only[i] for i in params["id"].split(",") if i in only]})
+        return HttpResult(200, {}, json.dumps(body).encode())
+
+    r = od.discover_organization("Solo Org", make_client(transport))
     assert not any("website" in e for e in r.candidates[0].evidence)
 
 
@@ -223,7 +219,7 @@ def test_cli_select(result):
 
 
 def test_cli_flow(project, monkeypatch, capsys):
-    monkeypatch.setattr(cli, "YouTubeClient", lambda: YouTubeClient(service=FakeYouTube()))
+    monkeypatch.setattr(cli, "YouTubeClient", lambda: make_client())
     assert cli.main(["search", "Testorg"]) == 0
     out = capsys.readouterr().out
     assert "Pulse Test" in out and "confirm only channels you know" in out
@@ -235,34 +231,22 @@ def test_cli_flow(project, monkeypatch, capsys):
     assert "already exists" in capsys.readouterr().err
 
 
-# --- client safety ------------------------------------------------------------------
+# --- client use by discovery ---------------------------------------------------------
 
-def test_missing_api_key(monkeypatch):
+def test_discovery_requires_api_key(monkeypatch):
     monkeypatch.delenv("YOUTUBE_API_KEY", raising=False)
-    with pytest.raises(YouTubeAPIError, match="YOUTUBE_API_KEY is not set"):
+    with pytest.raises(MissingAPIKeyError):
         YouTubeClient()
 
 
-def test_api_key_never_in_error_message():
-    class FakeHttpError(Exception):
-        resp = type("R", (), {"status": 403})()
-        error_details = [{"reason": "quotaExceeded"}]
-
-        def __str__(self):
-            return "<HttpError 403 when requesting https://youtube.googleapis.com/youtube/v3/search?q=x&key=TESTKEY123&alt=json>"
-
-    client = YouTubeClient(service=FakeYouTube(error=FakeHttpError()))
-    with pytest.raises(YouTubeAPIError) as err:
-        client.search_channels("Testorg")
-    assert "TESTKEY123" not in str(err.value)
-    assert err.value.reason == "quotaExceeded" and err.value.status == 403
-    assert "quota used up" in str(err.value)
-    assert err.value.__cause__ is None and err.value.__suppress_context__
-
-
-def test_sanitizer_handles_plain_errors():
-    e = _sanitized_error("channels.list", OSError("connect failed key=SECRETX"))
-    assert "SECRETX" not in str(e)
+def test_discovery_reports_quota_errors(project, monkeypatch, capsys):
+    body = {"error": {"code": 403, "message": "quota", "errors": [{"reason": "quotaExceeded"}]}}
+    monkeypatch.setattr(cli, "YouTubeClient", lambda: make_client(FakeYouTube(403, body)))
+    assert cli.main(["search", "Testorg"]) == 1
+    err = capsys.readouterr().err
+    assert "quotaExceeded" in err and "TEST_KEY_NOT_REAL" not in err
+    with pytest.raises(QuotaExceededError):
+        od.discover_organization("Testorg", make_client(FakeYouTube(403, body)))
 
 
 def test_empty_query_rejected(client):
