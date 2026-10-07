@@ -5,6 +5,7 @@ Shared schemas implemented in STEP 03 (`shared/schemas/`, see [schemas.md](schem
 Schema → Parquet dataset storage implemented in STEP 04 (`shared/utils/datasets.py`, see [dataset_storage.md](dataset_storage.md)).
 DuckDB analytical query layer implemented in STEP 05 (`shared/utils/analytics.py`, see [analytics.md](analytics.md)).
 Research snapshot management implemented in STEP 06 (`shared/utils/snapshots.py`, see [snapshots.md](snapshots.md)).
+Data validation and quality checks implemented in STEP 07 (`shared/utils/quality.py`, see [data_quality.md](data_quality.md)).
 **Not implemented yet:** YouTube API collection, privacy hashing, and all component research logic.
 
 ## Purpose

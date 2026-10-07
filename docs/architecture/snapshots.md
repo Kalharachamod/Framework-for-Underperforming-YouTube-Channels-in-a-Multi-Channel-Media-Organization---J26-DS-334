@@ -136,6 +136,19 @@ A snapshot holds only what was **collected that day**. A video not re-collected 
 
 Re-sealing records a new `created_at`. Note any deliberate correction in your experiment log, because results computed before the correction used the old data.
 
+## Research-ready snapshots
+
+Sealing checks structure. Quality checks (relationships, duplicates, timestamps, metrics) are run separately:
+
+```python
+from shared.utils import quality
+quality.validate_snapshot_quality("2026-10-07")     # writes _quality.json next to the snapshot
+quality.is_research_ready("2026-10-07")             # complete + unchanged + validated + not INVALID
+quality.latest_research_ready_snapshot()
+```
+
+`_quality.json` is derived metadata and does not change the sealed data or manifest. See [data_quality.md](data_quality.md).
+
 ## Errors
 
 | Error | When |

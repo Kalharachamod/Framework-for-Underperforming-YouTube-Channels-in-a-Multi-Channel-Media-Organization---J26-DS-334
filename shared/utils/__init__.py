@@ -1,6 +1,6 @@
 """Shared helpers: data paths, Parquet storage and DuckDB queries."""
 
-from shared.utils import analytics, snapshots
+from shared.utils import analytics, quality, snapshots
 from shared.utils.datasets import (
     DATASETS,
     DuplicateRecordError,
@@ -33,6 +33,7 @@ from shared.utils.paths import (
 
 __all__ = [
     "analytics",
+    "quality",
     "snapshots",
     "DATASETS",
     "PROJECT_ROOT",
