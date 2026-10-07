@@ -2,6 +2,7 @@
 
 Status: **storage infrastructure implemented** (STEP 02): data-path configuration, Parquet storage and DuckDB query utilities in `shared/utils/`, with tests in `tests/shared/`.
 Shared schemas implemented in STEP 03 (`shared/schemas/`, see [schemas.md](schemas.md)).
+Schema → Parquet dataset storage implemented in STEP 04 (`shared/utils/datasets.py`, see [dataset_storage.md](dataset_storage.md)).
 **Not implemented yet:** YouTube API collection, privacy hashing, and all component research logic.
 
 ## Purpose
@@ -35,9 +36,10 @@ Research Components          C1 · C2 · C3 · C4  →  data/processed/component
 | Layer | Location | Format | Written by | Notes |
 |---|---|---|---|---|
 | Raw | `data/raw/` | API responses (e.g. JSON Lines) | Collection pipeline | Immutable, append-only; kept for re-processing and audit |
-| Snapshots | `data/snapshots/` | Parquet, partitioned by `snapshot_date` | Normalisation step | The single source of truth for research |
+| Snapshots | `data/snapshots/<YYYY-MM-DD>/` | Parquet, one folder per UTC date of `collected_at` | `store_records` | Every observation; the single source of truth for research |
 | Query engine | `DUCKDB_PATH` (default `data/research.duckdb`) | DuckDB | Rebuilt from Parquet | Holds views only; safe to delete and rebuild |
 | Features | `data/features/` | Parquet | Feature-engineering steps | Model-ready features derived from snapshots |
+| Latest datasets | `data/processed/<dataset>.parquet` | Parquet | `store_records` | One row per ID (newest `collected_at`) for channels, videos, comments |
 | Processed | `data/processed/component_N/` | Parquet | Each component | Component-specific outputs |
 
 All of `data/` and `*.duckdb` are git-ignored.

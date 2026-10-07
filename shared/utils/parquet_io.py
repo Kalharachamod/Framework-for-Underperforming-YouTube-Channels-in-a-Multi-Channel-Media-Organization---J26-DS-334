@@ -23,6 +23,10 @@ class SchemaError(ValueError):
     """A DataFrame does not match the expected dataset schema."""
 
 
+class DatasetReadError(OSError):
+    """A Parquet dataset exists but cannot be read (corrupted or not Parquet)."""
+
+
 def dataset_exists(path: str | os.PathLike[str]) -> bool:
     """True for an existing Parquet file, or a folder containing Parquet files."""
     p = resolve_path(path)
@@ -72,7 +76,10 @@ def read_dataset(
     source = resolve_path(path)
     if not dataset_exists(source):
         raise DatasetNotFoundError(f"No Parquet dataset at: {source}")
-    return pd.read_parquet(source, engine="pyarrow", columns=list(columns) if columns else None)
+    try:
+        return pd.read_parquet(source, engine="pyarrow", columns=list(columns) if columns else None)
+    except pa.ArrowException as exc:
+        raise DatasetReadError(f"Cannot read Parquet dataset at {source}: {exc}") from exc
 
 
 def _check_schema(df: pd.DataFrame, required_columns: Iterable[str] | None) -> None:

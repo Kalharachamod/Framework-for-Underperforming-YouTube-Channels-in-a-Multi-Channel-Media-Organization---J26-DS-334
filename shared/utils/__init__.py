@@ -1,8 +1,21 @@
 """Shared helpers: data paths, Parquet storage and DuckDB queries."""
 
+from shared.utils.datasets import (
+    DATASETS,
+    DuplicateRecordError,
+    StoreSummary,
+    create_views,
+    latest_path,
+    read_history,
+    read_latest,
+    read_snapshot,
+    snapshot_path,
+    store_records,
+)
 from shared.utils.duckdb_query import connect, duckdb_connection, query, query_parquet
 from shared.utils.parquet_io import (
     DatasetNotFoundError,
+    DatasetReadError,
     SchemaError,
     dataset_exists,
     read_dataset,
@@ -17,7 +30,18 @@ from shared.utils.paths import (
 )
 
 __all__ = [
+    "DATASETS",
     "PROJECT_ROOT",
+    "DatasetReadError",
+    "DuplicateRecordError",
+    "StoreSummary",
+    "create_views",
+    "latest_path",
+    "read_history",
+    "read_latest",
+    "read_snapshot",
+    "snapshot_path",
+    "store_records",
     "DatasetNotFoundError",
     "SchemaError",
     "component_dir",

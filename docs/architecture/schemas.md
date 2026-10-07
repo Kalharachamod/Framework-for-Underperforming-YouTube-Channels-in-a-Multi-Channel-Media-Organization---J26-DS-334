@@ -98,6 +98,8 @@ from shared.utils import snapshot_dir, write_dataset, query_parquet
 
 videos = [Video(**parsed) for parsed in parsed_api_items]   # validation happens here
 write_dataset(to_dataframe(videos, Video), snapshot_dir("2026-10-07") / "videos.parquet")
+# Usually use store_records("videos", videos) instead: snapshots + latest + duplicates
+# (see dataset_storage.md)
 query_parquet("data/snapshots/*/videos.parquet", "SELECT channel_id, count(*) FROM dataset GROUP BY 1")
 ```
 

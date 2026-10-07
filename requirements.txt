@@ -2,6 +2,7 @@
 duckdb>=1.1
 pyarrow>=17.0
 pandas>=2.2
+pytz>=2024.1  # needed by DuckDB to return TIMESTAMPTZ values as Python datetimes
 
 # Shared research schemas (validation)
 pydantic>=2.7
