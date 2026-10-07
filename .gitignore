@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# Node / React
+node_modules/
+dist/
+build/
+.vite/
+coverage/
+
+# Secrets and logs
+.env
+*.log
+
+# Notebooks / OS
+.ipynb_checkpoints/
+.DS_Store
+
+# Data (privacy: never commit collected YouTube data) - keep folder markers only
+data/raw/*
+data/processed/*
+!data/processed/component_*/
+data/processed/component_*/*
+data/snapshots/*
+!data/**/.gitkeep
+
+# Models, embeddings, large outputs
+models/*
+!models/component_*/
+models/component_*/*
+!models/component_*/.gitkeep
+!models/README.md
+!models/.gitkeep
+*.pt
+*.pth
+*.pkl
+*.joblib
+*.parquet
+research/*/results/*
+!research/*/results/.gitkeep
