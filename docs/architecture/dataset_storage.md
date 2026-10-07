@@ -106,6 +106,8 @@ Results have the schema's column order and types: `string`, nullable `Int64`, UT
 
 ## DuckDB
 
+For ready-made, parameterized queries (lookups, filters, joins, summaries), use the analytical query layer in [analytics.md](analytics.md). The views below are what it builds on.
+
 ```python
 from shared.utils import create_views, duckdb_connection
 
