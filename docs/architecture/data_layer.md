@@ -1,6 +1,7 @@
 # Shared Research Data Layer
 
-Status: **design only.** Nothing described here is implemented yet.
+Status: **storage infrastructure implemented** (STEP 02): data-path configuration, Parquet storage and DuckDB query utilities in `shared/utils/`, with tests in `tests/shared/`.
+**Not implemented yet:** YouTube API collection, schemas, and all component research logic.
 
 ## Purpose
 
@@ -12,7 +13,7 @@ All four components read from one shared, versioned set of YouTube data instead 
 YouTube Data API v3          external source (public data only)
         │
         ▼
-Collection Pipeline          shared/data_collection/ — periodic, incremental collection
+Collection Pipeline          shared/data_collection/ — periodic, incremental collection (future)
         │
         ▼
 Raw Data                     data/raw/ — API responses as received, never edited
@@ -21,7 +22,7 @@ Raw Data                     data/raw/ — API responses as received, never edit
 Parquet                      data/snapshots/ — normalised tables, one partition per snapshot
         │
         ▼
-DuckDB                       analytical query engine over the Parquet files
+DuckDB                       analytical query engine over the Parquet files (not the source of truth)
         │
         ▼
 Shared Research Data         common tables / views defined in shared/schemas/
@@ -35,15 +36,38 @@ Research Components          C1 · C2 · C3 · C4  →  data/processed/component
 | Raw | `data/raw/` | API responses (e.g. JSON Lines) | Collection pipeline | Immutable, append-only; kept for re-processing and audit |
 | Snapshots | `data/snapshots/` | Parquet, partitioned by `snapshot_date` | Normalisation step | The single source of truth for research |
 | Query engine | `DUCKDB_PATH` (default `data/research.duckdb`) | DuckDB | Rebuilt from Parquet | Holds views only; safe to delete and rebuild |
-| Processed | `data/processed/component_N/` | Parquet | Each component | Component-specific features and outputs |
+| Features | `data/features/` | Parquet | Feature-engineering steps | Model-ready features derived from snapshots |
+| Processed | `data/processed/component_N/` | Parquet | Each component | Component-specific outputs |
 
 All of `data/` and `*.duckdb` are git-ignored.
 
-## Why Parquet + DuckDB
+## Parquet is the source of truth; DuckDB is the query engine
 
-- **Parquet** is columnar, compressed and typed, works well with pandas and pyarrow, and its files are easy to version per snapshot.
-- **DuckDB** runs in-process (no server) and queries Parquet directly with SQL, which suits a research team working on laptops.
-- A server database (PostgreSQL, MySQL, MongoDB) is **not required at this stage**. One can be added later behind the backend API if the dashboard needs it.
+| | Parquet | DuckDB |
+|---|---|---|
+| Role | **Persistent research dataset** | **Analytical query engine** |
+| Holds | All shared and component data | Views, temporary and scratch tables only |
+| If deleted | Data is lost (re-collect from the API) | Nothing is lost; rebuild from Parquet |
+| Versioned by | Snapshot folder (`snapshot_date`) | Not versioned |
+
+Rules: every dataset that matters is written to Parquet with `write_dataset`. Never keep data *only* inside the `.duckdb` file.
+
+### Why Parquet?
+- **Efficient analytical storage:** compressed, so large comment and statistics tables stay small on disk.
+- **Column-oriented:** queries read only the columns they need.
+- **Suits large research datasets:** files can be split by snapshot and read together.
+- **Works with the Python data-science stack:** pandas, pyarrow, DuckDB, scikit-learn pipelines.
+- **Typed:** integers, nullable values and UTC timestamps keep their types across machines.
+- **Reproducible snapshots:** one immutable folder per collection date.
+
+### Why DuckDB?
+- **Analytical SQL engine** built for aggregations, joins and window functions.
+- **Queries Parquet directly**, without importing it first.
+- **Lightweight:** a single pip package that runs in-process.
+- **No database server** to install, run or share passwords for.
+- **Suits research analytics** on a laptop, with results returned as pandas DataFrames.
+
+A server database (PostgreSQL, MySQL, MongoDB) is **not required at this stage**. One can be added later behind the backend API if the dashboard needs it.
 
 ## Data principles
 
@@ -58,6 +82,61 @@ All of `data/` and `*.duckdb` are git-ignored.
 | Raw vs processed separation | `raw/` → `snapshots/` → `processed/component_N/` |
 
 YouTube Data API v3 is a request/response API with a daily quota, **not a streaming API**. "Near-real-time" here means frequent periodic collection, limited by the quota.
+
+## Historical snapshots
+
+Each collection run writes into its own dated folder, and earlier snapshots are never overwritten:
+
+```
+data/snapshots/
+├── 2026-10-07/
+│   ├── channels.parquet
+│   ├── videos.parquet
+│   └── comments.parquet
+├── 2026-10-08/
+└── 2026-10-09/
+```
+
+`snapshot_dir("2026-10-07")` returns the folder for one date. `query_parquet("data/snapshots")` queries every snapshot at once, and `query_parquet("data/snapshots/*/videos.parquet")` queries one table across all dates. Automatic snapshot collection is not implemented yet.
+
+## Using the storage layer
+
+```python
+from shared.utils import (
+    component_dir, query, query_parquet, read_dataset, snapshot_dir, write_dataset,
+)
+
+# Write / read Parquet (relative paths are taken from the project root)
+write_dataset(df, snapshot_dir("2026-10-07") / "videos.parquet")
+write_dataset(df, component_dir(3) / "bridge_scores.parquet", overwrite=True)
+videos = read_dataset("data/snapshots/2026-10-07/videos.parquet")
+
+# Query one Parquet file / folder / glob; it is available as the view `dataset`
+top = query_parquet(
+    "data/snapshots/*/videos.parquet",
+    "SELECT channel_id, sum(view_count) AS views FROM dataset GROUP BY channel_id",
+)
+
+# Free SQL; relative paths in SQL also resolve from the project root
+n = query("SELECT count(*) AS n FROM 'data/processed/component_3/bridge_scores.parquet'")
+```
+
+| Module | Main functions |
+|---|---|
+| `shared/utils/paths.py` | `get_data_paths`, `resolve_path`, `snapshot_dir`, `component_dir` |
+| `shared/utils/parquet_io.py` | `write_dataset`, `read_dataset`, `dataset_exists` |
+| `shared/utils/duckdb_query.py` | `connect`, `duckdb_connection`, `query`, `query_parquet` |
+
+Behaviour:
+- **Paths:** relative paths resolve from the repository root, never from the current working directory, so notebooks in any folder work. No absolute paths are hard-coded.
+- **Writing:** parent folders are created automatically. An existing file is only replaced with `overwrite=True`, and the replacement is atomic.
+- **Schema:** column names must be unique strings. `required_columns=[...]` rejects a DataFrame that lacks expected columns.
+- **Timestamps:** stored in **UTC**. Zoned values are converted to UTC, and naive values are assumed to already be UTC. DuckDB sessions also run in UTC.
+- **Missing values:** nullable integers (`Int64`), strings and floats keep their nulls.
+- **Errors:** a missing dataset raises `DatasetNotFoundError` (a `FileNotFoundError`); a bad DataFrame raises `SchemaError`.
+- **DuckDB:** `query_parquet` runs in memory and never locks the database file; `query` and `connect` use `DUCKDB_PATH`.
+
+Tests: `python -m pytest`. They use a tiny synthetic **TEST DATA** set (`tests/shared/conftest.py`) and a temporary folder, never the real `data/`.
 
 ## Core entities (to be defined in `shared/schemas/`)
 

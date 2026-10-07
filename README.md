@@ -249,6 +249,11 @@ cp .env.example .env          # Windows PowerShell: Copy-Item .env.example .env
 | `COMMENTER_HASH_SALT` | Secret salt for hashing commenter IDs (shared within the team, never committed) |
 | `VITE_API_URL` | Backend URL for the dashboard (default `http://localhost:8000`) |
 
+**4. Run the tests**
+```bash
+python -m pytest
+```
+
 > **Note:** Backend and frontend run instructions will be added when implementation begins.
 
 </details>
