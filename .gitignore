@@ -40,5 +40,9 @@ models/component_*/*
 *.pkl
 *.joblib
 *.parquet
+
+# DuckDB database files (rebuildable from Parquet)
+*.duckdb
+*.duckdb.wal
 research/*/results/*
 !research/*/results/.gitkeep

@@ -1,0 +1,13 @@
+# Shared research data layer (Parquet storage + DuckDB query engine)
+duckdb>=1.1
+pyarrow>=17.0
+pandas>=2.2
+
+# Configuration
+python-dotenv>=1.0
+
+# YouTube Data API v3 collection (used from the collection step onwards)
+google-api-python-client>=2.140
+
+# Testing
+pytest>=8.0
