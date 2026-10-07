@@ -17,6 +17,9 @@ Single writer assumed: run one collector at a time.
 
 A snapshot day sealed by ``shared.utils.snapshots.create_snapshot`` (it holds a
 ``_snapshot.json`` manifest) is immutable: ``store_records`` refuses to write to it.
+
+Privacy: comment ``author_channel_id`` values are pseudonymized
+(``shared.utils.privacy``) before storage, so raw commenter ids never reach Parquet.
 """
 
 from __future__ import annotations
@@ -35,7 +38,7 @@ import pandas as pd
 
 from shared.schemas import Channel, Comment, ResearchRecord, Video, to_dataframe
 from shared.utils.parquet_io import SchemaError, read_dataset, write_dataset
-from shared.utils import paths
+from shared.utils import paths, privacy
 from shared.utils.paths import get_data_paths, snapshot_dir
 
 
@@ -142,6 +145,7 @@ def _validated_frame(spec: DatasetSpec, records: Iterable[ResearchRecord | Mappi
             record = spec.model.model_validate(record)
         elif not isinstance(record, spec.model):
             raise TypeError(f"{spec.name} expects {spec.model.__name__}, got {type(record).__name__}")
+        record = _pseudonymize(record)
         ident = (getattr(record, spec.key), getattr(record, COLLECTED_AT).isoformat())
         seen = unique.get(ident)
         if seen is not None and seen != record:
@@ -152,6 +156,14 @@ def _validated_frame(spec: DatasetSpec, records: Iterable[ResearchRecord | Mappi
             f"{spec.name}: different records share the same {spec.key} and collected_at: {sorted(conflicts)}"
         )
     return to_dataframe(unique.values(), spec.model)
+
+
+def _pseudonymize(record: ResearchRecord) -> ResearchRecord:
+    """Replace a raw commenter id with its pseudonym (fails closed without a salt)."""
+    author = getattr(record, "author_channel_id", None)
+    if author is None or privacy.is_pseudonymized(author):
+        return record
+    return record.model_copy(update={"author_channel_id": privacy.pseudonymize_id(author)})
 
 
 def _append_snapshot(spec: DatasetSpec, path: Path, rows: pd.DataFrame) -> tuple[Path, int]:

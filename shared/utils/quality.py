@@ -39,7 +39,7 @@ QUALITY_FILE = "_quality.json"
 MAX_EXAMPLES = 5
 YOUTUBE_LAUNCH = "2005-04-23 00:00:00+00"  # first public YouTube video
 ID_PATTERN = r"[A-Za-z0-9_.\-]{1,128}"  # same rule as shared.schemas.base.YouTubeId
-RAW_CHANNEL_ID = r"UC[A-Za-z0-9_\-]{22}"
+PSEUDONYM = r"anon_[0-9a-f]{64}"  # shared.utils.privacy format
 
 _DUCKDB_TYPES = {STRING: "VARCHAR", INT: "BIGINT", TIMESTAMP: "TIMESTAMP WITH TIME ZONE"}
 
@@ -275,12 +275,12 @@ def _check_rows(con, spec: DatasetSpec, result: DatasetValidation, cols: set[str
                                [ID_PATTERN])
         if n:  # examples deliberately omitted: commenter identifiers are never shown
             add(Issue("invalid_identifier", "error", "identifier", f"{n} invalid 'author_channel_id' value(s)", n))
-        raw = con.execute(f"SELECT count(*) FROM {t} WHERE regexp_full_match(author_channel_id, ?)",
-                          [RAW_CHANNEL_ID]).fetchone()[0]
+        raw = con.execute(f"SELECT count(*) FROM {t} WHERE author_channel_id IS NOT NULL "
+                          "AND NOT regexp_full_match(author_channel_id, ?)", [PSEUDONYM]).fetchone()[0]
         if raw:
             add(Issue("unhashed_commenter_ids", "warning", "privacy",
-                      f"{raw} commenter id(s) look like raw YouTube channel ids; "
-                      "the commenter hashing step has not been applied", raw))
+                      f"{raw} commenter id(s) are not pseudonymized (expected 'anon_' + 64 hex); "
+                      "store comments through store_records so ids are hashed", raw))
 
     # Duplicates.
     if cols >= set(spec.model.DTYPES):

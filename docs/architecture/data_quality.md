@@ -33,7 +33,7 @@ The checks are SQL queries that **DuckDB runs directly on the Parquet files**; n
 | | `published_at` before YouTube existed (2005-04-23); comment published before its video | warning |
 | **numeric** | Negative views, likes, comment counts, subscribers or video counts | error |
 | | More likes than views (usually stale counts) | warning |
-| **privacy** | Commenter IDs that look like raw YouTube channel IDs (hashing not yet applied) | warning |
+| **privacy** | Commenter IDs that are not pseudonyms (`anon_` + 64 hex, see [privacy.md](privacy.md)) | warning |
 
 **Nulls in optional fields are not problems.** Hidden likes and subscriber counts, or comments without an author ID, are legitimate API situations. They're reported only as `null_counts`.
 
@@ -111,4 +111,4 @@ The validator **detects and reports**; it never deletes duplicates, invents IDs,
 
 ## Privacy
 
-Reports and quality files contain only counts, column names, check codes and public channel/video/comment IDs. They **never** contain comment text, commenter identifiers, API keys or other secrets. The privacy check only reports *how many* commenter IDs still look unhashed.
+Reports and quality files contain only counts, column names, check codes and public channel/video/comment IDs. They **never** contain comment text, commenter identifiers, API keys or other secrets. The privacy check only reports *how many* commenter IDs are not pseudonymized.

@@ -9,6 +9,8 @@ def isolated_data_dir(tmp_path, monkeypatch):
     """Point DATA_DIR and DUCKDB_PATH at a temp folder so tests never touch data/."""
     monkeypatch.setenv("DATA_DIR", str(tmp_path / "data"))
     monkeypatch.setenv("DUCKDB_PATH", str(tmp_path / "data" / "test.duckdb"))
+    # TEST salt only (never a real one); 64 characters like secrets.token_hex(32).
+    monkeypatch.setenv("COMMENTER_HASH_SALT", "test-salt-" + "0" * 54)
     return tmp_path / "data"
 
 

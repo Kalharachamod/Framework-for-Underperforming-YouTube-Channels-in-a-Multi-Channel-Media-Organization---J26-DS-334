@@ -80,7 +80,7 @@ The schemas do not depend on the YouTube API client. A collector builds them fro
 
 - `author_channel_id` is a **publicly observable platform identifier**, when YouTube returns it. It is optional: a missing value stays `None` and is **never replaced with placeholder data**.
 - Its presence does **not** prove subscriber status, audience migration, demographic identity or causality.
-- The schema stores the value as given and does not hash it. Hashing with `COMMENTER_HASH_SALT` is a separate privacy step, planned for later, which must run before data is used for research.
+- The schema holds the value as given (in memory). `store_records` replaces it with a pseudonym (HMAC with `COMMENTER_HASH_SALT`) before anything is stored; see [privacy.md](privacy.md).
 - The field is hidden from `repr()` and `str()`, so it doesn't appear in logs or error messages by accident.
 - Test data uses invented IDs only (`test_author_1`).
 

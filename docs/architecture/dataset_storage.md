@@ -142,4 +142,4 @@ with duckdb_connection() as con:          # data/research.duckdb
 
 ## Privacy
 
-Comments are stored with `author_channel_id` exactly as validated by the schema; this layer does no hashing. Hashing commenter IDs is a separate step, which must happen before real comment data is collected and stored.
+`store_records` pseudonymizes every comment `author_channel_id` before writing (`anon_` + HMAC-SHA256 with `COMMENTER_HASH_SALT`), so raw commenter IDs never reach Parquet. Without a valid salt it refuses to store them. See [privacy.md](privacy.md).

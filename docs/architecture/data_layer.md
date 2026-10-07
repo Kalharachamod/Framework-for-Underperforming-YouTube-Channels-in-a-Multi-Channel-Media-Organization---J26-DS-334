@@ -6,7 +6,9 @@ Schema → Parquet dataset storage implemented in STEP 04 (`shared/utils/dataset
 DuckDB analytical query layer implemented in STEP 05 (`shared/utils/analytics.py`, see [analytics.md](analytics.md)).
 Research snapshot management implemented in STEP 06 (`shared/utils/snapshots.py`, see [snapshots.md](snapshots.md)).
 Data validation and quality checks implemented in STEP 07 (`shared/utils/quality.py`, see [data_quality.md](data_quality.md)).
-**Not implemented yet:** YouTube API collection, privacy hashing, and all component research logic.
+YouTube Data API v3 client implemented in STEP 08 (`shared/data_collection/youtube_client.py`, see [youtube_api.md](youtube_api.md)).
+Commenter pseudonymization implemented (`shared/utils/privacy.py`, see [privacy.md](privacy.md)).
+**Not implemented yet:** the YouTube collectors (channels, videos, comments) and all component research logic.
 
 ## Purpose
 
@@ -148,7 +150,7 @@ Tests: `python -m pytest`. They use a tiny synthetic **TEST DATA** set (`tests/s
 
 Implemented in `shared/schemas/` (STEP 03): **Channel**, **Video** and **Comment**. Fields, validation, privacy notes and types are in [schemas.md](schemas.md). Use `to_dataframe(records, Model)` before `write_dataset` so every snapshot has the same Parquet schema.
 
-Planned later: `video_stats` (per-snapshot metrics, if separated from videos), `collection_runs` (run metadata), and hashing of commenter IDs with `COMMENTER_HASH_SALT`.
+Planned later: `video_stats` (per-snapshot metrics, if separated from videos), `collection_runs` (run metadata), (commenter IDs are pseudonymized on storage, see [privacy.md](privacy.md)).
 
 ## Use by component
 

@@ -115,7 +115,7 @@ def test_manifest_metadata(isolated_data_dir, monkeypatch):
 
 def test_manifest_has_no_secrets_or_commenter_ids(isolated_data_dir, monkeypatch):
     monkeypatch.setenv("YOUTUBE_API_KEY", "TEST_KEY_SHOULD_NOT_APPEAR")
-    monkeypatch.setenv("COMMENTER_HASH_SALT", "TEST_SALT_SHOULD_NOT_APPEAR")
+    monkeypatch.setenv("COMMENTER_HASH_SALT", "TEST_SALT_SHOULD_NOT_APPEAR_" + "0" * 40)
     collect_day(DAY1)
     s.create_snapshot(DAY1)
     text = s.manifest_path(DAY1).read_text(encoding="utf-8")
