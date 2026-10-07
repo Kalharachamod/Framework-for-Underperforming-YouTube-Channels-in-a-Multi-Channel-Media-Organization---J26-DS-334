@@ -10,6 +10,7 @@ from collections.abc import Iterable, Sequence
 from pathlib import Path
 
 import pandas as pd
+import pyarrow as pa
 
 from shared.utils.paths import resolve_path
 
@@ -52,10 +53,12 @@ def write_dataset(
     _check_schema(df, required_columns)
     df = _timestamps_to_utc(df)
 
+    df, schema = _pin_arrow_columns(df)
+
     target.parent.mkdir(parents=True, exist_ok=True)
     tmp = target.with_name(f".{target.name}.tmp")
     try:
-        df.to_parquet(tmp, engine="pyarrow", index=False)
+        df.to_parquet(tmp, engine="pyarrow", index=False, schema=schema)
         os.replace(tmp, target)
     finally:
         tmp.unlink(missing_ok=True)
@@ -84,6 +87,29 @@ def _check_schema(df: pd.DataFrame, required_columns: Iterable[str] | None) -> N
         missing = [c for c in required_columns if c not in df.columns]
         if missing:
             raise SchemaError(f"Missing required columns: {missing}")
+
+
+def _pin_arrow_columns(df: pd.DataFrame) -> tuple[pd.DataFrame, pa.Schema | None]:
+    """Write ``pd.ArrowDtype`` columns (e.g. list<string> tags) as plain values
+    with their exact Arrow type.
+
+    pandas cannot read back a file whose metadata records a nested ArrowDtype,
+    and an object column of only empty lists would otherwise be saved as
+    list<null>. Frames without ArrowDtype columns are written unchanged.
+    """
+    arrow_types = {
+        col: s.dtype.pyarrow_dtype for col, s in df.items() if isinstance(s.dtype, pd.ArrowDtype)
+    }
+    if not arrow_types:
+        return df, None
+
+    out = df.copy()
+    for col in arrow_types:
+        out[col] = pd.Series(pa.array(out[col]).to_pylist(), index=out.index, dtype=object)
+    schema = pa.Schema.from_pandas(out, preserve_index=False)
+    for col, arrow_type in arrow_types.items():
+        schema = schema.set(schema.get_field_index(col), pa.field(col, arrow_type))
+    return out, schema
 
 
 def _timestamps_to_utc(df: pd.DataFrame) -> pd.DataFrame:

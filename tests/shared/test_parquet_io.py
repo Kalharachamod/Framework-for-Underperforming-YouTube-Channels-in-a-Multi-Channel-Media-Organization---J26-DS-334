@@ -137,3 +137,20 @@ def test_snapshot_layout(isolated_data_dir, videos_df):
     snapshots = get_data_paths().snapshots
     assert sorted(p.name for p in snapshots.iterdir()) == ["2026-10-07", "2026-10-08"]
     assert len(read_dataset(snapshots / "2026-10-08" / "videos.parquet")) == 3
+
+
+def test_arrow_list_column_round_trip_and_stable_type(isolated_data_dir):
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    list_type = pd.ArrowDtype(pa.list_(pa.string()))
+    df = pd.DataFrame({"tags": pd.Series([["a", "b"], [], None], dtype=list_type)})
+    target = write_dataset(df, isolated_data_dir / "tags.parquet")
+    back = read_dataset(target)
+    assert [None if v is None else list(v) for v in back["tags"]] == [["a", "b"], [], None]
+
+    # Only empty lists must still be stored as list<string>, not list<null>.
+    empty = pd.DataFrame({"tags": pd.Series([[], []], dtype=list_type)})
+    empty_target = write_dataset(empty, isolated_data_dir / "empty.parquet")
+    assert pq.read_schema(empty_target).field("tags").type == pa.list_(pa.string())
+    assert df["tags"].dtype == list_type  # input DataFrame untouched

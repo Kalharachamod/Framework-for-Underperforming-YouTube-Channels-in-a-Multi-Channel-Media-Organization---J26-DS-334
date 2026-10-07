@@ -1,7 +1,8 @@
 # Shared Research Data Layer
 
 Status: **storage infrastructure implemented** (STEP 02): data-path configuration, Parquet storage and DuckDB query utilities in `shared/utils/`, with tests in `tests/shared/`.
-**Not implemented yet:** YouTube API collection, schemas, and all component research logic.
+Shared schemas implemented in STEP 03 (`shared/schemas/`, see [schemas.md](schemas.md)).
+**Not implemented yet:** YouTube API collection, privacy hashing, and all component research logic.
 
 ## Purpose
 
@@ -138,9 +139,11 @@ Behaviour:
 
 Tests: `python -m pytest`. They use a tiny synthetic **TEST DATA** set (`tests/shared/conftest.py`) and a temporary folder, never the real `data/`.
 
-## Core entities (to be defined in `shared/schemas/`)
+## Core entities
 
-`channels` · `videos` · `video_stats` (per snapshot) · `comments` (commenter IDs hashed with `COMMENTER_HASH_SALT`) · `collection_runs` (run metadata)
+Implemented in `shared/schemas/` (STEP 03): **Channel**, **Video** and **Comment**. Fields, validation, privacy notes and types are in [schemas.md](schemas.md). Use `to_dataframe(records, Model)` before `write_dataset` so every snapshot has the same Parquet schema.
+
+Planned later: `video_stats` (per-snapshot metrics, if separated from videos), `collection_runs` (run metadata), and hashing of commenter IDs with `COMMENTER_HASH_SALT`.
 
 ## Use by component
 
