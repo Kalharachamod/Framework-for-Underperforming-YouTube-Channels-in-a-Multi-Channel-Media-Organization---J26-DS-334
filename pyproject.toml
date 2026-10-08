@@ -17,3 +17,8 @@ include = ["shared*", "research*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+# Library-internal deprecation notices (PyTorch Geometric on Python 3.13); not project code.
+filterwarnings = [
+    "ignore::DeprecationWarning:torch_geometric.*",
+    "ignore:`torch.jit.script` is deprecated:FutureWarning",
+]

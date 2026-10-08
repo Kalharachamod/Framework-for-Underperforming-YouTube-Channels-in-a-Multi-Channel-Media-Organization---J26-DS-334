@@ -11,6 +11,10 @@ pydantic>=2.7
 networkx>=3.3
 # Component 3 metapath2vec: skip-gram with negative sampling (walks are sampled by our own code)
 gensim>=4.4
+# Component 3 HGT (alternative graph learning). CPU build is enough:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+torch>=2.6
+torch_geometric>=2.6
 
 # Configuration
 python-dotenv>=1.0
