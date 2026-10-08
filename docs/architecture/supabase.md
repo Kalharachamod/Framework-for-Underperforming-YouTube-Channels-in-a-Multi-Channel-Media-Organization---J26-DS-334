@@ -106,7 +106,7 @@ Use the **Session pooler** string (port 5432). It works on IPv4 networks and sup
 
 ### 3. Create or update the tables
 
-Migrations: `0001_research_schema` (tables), `0002_channel_description_published` (schema 1.1 channel fields). Run the command again after pulling new migrations.
+Migrations: `0001_research_schema` (tables), `0002_channel_description_published` (schema 1.1 channel fields), `0003_video_duration` (schema 1.2 `videos.duration_seconds`). Run the command again after pulling new migrations.
 ```powershell
 python -m shared.database.migrate status   # what is applied / pending
 python -m shared.database.migrate          # apply pending migrations (safe to re-run)
@@ -181,6 +181,56 @@ python -m shared.data_collection.channel_collector --group owned
 Invalid records are never stored. The exit code is `0` when every channel succeeded, `1` when some failed, and `2` for configuration problems.
 
 Channel data is only the foundation. It says nothing about audience movement, subscriptions, identity or causality.
+
+## Video collector
+
+`python -m shared.data_collection.video_collector` collects the videos of the configured channels into `research.videos`. It uses the same `config/research_channels.json` groups.
+
+```powershell
+python -m shared.data_collection.video_collector --dry-run            # fetch + validate, store nothing
+python -m shared.data_collection.video_collector                      # 50 newest videos per channel
+python -m shared.data_collection.video_collector --max-videos 10 --group owned
+python -m shared.data_collection.video_collector --since 2026-09-01   # stop at older videos
+```
+
+**Run the channel collector first.** Videos are only collected for channels already in `research.channels`. Any other channel is reported as `channel_not_stored` and costs no quota, so no orphan videos are created.
+
+**API strategy (never `search.list`):**
+
+| Step | Call | Cost |
+|---|---|---|
+| Find each channel's uploads playlist | `channels.list` (`contentDetails`) | 1 unit per 50 channels |
+| List video IDs, newest first | `playlistItems.list`, paginated | 1 unit per 50 videos |
+| Fetch metadata and statistics | `videos.list` (`snippet,statistics,contentDetails`), batches of 50 | 1 unit per 50 videos |
+
+For example, 60 channels × 50 videos costs about 2 + 60 + 60 = **~120 units**.
+
+**Pagination:**
+- Follows `nextPageToken` until the last page, `--max-videos`, or the first video older than `--since`.
+- A repeated page token, or more than 200 pages, stops that channel with `pagination_error`, so it can never loop.
+- A missing or empty uploads playlist means 0 videos.
+
+**What it stores:**
+- Title, description, tags, `published_at` (YouTube's time) and `duration_seconds`.
+- View, like and comment counts. Hidden likes and disabled comments are stored as `NULL`, not 0.
+- `collected_at` (our time).
+- Earlier counts stay in `video_stats_history`.
+
+**Repeat runs:**
+- A new video is **inserted**; a known video is **updated**, split into values changed and refreshed only.
+- No duplicates are created.
+
+**Failures:**
+- **Per channel:** `invalid_id`, `channel_not_stored`, `not_found`, `no_uploads_playlist`, `pagination_error`, `api_error`.
+- **Per video:**
+  - `unavailable` (private or deleted)
+  - `validation_error` (not stored)
+  - `channel_mismatch`
+  - `api_error`
+  - `storage_error`
+- `quota_exceeded` and `auth_error` stop the run, and the remaining channels are skipped.
+
+One channel's failure never affects another's results.
 
 ## Tests
 
