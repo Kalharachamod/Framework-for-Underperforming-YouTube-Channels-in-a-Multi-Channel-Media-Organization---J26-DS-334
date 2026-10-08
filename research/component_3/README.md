@@ -14,6 +14,7 @@ Owner: Koonara K M K C (IT23200760)
 - `preprocessing/research_dataset.py`: research snapshot → DuckDB → validation → research-ready datasets (commenter participation, channel-pair overlap). See [docs/architecture/research_dataset.md](../../docs/architecture/research_dataset.md).
 - `preprocessing/hetero_graph.py`: heterogeneous commenter–video–channel(–topic) graph from a research-ready snapshot (Parquet nodes/edges + manifest). See [docs/architecture/hetero_graph.md](../../docs/architecture/hetero_graph.md).
 - `preprocessing/graph_features.py`: descriptive node / edge / channel-pair features and transparent `ln(1 + comments)` edge weights, computed as of a reference time (no leakage). See [docs/architecture/graph_features.md](../../docs/architecture/graph_features.md).
+- `model/metapath2vec.py`: primary representation learning (meta-path-guided walks + skip-gram), reproducible node embeddings. See [docs/architecture/metapath2vec.md](../../docs/architecture/metapath2vec.md).
 
 ## Folders
 `preprocessing/` · `model/` · `evaluation/` · `notebooks/` · `results/` (git-ignored)
