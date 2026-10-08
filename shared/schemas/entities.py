@@ -56,6 +56,8 @@ class Video(ResearchRecord):
     like_count: Count | None = None  # None when likes are hidden
     comment_count: Count | None = None  # None when comments are disabled
     collected_at: UtcDatetime
+    # Added in schema 1.2 (optional): length in seconds; 0 for live / upcoming streams.
+    duration_seconds: Count | None = None
 
     DTYPES = {
         "video_id": STRING,
@@ -68,6 +70,7 @@ class Video(ResearchRecord):
         "like_count": INT,
         "comment_count": INT,
         "collected_at": TIMESTAMP,
+        "duration_seconds": INT,
     }
 
 

@@ -1,6 +1,6 @@
 # Shared Research Data Schemas
 
-Schema version: **1.1** (`shared.schemas.SCHEMA_VERSION`). 1.1 added the optional `Channel.description` and `Channel.published_at`.
+Schema version: **1.2** (`shared.schemas.SCHEMA_VERSION`). 1.1 added the optional `Channel.description` and `Channel.published_at`; 1.2 added the optional `Video.duration_seconds`.
 Code: [`shared/schemas/`](../../shared/schemas/) · Tests: [`tests/shared/test_schemas.py`](../../tests/shared/test_schemas.py)
 
 These are **shared research schemas**: they define what a channel, video or comment record looks like and reject obviously invalid data. They are **not research algorithms**. They contain no scoring, prediction, topic modelling, graph or privacy logic.
@@ -63,6 +63,7 @@ The schemas do not depend on the YouTube API client. A collector builds them fro
 | `view_count` | int ≥ 0 | no | |
 | `like_count` | int ≥ 0 | no | `None` when likes are hidden |
 | `comment_count` | int ≥ 0 | no | `None` when comments are disabled |
+| `duration_seconds` | int ≥ 0 | no | video length (1.2); 0 for live or upcoming streams |
 | `collected_at` | UTC timestamp | yes | |
 
 ## Comment
