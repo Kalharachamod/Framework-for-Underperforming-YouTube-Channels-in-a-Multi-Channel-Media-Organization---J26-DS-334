@@ -9,7 +9,8 @@ Data validation and quality checks implemented in STEP 07 (`shared/utils/quality
 YouTube Data API v3 client implemented in STEP 08 (`shared/data_collection/youtube_client.py`, see [youtube_api.md](youtube_api.md)).
 Commenter pseudonymization implemented (`shared/utils/privacy.py`, see [privacy.md](privacy.md)).
 Component 3 research-data preparation implemented in STEP 12 (research snapshots + `research/component_3/preprocessing/`, see [research_dataset.md](research_dataset.md)).
-**Not implemented yet:** component research methods (graph construction, embeddings, diffusion, scoring).
+Component 3 heterogeneous graph construction implemented in STEP 13 (see [hetero_graph.md](hetero_graph.md)).
+**Not implemented yet:** component research methods (embeddings, diffusion, topic modelling, scoring).
 
 ## Purpose
 

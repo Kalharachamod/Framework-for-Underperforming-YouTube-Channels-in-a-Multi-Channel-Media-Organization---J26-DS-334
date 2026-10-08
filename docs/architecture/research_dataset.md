@@ -19,7 +19,7 @@ Validation               STEP 07 quality checks + research-level checks  →  _r
         ▼
 Research-ready dataset   data/processed/component_3/<snapshot_id>/*.parquet
         ▼
-Future graph construction (later steps)
+Heterogeneous graph      see hetero_graph.md (STEP 13)
 ```
 
 | Layer | Role here |
