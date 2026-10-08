@@ -23,7 +23,8 @@ author_channel_id  "UC…"  →  "anon_" + HMAC-SHA256(COMMENTER_HASH_SALT, "UC�
 API response → collector → Comment schema (raw id, in memory only) → store_records → pseudonymize → Parquet
 ```
 
-- `store_records("comments", ...)` pseudonymizes every `author_channel_id` before writing. **Raw commenter IDs never reach Parquet, snapshots or DuckDB**, whichever code calls it.
+- The comment collector pseudonymizes commenter IDs **as soon as it parses an API response**. Display names and profile images are never read, and raw IDs never appear in results or logs.
+- `store_records("comments", ...)` and the Supabase repository pseudonymize every `author_channel_id` before writing. **Raw commenter IDs never reach Parquet, snapshots or DuckDB**, whichever code calls it.
 - The schema stays a plain data definition; privacy processing is a separate module.
 - Already-pseudonymized values are left unchanged, so re-runs are safe and never double-hashed.
 - A missing `author_channel_id` stays missing; nothing is invented.

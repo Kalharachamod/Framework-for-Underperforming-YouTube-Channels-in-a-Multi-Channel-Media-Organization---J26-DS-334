@@ -106,7 +106,7 @@ Use the **Session pooler** string (port 5432). It works on IPv4 networks and sup
 
 ### 3. Create or update the tables
 
-Migrations: `0001_research_schema` (tables), `0002_channel_description_published` (schema 1.1 channel fields), `0003_video_duration` (schema 1.2 `videos.duration_seconds`). Run the command again after pulling new migrations.
+Migrations: `0001_research_schema` (tables), `0002_channel_description_published` (schema 1.1 channel fields), `0003_video_duration` (schema 1.2 `videos.duration_seconds`), `0004_comment_replies` (schema 1.3 `comments.parent_comment_id`, `edited_at`). Run the command again after pulling new migrations.
 ```powershell
 python -m shared.database.migrate status   # what is applied / pending
 python -m shared.database.migrate          # apply pending migrations (safe to re-run)
@@ -231,6 +231,59 @@ For example, 60 channels × 50 videos costs about 2 + 60 + 60 = **~120 units**.
 - `quota_exceeded` and `auth_error` stop the run, and the remaining channels are skipped.
 
 One channel's failure never affects another's results.
+
+## Comment collector
+
+`python -m shared.data_collection.comment_collector` collects comments of the **videos already stored** in `research.videos`. It never discovers videos itself.
+
+```powershell
+python -m shared.data_collection.comment_collector --dry-run          # fetch + validate, store nothing
+python -m shared.data_collection.comment_collector                    # videos of all configured groups
+python -m shared.data_collection.comment_collector --group owned --max-threads 50
+python -m shared.data_collection.comment_collector --video VIDEO_ID   # selected videos (repeatable)
+python -m shared.data_collection.comment_collector --new-only         # only videos without stored comments
+python -m shared.data_collection.comment_collector --incremental      # stop at threads already stored
+```
+
+**Run order:** channel collector → video collector → comment collector.
+
+**API strategy (never `search.list`):**
+
+| Call | When | Cost |
+|---|---|---|
+| `commentThreads.list` (`snippet,replies`, `order=time`, plain text, 100 threads per page) | Every video, paginated up to `--max-threads` (default 100) | 1 unit per page |
+| `comments.list` (`parentId`) | Only when a thread has more replies than the up to 5 that YouTube embeds | 1 unit per 100 replies |
+
+**Quota savings:**
+- Videos whose stored `comment_count` is 0 are skipped without any API call.
+- `--no-extra-replies` keeps only the embedded replies.
+- `--incremental` stops paging once it reaches threads that are already stored. New replies on old threads are then missed until a full run.
+
+**Replies:** top-level comments have `parent_comment_id = NULL`, and replies point to their thread. Each comment is stored once, even if it appears in both the embedded replies and `comments.list`. Replies of an invalid parent aren't stored, so there are no orphan replies.
+
+**Privacy:**
+- Commenter channel IDs are turned into pseudonyms (`anon_` + HMAC-SHA256 with `COMMENTER_HASH_SALT`) **as soon as they're parsed**.
+- The same commenter always gets the same pseudonym across videos, channels and runs, given the same salt. That's what makes cross-channel overlap detectable.
+- Raw IDs, display names and profile images are never stored, logged or returned.
+- Without a valid salt the collector stops **before any API call**.
+- A pseudonym is an interaction signal only. It doesn't prove identity, subscription, audience migration, influence or causality.
+
+**Repeat runs:**
+- A new comment is **inserted**.
+- A known comment is **updated**: changed text (`edited_at`) or like count counts as "values changed", otherwise "refreshed only". There are never duplicates.
+- `published_at` is YouTube's posting time and is never replaced by `collected_at`.
+
+**Expected vs unexpected:**
+- **Expected, not errors:**
+  - videos with **disabled comments** (`commentsDisabled`) are reported as "comments disabled"
+  - deleted comments simply aren't returned by the API
+- **Errors, per video:**
+  - `video_unavailable` (404)
+  - `api_error` (400, 403, 429, 5xx, network, malformed)
+  - `pagination_error`
+  - `replies_api_error` (the embedded replies are kept)
+- **Errors, per comment:** `validation_error` (not stored), `video_mismatch`, `storage_error`.
+- **Stops the run:** quota exhausted or an authentication failure.
 
 ## Tests
 
