@@ -10,6 +10,9 @@ pydantic>=2.7
 # Configuration
 python-dotenv>=1.0
 
+# Shared online research database (Supabase PostgreSQL)
+psycopg[binary]>=3.2
+
 # YouTube Data API v3: accessed over HTTPS with the standard library (shared/data_collection/youtube_client.py)
 
 # Testing

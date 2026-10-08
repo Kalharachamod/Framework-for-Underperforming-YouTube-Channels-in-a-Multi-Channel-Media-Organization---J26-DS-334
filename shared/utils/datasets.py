@@ -137,7 +137,18 @@ def store_records(dataset: str, records: Iterable[ResearchRecord | Mapping[str, 
 
 
 def _validated_frame(spec: DatasetSpec, records: Iterable[ResearchRecord | Mapping[str, Any]]) -> pd.DataFrame:
-    """Validate, drop exact repeats, and reject conflicting versions of one observation."""
+    return to_dataframe(validate_records(spec.name, records), spec.model)
+
+
+def validate_records(
+    dataset: str, records: Iterable[ResearchRecord | Mapping[str, Any]]
+) -> list[ResearchRecord]:
+    """Validate records against the schema, pseudonymize commenter ids, drop exact
+    repeats and reject conflicting versions of one observation (same id + collected_at).
+
+    Shared by Parquet storage and the Supabase database layer.
+    """
+    spec = get_spec(dataset)
     unique: dict[tuple[str, str], ResearchRecord] = {}
     conflicts: set[str] = set()
     for record in records:
@@ -155,7 +166,7 @@ def _validated_frame(spec: DatasetSpec, records: Iterable[ResearchRecord | Mappi
         raise DuplicateRecordError(
             f"{spec.name}: different records share the same {spec.key} and collected_at: {sorted(conflicts)}"
         )
-    return to_dataframe(unique.values(), spec.model)
+    return list(unique.values())
 
 
 def _pseudonymize(record: ResearchRecord) -> ResearchRecord:
@@ -200,6 +211,30 @@ def _upsert_latest(
 
     write_dataset(latest, path, overwrite=True)
     return path, inserted, updated
+
+
+def write_snapshot_records(
+    dataset: str, records: Iterable[ResearchRecord | Mapping[str, Any]]
+) -> StoreSummary:
+    """Add records to their snapshot day files only (not the local latest table).
+
+    Used to build Parquet snapshots from the Supabase database. Sealed days are
+    refused exactly as in ``store_records``.
+    """
+    spec = get_spec(dataset)
+    batch = _validated_frame(spec, records)
+    summary = StoreSummary(dataset=spec.name, received=len(batch))
+    if batch.empty:
+        return summary
+    snap_dates = batch[COLLECTED_AT].dt.strftime("%Y-%m-%d")
+    sealed = sorted(day for day in snap_dates.unique() if is_sealed(day))
+    if sealed:
+        raise SnapshotImmutableError(f"{spec.name}: snapshot(s) {sealed} are sealed and cannot be changed")
+    for day, rows in batch.groupby(snap_dates, sort=True):
+        path, added = _append_snapshot(spec, snapshot_path(spec.name, day), rows)
+        summary.snapshot_files.append(path)
+        summary.snapshot_rows_added += added
+    return summary
 
 
 # --- reading -------------------------------------------------------------------

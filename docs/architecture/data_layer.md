@@ -1,6 +1,6 @@
 # Shared Research Data Layer
 
-Status: **storage infrastructure implemented** (STEP 02): data-path configuration, Parquet storage and DuckDB query utilities in `shared/utils/`, with tests in `tests/shared/`.
+Status: **shared database + storage infrastructure implemented**. Supabase PostgreSQL (STEP 08.5, [supabase.md](supabase.md)); Parquet + DuckDB (STEP 02): data-path configuration, Parquet storage and DuckDB query utilities in `shared/utils/`, with tests in `tests/shared/`.
 Shared schemas implemented in STEP 03 (`shared/schemas/`, see [schemas.md](schemas.md)).
 Schema → Parquet dataset storage implemented in STEP 04 (`shared/utils/datasets.py`, see [dataset_storage.md](dataset_storage.md)).
 DuckDB analytical query layer implemented in STEP 05 (`shared/utils/analytics.py`, see [analytics.md](analytics.md)).
@@ -23,25 +23,25 @@ YouTube Data API v3          external source (public data only)
 Collection Pipeline          shared/data_collection/ — periodic, incremental collection (future)
         │
         ▼
-Raw Data                     data/raw/ — API responses as received, never edited
+Supabase PostgreSQL          shared online CURRENT dataset for all four researchers (see supabase.md)
+        │  export_snapshot_day + create_snapshot
+        ▼
+Parquet snapshots            data/snapshots/<day>/ — sealed, immutable historical datasets
         │
         ▼
-Parquet                      data/snapshots/ — normalised tables, one partition per snapshot
-        │
-        ▼
-DuckDB                       analytical query engine over the Parquet files (not the source of truth)
-        │
-        ▼
-Shared Research Data         common tables / views defined in shared/schemas/
+DuckDB                       analytical query engine over Parquet (not a storage system)
         │
         ▼
 Research Components          C1 · C2 · C3 · C4  →  data/processed/component_N/
 ```
 
+**Roles:** Supabase = shared current state · Parquet snapshots = reproducible history (the experiment inputs) · DuckDB = analysis. Details and rationale: [supabase.md](supabase.md).
+
 | Layer | Location | Format | Written by | Notes |
 |---|---|---|---|---|
 | Raw | `data/raw/` | API responses (e.g. JSON Lines) | Collection pipeline | Immutable, append-only; kept for re-processing and audit |
-| Snapshots | `data/snapshots/<YYYY-MM-DD>/` | Parquet, one folder per UTC date of `collected_at` | `store_records` | Every observation; the single source of truth for research |
+| Shared database | Supabase PostgreSQL (`research` schema) | PostgreSQL | `shared.database.repository` | Current state shared by the team + metric history |
+| Snapshots | `data/snapshots/<YYYY-MM-DD>/` | Parquet, one folder per UTC date of `collected_at` | `export_snapshot_day` (from Supabase) or `store_records` (local) | Every observation of that day; sealed snapshots are the reproducible experiment inputs |
 | Query engine | `DUCKDB_PATH` (default `data/research.duckdb`) | DuckDB | Rebuilt from Parquet | Holds views only; safe to delete and rebuild |
 | Features | `data/features/` | Parquet | Feature-engineering steps | Model-ready features derived from snapshots |
 | Latest datasets | `data/processed/<dataset>.parquet` | Parquet | `store_records` | One row per ID (newest `collected_at`) for channels, videos, comments |
@@ -49,7 +49,9 @@ Research Components          C1 · C2 · C3 · C4  →  data/processed/component
 
 All of `data/` and `*.duckdb` are git-ignored.
 
-## Parquet is the source of truth; DuckDB is the query engine
+## Parquet snapshots are the experiment source of truth; DuckDB is the query engine
+
+Supabase holds the shared *current* data; the tables below compare the two analysis-side formats.
 
 | | Parquet | DuckDB |
 |---|---|---|

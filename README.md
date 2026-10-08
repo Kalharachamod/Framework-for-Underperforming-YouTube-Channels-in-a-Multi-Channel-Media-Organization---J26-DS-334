@@ -14,6 +14,8 @@ Project ID: **J26-DS-334**
 ![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)
 ![React](https://img.shields.io/badge/React-Dashboard-61DAFB?style=flat-square&logo=react&logoColor=black)
 ![YouTube API](https://img.shields.io/badge/YouTube-Data%20API%20v3-FF0000?style=flat-square&logo=youtube&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3FCF8E?style=flat-square&logo=supabase&logoColor=white)
+![DuckDB](https://img.shields.io/badge/DuckDB-Parquet-FFF000?style=flat-square&logo=duckdb&logoColor=black)
 
 [Overview](#overview) &nbsp;·&nbsp;
 [Architecture](#system-architecture) &nbsp;·&nbsp;
@@ -72,11 +74,13 @@ The results are combined into **explainable recommendations** on a decision-supp
 
 ```mermaid
 flowchart LR
-    A[(YouTube Data API v3)] --> B[Shared Data Collection<br/>weekly snapshots · hashed IDs]
-    B --> C1[C1 · Growth Opportunity<br/>Prediction]
-    B --> C2[C2 · Audience Demand<br/>and Content Gap]
-    B --> C3[C3 · Audience Bridge<br/>Scoring]
-    B --> C4[C4 · Emerging Topic<br/>Detection]
+    A[(YouTube Data API v3)] --> B[Shared Data Collection<br/>pseudonymized commenter IDs]
+    B --> SB[(Supabase PostgreSQL<br/>shared current data)]
+    SB --> P[Parquet snapshots<br/>+ DuckDB analysis]
+    P --> C1[C1 · Growth Opportunity<br/>Prediction]
+    P --> C2[C2 · Audience Demand<br/>and Content Gap]
+    P --> C3[C3 · Audience Bridge<br/>Scoring]
+    P --> C4[C4 · Emerging Topic<br/>Detection]
     C2 --> C3
     C1 & C2 & C3 & C4 --> E{{Growth Intelligence Engine<br/>fusion · confidence · explainability}}
     E --> API[Backend API]
@@ -247,9 +251,15 @@ cp .env.example .env          # Windows PowerShell: Copy-Item .env.example .env
 |---|---|
 | `YOUTUBE_API_KEY` | YouTube Data API v3 key (setup: [docs/architecture/youtube_api.md](docs/architecture/youtube_api.md)) |
 | `COMMENTER_HASH_SALT` | Secret salt for hashing commenter IDs (shared within the team, never committed) |
+| `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_DB_URL` | Shared Supabase database (setup: [docs/architecture/supabase.md](docs/architecture/supabase.md)); `SUPABASE_DB_URL` is secret |
 | `VITE_API_URL` | Backend URL for the dashboard (default `http://localhost:8000`) |
 
-**4. Run the tests**
+**4. Create the shared database tables** (once Supabase is configured)
+```bash
+python -m shared.database.migrate
+```
+
+**5. Run the tests**
 ```bash
 python -m pytest
 ```
