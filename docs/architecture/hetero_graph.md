@@ -50,6 +50,7 @@ All nodes share one table, `graph_nodes`, with `node_id`, `node_type`, `key` (th
 - `participates_in` is **derived** from `comments` + `belongs_to`, using the video's channel. It's marked `derived = true` and isn't an independent behavioural event.
 - To avoid double counting, algorithms that walk commenter → video → channel should leave it out: `to_networkx(include_derived=False)`.
 - No confidence weighting, topic similarity or PageRank is applied. These are transparent baseline weights.
+- Features and `ln(1 + comment_count)` interaction weights are added by STEP 14 ([graph_features.md](graph_features.md)).
 
 ## Artifact (serialization)
 
