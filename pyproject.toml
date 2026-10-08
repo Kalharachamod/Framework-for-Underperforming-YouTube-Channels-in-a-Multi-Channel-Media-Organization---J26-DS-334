@@ -9,7 +9,7 @@ description = "J26-DS-334 Growth Intelligence Framework (SLIIT research project)
 requires-python = ">=3.10"
 
 [tool.setuptools.packages.find]
-include = ["shared*"]
+include = ["shared*", "research*"]
 
 [tool.setuptools.package-data]
 "shared.database" = ["migrations/*.sql"]
