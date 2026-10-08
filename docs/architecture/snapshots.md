@@ -136,6 +136,10 @@ A snapshot holds only what was **collected that day**. A video not re-collected 
 
 Re-sealing records a new `created_at`. Note any deliberate correction in your experiment log, because results computed before the correction used the old data.
 
+## Research snapshots (full current state)
+
+For research input, a **research snapshot** freezes the *full* current dataset from Supabase at one consistent extraction point, under `data/snapshots/research/rs-<timestamp>/`. It uses the same manifest and checksums, is written once, and isn't part of the day history. See [research_dataset.md](research_dataset.md).
+
 ## Research-ready snapshots
 
 Sealing checks structure. Quality checks (relationships, duplicates, timestamps, metrics) are run separately:

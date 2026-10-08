@@ -14,6 +14,11 @@ Life cycle:
 
 The manifest is written last and atomically, so a failure part-way never leaves
 a snapshot that looks complete.
+
+Research snapshots (same manifest format, checksums and immutability) freeze the
+FULL current dataset at one extraction point, e.g. from Supabase:
+``data/snapshots/research/rs-<YYYYMMDDTHHMMSSZ>/``. They are written once, never
+modified, and are not part of the day-snapshot history views.
 """
 
 from __future__ import annotations
@@ -22,7 +27,8 @@ import hashlib
 import json
 import os
 import re
-from collections.abc import Iterator, Sequence
+import shutil
+from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
@@ -42,7 +48,8 @@ from shared.utils.datasets import (
     snapshot_path,
 )
 from shared.utils.duckdb_query import MEMORY, duckdb_connection
-from shared.utils.parquet_io import DatasetNotFoundError, DatasetReadError, SchemaError, read_dataset
+from shared.utils import privacy
+from shared.utils.parquet_io import DatasetNotFoundError, DatasetReadError, SchemaError, read_dataset, write_dataset
 from shared.utils.paths import get_data_paths, snapshot_dir
 
 MANIFEST_VERSION = 1
@@ -395,3 +402,142 @@ def _write_json_atomic(path: Path, data: dict[str, Any]) -> None:
         os.replace(tmp, path)
     finally:
         tmp.unlink(missing_ok=True)
+
+
+# --- research snapshots (full current state at one extraction point) ---------------------
+
+RESEARCH_DIR = "research"
+_RESEARCH_ID = re.compile(r"^rs-\d{8}T\d{6}Z$")
+
+
+@dataclass(frozen=True)
+class ResearchSnapshotInfo:
+    snapshot_id: str
+    path: Path
+    created_at: datetime
+    source: str
+    row_counts: dict[str, int]
+    manifest: dict[str, Any]
+
+
+def research_snapshots_root() -> Path:
+    return get_data_paths().snapshots / RESEARCH_DIR
+
+
+def research_snapshot_dir(snapshot_id: str) -> Path:
+    if not isinstance(snapshot_id, str) or not _RESEARCH_ID.fullmatch(snapshot_id):
+        raise ValueError(f"invalid research snapshot id {snapshot_id!r}; expected rs-YYYYMMDDTHHMMSSZ")
+    return research_snapshots_root() / snapshot_id
+
+
+def research_dataset_path(snapshot_id: str, dataset: str) -> Path:
+    return research_snapshot_dir(snapshot_id) / f"{get_spec(dataset).name}.parquet"
+
+
+def create_research_snapshot(
+    frames: Mapping[str, pd.DataFrame],
+    *,
+    source: str,
+    extracted_at: datetime | None = None,
+    details: Mapping[str, Any] | None = None,
+) -> ResearchSnapshotInfo:
+    """Freeze full datasets (channels, videos, comments) as an immutable research snapshot.
+
+    Frames must have exactly the schema columns. Data is stored as given (not
+    deduplicated or repaired) so problems stay visible to validation, with one
+    exception: raw commenter ids are refused (privacy), and nothing is written.
+    Files are written to a staging folder that is renamed into place only when
+    complete, so a failure never leaves a partial snapshot.
+    """
+    if not _SOURCE.match(source or ""):
+        raise ValueError(f"source must be a short lowercase identifier, got {source!r}")
+    if set(frames) != set(DATASETS):
+        raise ValueError(f"a research snapshot needs exactly {list(DATASETS)}, got {sorted(frames)}")
+    for name, df in frames.items():
+        expected = list(get_spec(name).model.DTYPES)
+        if list(df.columns) != expected:
+            raise SchemaError(f"{name}: columns {list(df.columns)} do not match the schema {expected}")
+    authors = frames["comments"]["author_channel_id"].dropna()
+    raw = sum(1 for a in authors if not privacy.is_pseudonymized(a))
+    if raw:
+        raise privacy.PrivacyConfigError(
+            f"{raw} comment(s) carry commenter ids that are not pseudonyms; refusing to write a research snapshot")
+
+    created = _utcnow()
+    sid = "rs-" + created.strftime("%Y%m%dT%H%M%SZ")
+    target = research_snapshot_dir(sid)
+    if target.exists():
+        raise SnapshotExistsError(f"research snapshot {sid} already exists")
+    staging = target.with_name(f".{sid}.staging")
+    shutil.rmtree(staging, ignore_errors=True)
+    try:
+        datasets_meta = {}
+        for name in DATASETS:
+            path = write_dataset(frames[name], staging / f"{name}.parquet")
+            datasets_meta[name] = _dataset_metadata(get_spec(name), frames[name], path)
+        manifest = {
+            "manifest_version": MANIFEST_VERSION,
+            "kind": "research",
+            "snapshot_id": sid,
+            "created_at": _iso(pd.Timestamp(created)),
+            "extracted_at": _iso(pd.Timestamp(extracted_at)) if extracted_at else None,
+            "source": source,
+            "details": dict(details or {}),
+            "schema_version": SCHEMA_VERSION,
+            "storage_format": "parquet",
+            "datasets": datasets_meta,
+        }
+        _write_json_atomic(staging / MANIFEST_NAME, manifest)
+        os.replace(staging, target)
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+    return get_research_snapshot(sid)
+
+
+def list_research_snapshots() -> list[ResearchSnapshotInfo]:
+    """Complete research snapshots, oldest first (folders without a manifest are ignored)."""
+    root = research_snapshots_root()
+    if not root.is_dir():
+        return []
+    infos = []
+    for p in sorted(root.iterdir()):
+        if p.is_dir() and _RESEARCH_ID.fullmatch(p.name) and (p / MANIFEST_NAME).is_file():
+            infos.append(get_research_snapshot(p.name))
+    return infos
+
+
+def latest_research_snapshot() -> ResearchSnapshotInfo:
+    snaps = list_research_snapshots()
+    if not snaps:
+        raise SnapshotNotFoundError("no research snapshot exists yet; create one with export_research_snapshot()")
+    return snaps[-1]
+
+
+def get_research_snapshot(snapshot_id: str) -> ResearchSnapshotInfo:
+    folder = research_snapshot_dir(snapshot_id)
+    path = folder / MANIFEST_NAME
+    if not path.is_file():
+        raise SnapshotNotFoundError(f"research snapshot {snapshot_id} does not exist")
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    return ResearchSnapshotInfo(
+        snapshot_id=snapshot_id, path=folder,
+        created_at=datetime.fromisoformat(manifest["created_at"].replace("Z", "+00:00")),
+        source=manifest["source"],
+        row_counts={n: int(m["rows"]) for n, m in manifest["datasets"].items()},
+        manifest=manifest,
+    )
+
+
+def verify_research_snapshot(snapshot_id: str) -> ValidationReport:
+    """Check every file against the manifest checksum (detects any change after creation)."""
+    info = get_research_snapshot(snapshot_id)
+    report = ValidationReport(snapshot_id)
+    for name, meta in info.manifest["datasets"].items():
+        path = info.path / meta["file"]
+        if not path.is_file():
+            report.errors.append(f"{name}: file missing")
+        elif _sha256(path) != meta["sha256"]:
+            report.errors.append(f"{name}: file changed after the snapshot was created (checksum mismatch)")
+        else:
+            report.datasets[name] = meta
+    return report
