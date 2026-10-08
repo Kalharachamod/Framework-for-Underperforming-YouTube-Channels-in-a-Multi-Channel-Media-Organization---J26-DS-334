@@ -225,7 +225,8 @@ def test_save_and_reload(result):
     assert loaded.nodes["node_id"].tolist() == result.nodes["node_id"].tolist()
     np.testing.assert_allclose(loaded.vectors, result.vectors)
     table = pd.read_parquet(path / "embeddings.parquet")
-    assert list(table.columns) == ["node_id", "node_type", "snapshot_id", "experiment_id", "embedding"]
+    assert list(table.columns) == ["node_id", "node_type", "snapshot_id", "experiment_id", "model_type", "embedding"]
+    assert set(table["model_type"]) == {"metapath2vec"}
     assert set(table["experiment_id"]) == {result.experiment_id} and len(table["embedding"][0]) == 8
     meta = json.loads((path / "experiment.json").read_text(encoding="utf-8"))
     assert meta["config"]["seed"] == 7

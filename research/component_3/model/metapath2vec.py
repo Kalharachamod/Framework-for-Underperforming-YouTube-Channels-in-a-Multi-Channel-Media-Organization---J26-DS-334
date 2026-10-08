@@ -368,8 +368,14 @@ def embeddings_dir(snapshot_id: str, experiment_id: str) -> Path:
     return hg.graph_dir(snapshot_id).parent / EMBEDDINGS_DIR / experiment_id
 
 
-def save_embeddings(result: EmbeddingResult, directory: Path | None = None) -> Path:
-    """Write once. Re-saving the same experiment is accepted if the vectors match (tolerance 1e-6)."""
+def save_embeddings(result: EmbeddingResult, directory: Path | None = None, *,
+                    extra_files: dict[str, Any] | None = None) -> Path:
+    """Write once. Re-saving the same experiment is accepted if the vectors match (tolerance 1e-6).
+
+    Shared by all Component 3 embedding methods (``model_type`` column from the
+    metadata's ``method``). ``extra_files`` maps a file name to a function that
+    writes it (e.g. a model checkpoint); they are written in the same atomic step.
+    """
     target = directory or embeddings_dir(result.snapshot_id, result.experiment_id)
     if (target / "experiment.json").is_file():
         existing = load_embeddings(target)
@@ -381,10 +387,13 @@ def save_embeddings(result: EmbeddingResult, directory: Path | None = None) -> P
     staging = target.with_name(f".{target.name}.staging")
     table = result.nodes.assign(
         snapshot_id=result.snapshot_id, experiment_id=result.experiment_id,
+        model_type=result.metadata.get("method", METHOD),
         embedding=pd.Series([v.astype(np.float64).tolist() for v in result.vectors],
                             dtype=pd.ArrowDtype(pa.list_(pa.float64()))))
     write_dataset(table, staging / "embeddings.parquet", overwrite=True)
     np.save(staging / "embeddings.npy", result.vectors)
+    for name, writer in (extra_files or {}).items():
+        writer(staging / name)
     meta = {**result.metadata, "row_order": "embeddings.npy rows follow embeddings.parquet rows",
             "vectors_sha256": hashlib.sha256(result.vectors.tobytes()).hexdigest()}
     (staging / "experiment.json").write_text(json.dumps(meta, indent=2, default=str) + "\n", encoding="utf-8")
@@ -402,7 +411,7 @@ def load_embeddings(directory: Path) -> EmbeddingResult:
     from_table = np.array([list(v) for v in table["embedding"]], dtype=np.float32) if len(table) else vectors
     if from_table.shape != vectors.shape or not np.allclose(from_table, vectors, atol=1e-6):
         raise EmbeddingValidationError(["embeddings.parquet and embeddings.npy disagree"])
-    nodes = table[["node_id", "node_type"]].astype("string").reset_index(drop=True)
+    nodes = table[["node_id", "node_type"]].astype("string").reset_index(drop=True)  # model_type kept in metadata
     return EmbeddingResult(meta["snapshot_id"], meta["experiment_id"], nodes, vectors, meta)
 
 
