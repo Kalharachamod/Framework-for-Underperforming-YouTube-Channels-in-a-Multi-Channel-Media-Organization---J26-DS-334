@@ -12,7 +12,7 @@ Heterogeneous graph → graph features → [metapath2vec] → node embeddings
 
 The graph is **heterogeneous**: commenters, videos and channels mean different things. Ordinary (homogeneous) random walks ignore those types. metapath2vec instead restricts walks to **meta-paths**, typed patterns such as commenter → video → commenter. It then learns embeddings with skip-gram, so nodes that occur in similar typed contexts get similar vectors.
 
-It's the proposal's **primary** representation method. HGT is a later alternative, and node2vec and Louvain are later baselines. The code is kept isolated so they can be compared fairly.
+It's the proposal's **primary** representation method. HGT ([hgt.md](hgt.md)) is the alternative, and node2vec and Louvain are later baselines. The code is kept isolated so they can be compared fairly.
 
 metapath2vec itself isn't the research novelty. The contribution is the full framework: heterogeneous audience and content graph + type-aware representation + diffusion + topic similarity + confidence weighting → **Audience Bridge Score**.
 

@@ -12,7 +12,8 @@ Component 3 research-data preparation implemented in STEP 12 (research snapshots
 Component 3 heterogeneous graph construction implemented in STEP 13 (see [hetero_graph.md](hetero_graph.md)).
 Component 3 graph features and edge weighting implemented in STEP 14 (see [graph_features.md](graph_features.md)).
 Component 3 metapath2vec embeddings implemented in STEP 15 (see [metapath2vec.md](metapath2vec.md)).
-**Not implemented yet:** HGT, diffusion (Personalized PageRank), topic modelling, confidence weighting, Audience Bridge Score, baselines.
+Component 3 HGT alternative embeddings implemented in STEP 16 (see [hgt.md](hgt.md)).
+**Not implemented yet:** diffusion (Personalized PageRank), topic modelling, confidence weighting, Audience Bridge Score, baselines.
 
 ## Purpose
 
