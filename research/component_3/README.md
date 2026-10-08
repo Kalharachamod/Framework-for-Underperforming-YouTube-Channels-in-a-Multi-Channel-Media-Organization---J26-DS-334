@@ -10,5 +10,8 @@ Owner: Koonara K M K C (IT23200760)
 - Audience Bridge Score: diffusion + topic similarity + confidence weighting, with explanations
 - Baselines: Louvain, node2vec; weekly snapshot recomputation
 
+## Implemented
+- `preprocessing/research_dataset.py`: research snapshot → DuckDB → validation → research-ready datasets (commenter participation, channel-pair overlap). See [docs/architecture/research_dataset.md](../../docs/architecture/research_dataset.md).
+
 ## Folders
 `preprocessing/` · `model/` · `evaluation/` · `notebooks/` · `results/` (git-ignored)
