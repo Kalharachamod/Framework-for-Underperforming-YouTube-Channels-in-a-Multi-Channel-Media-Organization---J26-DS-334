@@ -366,6 +366,15 @@ def _check_relationships(con, results: dict[str, DatasetValidation], usable: dic
                 "comment_channel_mismatch", "error", "relationship",
                 f"{n} comment(s) whose channel_id differs from their video's channel", n, ex))
 
+    if ok("comments", "comment_id", "parent_comment_id"):
+        n, ex = _count_examples(con, "comments", "comment_id", """
+            parent_comment_id IS NOT NULL
+            AND parent_comment_id NOT IN (SELECT comment_id FROM comments WHERE comment_id IS NOT NULL)""")
+        if n:
+            results["comments"].issues.append(Issue(
+                "orphan_replies", "warning", "relationship",
+                f"{n} repl(y/ies) whose parent comment is not in the comments dataset", n, ex))
+
     if ok("comments", "video_id", "published_at") and ok("videos", "video_id", "published_at"):
         n, ex = _count_examples(con, "comments", "comment_id", """
             EXISTS (SELECT 1 FROM videos v WHERE v.video_id = comments.video_id
