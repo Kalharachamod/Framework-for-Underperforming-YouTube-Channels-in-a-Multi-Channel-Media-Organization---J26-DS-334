@@ -78,14 +78,16 @@ class Comment(ResearchRecord):
     comment_id: YouTubeId
     video_id: YouTubeId
     channel_id: YouTubeId  # channel that owns the video
-    # Public platform ID of the commenter, when available. Never filled with a
-    # placeholder, and hidden from repr() so it does not leak into logs.
-    # Privacy processing (hashing) is a separate, later step.
+    # Commenter id, when available. Never filled with a placeholder and hidden from
+    # repr(). Stored only as a pseudonym (shared.utils.privacy, applied on storage).
     author_channel_id: YouTubeId | None = Field(default=None, repr=False)
     comment_text: str
     published_at: UtcDatetime
     like_count: Count | None = None
     collected_at: UtcDatetime
+    # Added in schema 1.3 (optional). None for top-level comments; replies point to their thread.
+    parent_comment_id: YouTubeId | None = None
+    edited_at: UtcDatetime | None = None  # YouTube's last-edit time (equals published_at if never edited)
 
     DTYPES = {
         "comment_id": STRING,
@@ -96,4 +98,6 @@ class Comment(ResearchRecord):
         "published_at": TIMESTAMP,
         "like_count": INT,
         "collected_at": TIMESTAMP,
+        "parent_comment_id": STRING,
+        "edited_at": TIMESTAMP,
     }

@@ -19,7 +19,8 @@ from pydantic import (
 )
 
 # Bump when a field is renamed, removed or changes type (see docs/architecture/schemas.md).
-SCHEMA_VERSION = "1.2"  # 1.1: Channel.description/published_at; 1.2: Video.duration_seconds (optional)
+SCHEMA_VERSION = "1.3"  # 1.1 Channel.description/published_at; 1.2 Video.duration_seconds;
+                        # 1.3 Comment.parent_comment_id/edited_at (all optional)
 
 
 def _reject_bool(value: Any) -> Any:
