@@ -62,6 +62,10 @@ class WriteSummary:
     inserted: int
     updated: int
     unchanged_or_older: int
+    inserted_ids: tuple[str, ...] = ()
+    updated_ids: tuple[str, ...] = ()
+    changed_ids: tuple[str, ...] = ()    # updated, and at least one value changed
+    refreshed_ids: tuple[str, ...] = ()  # updated, only collected_at moved (values identical)
 
 
 # --- writes ---------------------------------------------------------------------
@@ -165,6 +169,9 @@ def _write(conn: psycopg.Connection, dataset: str, records: Iterable, *, upsert:
     sql = _insert_sql(spec, columns, upsert)
     if not conn.autocommit and conn.info.transaction_status == psycopg.pq.TransactionStatus.IDLE:
         conn.execute("SELECT 1")  # open the caller's transaction so the batch becomes a savepoint
+    ids = list(dict.fromkeys(getattr(m, spec.key) for m in models))
+    before = {getattr(m, spec.key): m for m in _list(conn, dataset, f"{spec.key} = ANY(%s)", [ids], spec.key, None)}
+    newest = {getattr(m, spec.key): m for m in models}  # models are sorted by collected_at
     try:
         with conn.transaction(), conn.cursor() as cur:
             cur.executemany(sql, rows, returning=True)
@@ -182,9 +189,19 @@ def _write(conn: psycopg.Connection, dataset: str, records: Iterable, *, upsert:
     except (errors.CheckViolation, errors.NotNullViolation) as exc:
         raise ConstraintViolationError(f"{spec.name}: {_detail(exc)}") from None
 
-    inserted = sum(1 for _, was_insert in results if was_insert)
-    updated = len(results) - inserted
-    return WriteSummary(spec.name, len(models), inserted, updated, len(models) - len(results))
+    inserted_ids = tuple(dict.fromkeys(rid for rid, was_insert in results if was_insert))
+    updated_ids = tuple(dict.fromkeys(rid for rid, was_insert in results if not was_insert and rid not in inserted_ids))
+    # Of the updated rows: did any value change, or only collected_at (a re-observation)?
+    changed_ids = tuple(rid for rid in updated_ids
+                        if rid in before and _values(before[rid]) != _values(newest[rid]))
+    refreshed_ids = tuple(rid for rid in updated_ids if rid not in changed_ids)
+    return WriteSummary(spec.name, len(models), len(inserted_ids), len(updated_ids),
+                        len(models) - len(results), inserted_ids, updated_ids, changed_ids, refreshed_ids)
+
+
+def _values(record: ResearchRecord) -> dict[str, Any]:
+    """Comparable field values, ignoring when the record was observed."""
+    return record.model_dump(exclude={COLLECTED_AT})
 
 
 def _insert_sql(spec, columns: list[str], upsert: bool) -> str:
