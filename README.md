@@ -239,7 +239,9 @@ cd Framework-for-Underperforming-YouTube-Channels-in-a-Multi-Channel-Media-Organ
 python -m venv .venv
 # Windows:      .venv\Scripts\activate
 # macOS/Linux:  source .venv/bin/activate
+pip install torch --index-url https://download.pytorch.org/whl/cpu   # CPU PyTorch (~200 MB) first
 pip install -r requirements.txt
+pip install -e .
 ```
 
 **3. Configure environment variables**
@@ -263,6 +265,13 @@ python -m shared.database.migrate
 ```bash
 python -m pytest
 ```
+Database tests need a local PostgreSQL installation (otherwise they're skipped). The first topic-similarity run downloads the `multilingual-e5-small` model (~470 MB) once.
+
+**6. Collect data** (repeatedly, e.g. daily)
+```bash
+python -m shared.data_collection.run_collection --max-videos 50 --snapshot
+```
+See the [collection runbook](docs/collection_runbook.md) for scheduling and the analysis pipeline.
 
 > **Note:** Backend and frontend run instructions will be added when implementation begins.
 
