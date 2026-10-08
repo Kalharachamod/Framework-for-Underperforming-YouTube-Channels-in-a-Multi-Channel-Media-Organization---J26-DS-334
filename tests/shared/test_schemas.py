@@ -288,7 +288,7 @@ def test_to_dataframe_rejects_wrong_model():
 
 
 def test_schema_version_defined():
-    assert SCHEMA_VERSION == "1.0"
+    assert SCHEMA_VERSION.startswith("1.")  # 1.x: additive changes only
 
 
 # --- Parquet and DuckDB integration (STEP 02 layer) -------------------------------

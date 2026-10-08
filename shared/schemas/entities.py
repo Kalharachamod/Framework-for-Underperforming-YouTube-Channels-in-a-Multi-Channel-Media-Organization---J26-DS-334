@@ -29,6 +29,9 @@ class Channel(ResearchRecord):
     view_count: Count | None = None
     video_count: Count | None = None
     collected_at: UtcDatetime
+    # Added in schema 1.1 (optional, so 1.0 records stay valid).
+    description: str | None = None
+    published_at: UtcDatetime | None = None  # when the channel was created on YouTube
 
     DTYPES = {
         "channel_id": STRING,
@@ -37,6 +40,8 @@ class Channel(ResearchRecord):
         "view_count": INT,
         "video_count": INT,
         "collected_at": TIMESTAMP,
+        "description": STRING,
+        "published_at": TIMESTAMP,
     }
 
 

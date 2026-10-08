@@ -19,7 +19,7 @@ from pydantic import (
 )
 
 # Bump when a field is renamed, removed or changes type (see docs/architecture/schemas.md).
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "1.1"  # 1.1: Channel.description, Channel.published_at (optional)
 
 
 def _reject_bool(value: Any) -> Any:
