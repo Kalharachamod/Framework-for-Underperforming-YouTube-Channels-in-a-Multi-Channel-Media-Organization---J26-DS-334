@@ -17,6 +17,10 @@ gensim>=4.4
 #   pip install torch --index-url https://download.pytorch.org/whl/cpu
 torch>=2.6
 torch_geometric>=2.6
+# Component 3 topic layer: multilingual sentence embeddings (model intfloat/multilingual-e5-small,
+# downloaded once from Hugging Face at a pinned revision) + char n-gram TF-IDF/LSA baseline and KMeans
+sentence-transformers>=3.0
+scikit-learn>=1.5
 
 # Configuration
 python-dotenv>=1.0
