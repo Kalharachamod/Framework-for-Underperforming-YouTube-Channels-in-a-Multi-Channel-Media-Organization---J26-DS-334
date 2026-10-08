@@ -9,6 +9,8 @@ pydantic>=2.7
 
 # Component 3 heterogeneous graph (in-memory adapter; graph artifacts are Parquet)
 networkx>=3.3
+# Component 3 metapath2vec: skip-gram with negative sampling (walks are sampled by our own code)
+gensim>=4.4
 
 # Configuration
 python-dotenv>=1.0
