@@ -104,7 +104,9 @@ Copy the placeholders from `.env.example` into `.env` and fill them in. **Never*
 
 Use the **Session pooler** string (port 5432). It works on IPv4 networks and supports this client. Supabase hosts automatically get `sslmode=require`.
 
-### 3. Create the tables
+### 3. Create or update the tables
+
+Migrations: `0001_research_schema` (tables), `0002_channel_description_published` (schema 1.1 channel fields). Run the command again after pulling new migrations.
 ```powershell
 python -m shared.database.migrate status   # what is applied / pending
 python -m shared.database.migrate          # apply pending migrations (safe to re-run)
@@ -139,6 +141,46 @@ with database() as conn:
 | `fetch_collected_on(dataset, day)` | Rows collected on a UTC day (used by the snapshot export) |
 
 A snapshot day contains the rows whose latest observation was collected that day. Export it **at the end of each collection day**, before the next day's collection replaces those rows. Earlier metric values remain in `*_stats_history` regardless.
+
+## Channel collector
+
+`python -m shared.data_collection.channel_collector` collects the configured channels into `research.channels`.
+
+**Configuration:** `config/research_channels.json` defines groups (`owned`, `competitor`; more can be added). Each group lists confirmed organizations (`config/organizations/<slug>.json`, from discovery) and/or individual `channel_ids`. A channel may be in only one group. The collector reads only this file; no IDs are in the code.
+
+```powershell
+python -m shared.data_collection.channel_collector --dry-run        # fetch + validate, store nothing
+python -m shared.data_collection.channel_collector                  # all groups -> Supabase
+python -m shared.data_collection.channel_collector --group owned
+```
+
+**What it does:**
+1. Calls `channels.list` (part `snippet,statistics`) for up to 50 IDs per request, at **1 quota unit per 50 channels**. It never uses `search.list`.
+2. Validates each channel with the `Channel` schema.
+3. Upserts it into Supabase, committing after each batch. Each channel and batch is processed independently, so one failure never stops the others.
+
+**What it stores:**
+- Name, description, creation date (`published_at`).
+- Subscriber, view and video counts. A hidden subscriber count is stored as `NULL`, not 0.
+- `collected_at`, the time of the API response.
+- Earlier metric values stay in `channel_stats_history`.
+
+**Repeat runs:**
+- A channel seen for the first time is **inserted**.
+- On later runs it's **updated**, and no duplicate is ever created.
+- Re-running is safe.
+
+**Results:** the summary reports each channel as collected, inserted, updated, unchanged, failed or skipped. "Updated" is split into **values changed** (e.g. subscribers or views differ) and **refreshed only** (same values, newer `collected_at`). Failures carry a reason:
+- `invalid_id`
+- `not_found`
+- `validation_error`
+- `api_error`
+- `storage_error`
+- `quota_exceeded` and `auth_error`: these stop the run, and the remaining channels are reported as skipped.
+
+Invalid records are never stored. The exit code is `0` when every channel succeeded, `1` when some failed, and `2` for configuration problems.
+
+Channel data is only the foundation. It says nothing about audience movement, subscriptions, identity or causality.
 
 ## Tests
 
