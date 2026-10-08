@@ -7,6 +7,9 @@ pytz>=2024.1  # needed by DuckDB to return TIMESTAMPTZ values as Python datetime
 # Shared research schemas (validation)
 pydantic>=2.7
 
+# Component 3 heterogeneous graph (in-memory adapter; graph artifacts are Parquet)
+networkx>=3.3
+
 # Configuration
 python-dotenv>=1.0
 
