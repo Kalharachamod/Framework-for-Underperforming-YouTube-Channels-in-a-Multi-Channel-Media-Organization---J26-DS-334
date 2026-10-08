@@ -35,7 +35,7 @@ BASE_URL = "https://www.googleapis.com/youtube/v3"
 DAILY_QUOTA = 10_000  # default daily quota of a Google Cloud project
 
 # Quota units per request (YouTube Data API v3 documentation).
-COST = {"channels": 1, "videos": 1, "commentThreads": 1, "channelSections": 1, "search": 100}
+COST = {"channels": 1, "videos": 1, "commentThreads": 1, "channelSections": 1, "playlistItems": 1, "search": 100}
 
 ALLOWED_PARTS = {
     "channels": {"id", "snippet", "statistics", "brandingSettings", "contentDetails", "topicDetails",
@@ -44,9 +44,11 @@ ALLOWED_PARTS = {
                "liveStreamingDetails", "localizations", "recordingDetails"},
     "commentThreads": {"id", "snippet", "replies"},
     "channelSections": {"id", "snippet", "contentDetails"},
+    "playlistItems": {"id", "snippet", "contentDetails", "status"},
     "search": {"id", "snippet"},
 }
-MAX_RESULTS = {"channels": 50, "videos": 50, "commentThreads": 100, "channelSections": None, "search": 50}
+MAX_RESULTS = {"channels": 50, "videos": 50, "commentThreads": 100, "channelSections": None, "playlistItems": 50,
+               "search": 50}
 
 PLACEHOLDER_KEYS = {"", "your_youtube_api_key_here", "changeme", "xxx"}
 RETRYABLE_STATUS = {429, 500, 502, 503, 504}
@@ -313,6 +315,13 @@ class YouTubeClient:
                 raise RequestValidationError("published_after must be an RFC 3339 timestamp") from None
             params["publishedAfter"] = published_after
         return self._list("search", params)
+
+    def playlist_items_list(self, *, playlist_id: str, part: Iterable[str] | str = "contentDetails",
+                            max_results: int | None = None, page_token: str | None = None) -> ApiResponse:
+        """playlistItems.list: one page (up to 50) of a playlist, e.g. a channel's uploads. 1 unit."""
+        params = self._base("playlistItems", part, max_results, page_token)
+        params["playlistId"] = _ids(playlist_id, "playlist_id", limit=1)
+        return self._list("playlistItems", params)
 
     def channel_sections_list(self, *, channel_id: str,
                               part: Iterable[str] | str = "contentDetails,snippet") -> ApiResponse:

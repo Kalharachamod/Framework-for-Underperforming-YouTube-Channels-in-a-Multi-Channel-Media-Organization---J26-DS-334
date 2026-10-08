@@ -335,7 +335,21 @@ def test_quota_accounting_and_request_log():
 
 
 def test_cost_table_matches_api():
-    assert yc.COST == {"channels": 1, "videos": 1, "commentThreads": 1, "channelSections": 1, "search": 100}
+    assert yc.COST == {"channels": 1, "videos": 1, "commentThreads": 1, "channelSections": 1,
+                       "playlistItems": 1, "search": 100}
+
+
+def test_playlist_items_list_params_and_validation():
+    client, transport, _ = make(ok({"items": [], "nextPageToken": "P2"}))
+    r = client.playlist_items_list(playlist_id="UU_test", max_results=50, page_token="P1")
+    assert transport.calls[0]["url"].endswith("/playlistItems")
+    assert transport.calls[0]["params"]["playlistId"] == "UU_test"
+    assert transport.calls[0]["params"]["part"] == "contentDetails"
+    assert r.next_page_token == "P2" and r.quota_cost == 1
+    for bad in ({"playlist_id": ""}, {"playlist_id": "UU_test", "max_results": 51},
+                {"playlist_id": "UU_a,UU_b"}):
+        with pytest.raises(yc.RequestValidationError):
+            client.playlist_items_list(**bad)
 
 
 # --- the key never leaks ---------------------------------------------------------------
