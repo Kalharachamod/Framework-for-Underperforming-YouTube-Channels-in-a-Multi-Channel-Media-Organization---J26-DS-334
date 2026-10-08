@@ -335,8 +335,20 @@ def test_quota_accounting_and_request_log():
 
 
 def test_cost_table_matches_api():
-    assert yc.COST == {"channels": 1, "videos": 1, "commentThreads": 1, "channelSections": 1,
+    assert yc.COST == {"channels": 1, "videos": 1, "commentThreads": 1, "comments": 1, "channelSections": 1,
                        "playlistItems": 1, "search": 100}
+
+
+def test_comments_list_params_and_validation():
+    client, transport, _ = make(ok({"items": [{"id": "c1.r1"}], "nextPageToken": "N"}))
+    r = client.comments_list(parent_id="c1", max_results=100, page_token="P", text_format="plainText")
+    p = transport.calls[0]["params"]
+    assert transport.calls[0]["url"].endswith("/comments")
+    assert (p["parentId"], p["part"], p["maxResults"], p["pageToken"], p["textFormat"]) == ("c1", "snippet", "100", "P", "plainText")
+    assert r.next_page_token == "N" and r.quota_cost == 1
+    for bad in ({"parent_id": ""}, {"parent_id": "c1", "max_results": 101}, {"parent_id": "c1", "part": "replies"}):
+        with pytest.raises(yc.RequestValidationError):
+            client.comments_list(**bad)
 
 
 def test_playlist_items_list_params_and_validation():

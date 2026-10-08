@@ -35,7 +35,8 @@ BASE_URL = "https://www.googleapis.com/youtube/v3"
 DAILY_QUOTA = 10_000  # default daily quota of a Google Cloud project
 
 # Quota units per request (YouTube Data API v3 documentation).
-COST = {"channels": 1, "videos": 1, "commentThreads": 1, "channelSections": 1, "playlistItems": 1, "search": 100}
+COST = {"channels": 1, "videos": 1, "commentThreads": 1, "comments": 1, "channelSections": 1, "playlistItems": 1,
+        "search": 100}
 
 ALLOWED_PARTS = {
     "channels": {"id", "snippet", "statistics", "brandingSettings", "contentDetails", "topicDetails",
@@ -43,11 +44,13 @@ ALLOWED_PARTS = {
     "videos": {"id", "snippet", "statistics", "contentDetails", "status", "topicDetails",
                "liveStreamingDetails", "localizations", "recordingDetails"},
     "commentThreads": {"id", "snippet", "replies"},
+    "comments": {"id", "snippet"},
     "channelSections": {"id", "snippet", "contentDetails"},
     "playlistItems": {"id", "snippet", "contentDetails", "status"},
     "search": {"id", "snippet"},
 }
-MAX_RESULTS = {"channels": 50, "videos": 50, "commentThreads": 100, "channelSections": None, "playlistItems": 50,
+MAX_RESULTS = {"channels": 50, "videos": 50, "commentThreads": 100, "comments": 100, "channelSections": None,
+               "playlistItems": 50,
                "search": 50}
 
 PLACEHOLDER_KEYS = {"", "your_youtube_api_key_here", "changeme", "xxx"}
@@ -285,6 +288,16 @@ class YouTubeClient:
         if text_format is not None:
             params["textFormat"] = _choice(text_format, {"plainText", "html"}, "text_format")
         return self._list("commentThreads", params)
+
+    def comments_list(self, *, parent_id: str, part: Iterable[str] | str = "snippet",
+                      max_results: int | None = None, page_token: str | None = None,
+                      text_format: str | None = None) -> ApiResponse:
+        """comments.list: one page (up to 100) of replies to a top-level comment. 1 unit."""
+        params = self._base("comments", part, max_results, page_token)
+        params["parentId"] = _ids(parent_id, "parent_id", limit=1)
+        if text_format is not None:
+            params["textFormat"] = _choice(text_format, {"plainText", "html"}, "text_format")
+        return self._list("comments", params)
 
     def search_list(self, *, q: str | None = None, channel_id: str | None = None, type: str = "video",
                     part: Iterable[str] | str = "snippet", max_results: int | None = None,
