@@ -16,6 +16,7 @@ Owner: Koonara K M K C (IT23200760)
 - `preprocessing/graph_features.py`: descriptive node / edge / channel-pair features and transparent `ln(1 + comments)` edge weights, computed as of a reference time (no leakage). See [docs/architecture/graph_features.md](../../docs/architecture/graph_features.md).
 - `model/metapath2vec.py`: primary representation learning (meta-path-guided walks + skip-gram), reproducible node embeddings. See [docs/architecture/metapath2vec.md](../../docs/architecture/metapath2vec.md).
 - `model/hgt.py`: HGT alternative graph learning (type-specific features, HGTConv, link-prediction objective, temporal split with documented fallback). See [docs/architecture/hgt.md](../../docs/architecture/hgt.md).
+- `model/ppr_diffusion.py`: Personalized PageRank diffusion from each source channel over the heterogeneous graph (channel-to-channel `diffusion_score`). See [docs/architecture/ppr_diffusion.md](../../docs/architecture/ppr_diffusion.md).
 
 ## Folders
 `preprocessing/` · `model/` · `evaluation/` · `notebooks/` · `results/` (git-ignored)
