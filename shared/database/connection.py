@@ -84,7 +84,9 @@ def connect(db_url: str | None = None, *, autocommit: bool = False) -> psycopg.C
     """
     url = db_url or require_db_url()
     kwargs: dict = {"connect_timeout": CONNECT_TIMEOUT_SECONDS, "application_name": "j26-ds-334",
-                    "autocommit": autocommit, "prepare_threshold": None}
+                    "autocommit": autocommit, "prepare_threshold": None,
+                    # Detect a dead network within ~1 minute instead of hanging (TCP keepalives).
+                    "keepalives": 1, "keepalives_idle": 30, "keepalives_interval": 10, "keepalives_count": 3}
     host = urlsplit(url).hostname or ""
     if host.endswith((".supabase.co", ".supabase.com")) and "sslmode=" not in url:
         kwargs["sslmode"] = "require"
