@@ -487,6 +487,12 @@ def _redact(text: str, key: str) -> str:
 
 # --- parameter helpers --------------------------------------------------------------
 
+def is_valid_id(value: Any) -> bool:
+    """True for a well-formed channel / video / comment id (format only)."""
+    return isinstance(value, str) and bool(_ID.fullmatch(value))
+
+
+
 def _parts(part, resource: str) -> str:
     items = [p.strip() for p in (part.split(",") if isinstance(part, str) else list(part or []))]
     items = [p for p in items if p]
