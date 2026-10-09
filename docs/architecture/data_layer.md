@@ -15,7 +15,8 @@ Component 3 metapath2vec embeddings implemented in STEP 15 (see [metapath2vec.md
 Component 3 HGT alternative embeddings implemented in STEP 16 (see [hgt.md](hgt.md)).
 Component 3 Personalized PageRank diffusion implemented in STEP 17 (see [ppr_diffusion.md](ppr_diffusion.md)).
 Component 3 topic modelling and topic similarity implemented in STEP 18 (see [topic_similarity.md](topic_similarity.md)).
-**Not implemented yet:** confidence weighting, Audience Bridge Score, baselines.
+Component 3 baselines (Louvain, node2vec) implemented in STEP 20 (see [baselines.md](baselines.md)).
+**Not implemented yet:** confidence weighting and the Audience Bridge Score (STEP 19), evaluation (STEP 21).
 
 ## Purpose
 
