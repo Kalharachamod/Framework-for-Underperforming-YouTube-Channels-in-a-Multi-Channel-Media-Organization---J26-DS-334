@@ -16,8 +16,9 @@ Component 3 HGT alternative embeddings implemented in STEP 16 (see [hgt.md](hgt.
 Component 3 Personalized PageRank diffusion implemented in STEP 17 (see [ppr_diffusion.md](ppr_diffusion.md)).
 Component 3 topic modelling and topic similarity implemented in STEP 18 (see [topic_similarity.md](topic_similarity.md)).
 Component 3 baselines (Louvain, node2vec) implemented in STEP 20 (see [baselines.md](baselines.md)).
-Component 3 research evaluation framework implemented in STEP 21, with a slot for the Audience Bridge Score (see [evaluation.md](evaluation.md)).
-**Not implemented yet:** confidence weighting and the Audience Bridge Score (STEP 19).
+Component 3 confidence weighting and Audience Bridge Score implemented in STEP 19 with a provisional, configurable formula (see [audience_bridge.md](audience_bridge.md)).
+Component 3 research evaluation framework implemented in STEP 21 (see [evaluation.md](evaluation.md)).
+Component 3 explainability framework implemented in STEP 22 (see [explainability.md](explainability.md)).
 
 ## Purpose
 
