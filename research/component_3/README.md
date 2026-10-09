@@ -19,6 +19,7 @@ Owner: Koonara K M K C (IT23200760)
 - `model/ppr_diffusion.py`: Personalized PageRank diffusion from each source channel over the heterogeneous graph (channel-to-channel `diffusion_score`). See [docs/architecture/ppr_diffusion.md](../../docs/architecture/ppr_diffusion.md).
 - `model/topic_similarity.py`: multilingual content-semantic channel profiles and symmetric topic similarity (optional topic clustering → graph topic nodes). See [docs/architecture/topic_similarity.md](../../docs/architecture/topic_similarity.md).
 - `model/baselines.py`: comparison baselines (not the proposed method): Louvain communities on a channel projection of shared commenters, and type-agnostic node2vec channel similarity. See [docs/architecture/baselines.md](../../docs/architecture/baselines.md).
+- `evaluation/`: research evaluation framework comparing the proposed method (Audience Bridge Score slot; components PPR diffusion and topic similarity) with the baselines: label-based ranking quality, method agreement, top-k, temporal stability, sparse-data robustness and measured performance. See [docs/architecture/evaluation.md](../../docs/architecture/evaluation.md).
 
 ## Folders
 `preprocessing/` · `model/` · `evaluation/` · `notebooks/` · `results/` (git-ignored)
