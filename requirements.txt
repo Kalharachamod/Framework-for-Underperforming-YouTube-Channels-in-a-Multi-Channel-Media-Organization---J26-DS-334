@@ -30,5 +30,10 @@ psycopg[binary]>=3.2
 
 # YouTube Data API v3: accessed over HTTPS with the standard library (shared/data_collection/youtube_client.py)
 
+# Backend API (read-only access to research artifacts)
+fastapi>=0.115
+uvicorn>=0.30
+
 # Testing
 pytest>=8.0
+httpx2>=2.13  # FastAPI/Starlette TestClient (API tests)
