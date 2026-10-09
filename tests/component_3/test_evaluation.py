@@ -169,10 +169,22 @@ def test_topic_and_louvain_signals_are_as_expected(ctx):
     assert set(lv.score.dropna()) <= {0.0, 1.0}
 
 
-def test_abs_slot_unavailable_until_step19(ctx):
+@pytest.fixture
+def no_abs(monkeypatch):
+    """Simulate a checkout without the STEP 19 module."""
+    monkeypatch.setattr(me, "ABS_MODULE", "research.component_3.model._absent_abs_module")
+
+
+def test_abs_slot_unavailable_without_step19(ctx, no_abs):
     r = me.run_method("audience_bridge_score", ctx)
     assert r.status == "unavailable" and "STEP 19" in r.reason
     assert r.rankings.empty and r.experiment_id is None
+
+
+def test_abs_slot_runs_step19(ctx):
+    r = me.run_method("audience_bridge_score", ctx)
+    assert r.status == "ok" and r.experiment_id.startswith("abs-") and me.validate_rankings(r.rankings) == []
+    assert r.rankings.role.iloc[0] == "proposed method"
 
 
 def test_abs_slot_uses_step19_module_when_present(ctx, monkeypatch):
@@ -307,7 +319,7 @@ def test_subsample_is_seeded_and_bounded(sid):
         rb.subsample(c, 0.0, 1)
 
 
-def test_sparse_simulation_never_touches_production_data(sid):
+def test_sparse_simulation_never_touches_production_data(sid, no_abs):
     before = [(x.snapshot_id, x.manifest["datasets"]["comments"]["sha256"]) for x in s.list_research_snapshots()]
     r = run_eval(sid, ev.EvaluationConfig(run_temporal=False, sparse_fractions=(1.0, 0.5), sparse_seeds=(0,)))
     after = [(x.snapshot_id, x.manifest["datasets"]["comments"]["sha256"]) for x in s.list_research_snapshots()]
@@ -332,7 +344,7 @@ def test_sparse_results_are_reproducible(sid):
 
 # --- performance, artifacts, metadata -----------------------------------------------------------
 
-def test_performance_is_measured_not_estimated(sid):
+def test_performance_is_measured_not_estimated(sid, no_abs):
     r = run_eval(sid)
     perf = r.tables["computational_performance_results"]
     main = rows(perf, stage="main")
@@ -343,7 +355,7 @@ def test_performance_is_measured_not_estimated(sid):
     assert "tracemalloc" in r.metadata["performance"]["memory_note"]
 
 
-def test_full_run_metadata_and_abs_note(sid):
+def test_full_run_metadata_and_abs_note(sid, no_abs):
     r = run_eval(sid)
     m = r.metadata
     assert r.evaluation_id.startswith("eval-") and m["validation"]["passed"]
@@ -395,7 +407,7 @@ def test_validation_rejects_bad_values(sid):
         ev.validate(r)
 
 
-def test_cli(sid, monkeypatch, capsys):
+def test_cli(sid, monkeypatch, capsys, no_abs):
     real = ev.evaluate
     monkeypatch.setattr(ev, "evaluate", lambda s_, c, **kw: real(s_, c, **{**kw, "encoder": FakeEncoder(),
                                                                            "node2vec_config": SMALL_N2V}))
@@ -403,3 +415,10 @@ def test_cli(sid, monkeypatch, capsys):
     out = capsys.readouterr().out
     assert "not yet available" in out and "spearman" in out
     assert ev.main(["--snapshot", sid, "--labels", "missing.csv"]) == 1
+
+
+def test_full_run_with_step19_scores(sid):
+    r = run_eval(sid, ev.EvaluationConfig(run_sparse=False, run_temporal=False))
+    assert r.metadata["proposed_method"]["status"] == "ok" and r.metadata["proposed_method"]["note"] is None
+    agree = rows(r.tables["ranking_evaluation_results"], analysis="agreement", method="audience_bridge_score")
+    assert set(agree.reference_method) == {"ppr_diffusion", "topic_similarity", "louvain", "node2vec"}

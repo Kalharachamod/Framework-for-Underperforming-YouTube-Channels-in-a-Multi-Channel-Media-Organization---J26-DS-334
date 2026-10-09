@@ -8,13 +8,13 @@ python -m research.component_3.evaluation.evaluate --labels labels.csv --k 1 3 5
 python -m research.component_3.evaluation.evaluate --topic-backend char_lsa --skip-sparse
 ```
 
-> **The Audience Bridge Score (STEP 19) isn't available yet.** The framework has a ready slot for it. Until it exists, the proposed method is reported as `unavailable`, and its components (PPR diffusion and topic similarity) are evaluated with the baselines. No ABS formula is invented here.
+> **The Audience Bridge Score** (STEP 19, [`model/audience_bridge.py`](../../research/component_3/model/audience_bridge.py)) is evaluated through the proposed-method slot. If that module were absent, the slot would be reported as `unavailable` and the components evaluated alone. The ABS formula is provisional (see [audience_bridge.md](audience_bridge.md)).
 
 ## Methods compared
 
 | Method | Role | Signal (higher = stronger) |
 |---|---|---|
-| `audience_bridge_score` | proposed method | slot: needs `research/component_3/model/audience_bridge.py` with `score_channels(ctx) -> (table with audience_bridge_score, experiment_id)` |
+| `audience_bridge_score` | proposed method | STEP 19 `audience_bridge_score`, through `score_channels(ctx)` in `model/audience_bridge.py` |
 | `ppr_diffusion` | component of proposed method | STEP 17 `diffusion_score` (directional) |
 | `topic_similarity` | component of proposed method | STEP 18 `topic_similarity` (symmetric) |
 | `louvain` | baseline | STEP 20 same-community indicator (binary, many ties) |
@@ -68,7 +68,7 @@ Otherwise the pair is recorded as `not_comparable` with the reason. If no pair i
 - **Subsampling:** comments, or whole commenters (`--sparse-unit commenters`), are subsampled at each retain fraction (default 0.75 / 0.5 / 0.25) with fixed seeds (default 0 / 1 / 2). Channels, videos and `as_of` stay unchanged.
 - **Isolation:** each simulation writes its snapshot, graph and features into its **own temporary data directory**, which is deleted afterwards. The source snapshot is checksum-verified before and after, and production data is never written.
 - **Results:** agreement with the full-data ranking (Spearman, Kendall, top-k Jaccard) and `score_coverage`, the share of full-data scored pairs still scored.
-- **Topic similarity is excluded by default:** it depends only on video text, which comment subsampling doesn't change.
+- **Topic similarity is excluded by default:** it depends only on video text, which comment subsampling doesn't change. The Audience Bridge Score is included, since its confidence and diffusion inputs depend on comments.
 
 **Performance.** These are measured values; none are estimated:
 - **Time:** wall-clock time per stage (`time.perf_counter`).

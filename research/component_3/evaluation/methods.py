@@ -9,7 +9,7 @@ Standard ranking columns:
 * tied: another destination of the same source has the identical score.
 
 Methods:
-  audience_bridge_score  proposed (STEP 19)   - slot; "unavailable" until implemented
+  audience_bridge_score  proposed (STEP 19 model/audience_bridge.py); "unavailable" if that module is absent
   ppr_diffusion          component of proposed (STEP 17 diffusion_score)
   topic_similarity       component of proposed (STEP 18 topic_similarity, symmetric)
   louvain                baseline (STEP 20 binary same-community indicator)
