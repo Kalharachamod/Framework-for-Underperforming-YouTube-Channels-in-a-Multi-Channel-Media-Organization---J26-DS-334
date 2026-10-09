@@ -19,6 +19,7 @@ Component 3 baselines (Louvain, node2vec) implemented in STEP 20 (see [baselines
 Component 3 confidence weighting and Audience Bridge Score implemented in STEP 19 with a provisional, configurable formula (see [audience_bridge.md](audience_bridge.md)).
 Component 3 research evaluation framework implemented in STEP 21 (see [evaluation.md](evaluation.md)).
 Component 3 explainability framework implemented in STEP 22 (see [explainability.md](explainability.md)).
+Component 3 results exposed through the read-only FastAPI backend in STEP 23 (see [backend/README.md](../../backend/README.md)).
 
 ## Purpose
 
