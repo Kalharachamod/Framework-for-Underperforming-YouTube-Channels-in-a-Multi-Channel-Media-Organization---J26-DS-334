@@ -213,7 +213,8 @@ def test_experiment_metadata(result):
     cfg = md["config"]
     assert (cfg["dimensions"], cfg["walk_length"], cfg["walks_per_node"], cfg["window"], cfg["negative"],
             cfg["epochs"], cfg["seed"]) == (8, 10, 3, 2, 2, 2, 7)
-    assert [mp["name"] for mp in cfg["metapaths"]] == ["CVC", "CVChVC", "ChVCVCh", "VChV"]
+    assert [mp["name"] for mp in cfg["metapaths"]] == ["CVC", "CVChVC", "ChVCVCh", "VChV", "VTV"]
+    assert "VTV" in md["walks"]["skipped_metapaths"]   # no topic nodes in this graph: skipped, not used
     assert {"python", "numpy", "gensim"} <= set(md["versions"]) and md["created_at"].endswith("Z")
     assert "does not show audience migration" in md["note"]
 

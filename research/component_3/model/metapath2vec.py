@@ -82,7 +82,7 @@ TOPIC_METAPATHS = (
 
 @dataclass(frozen=True)
 class Config:
-    metapaths: tuple[MetaPath, ...] = DEFAULT_METAPATHS
+    metapaths: tuple[MetaPath, ...] = DEFAULT_METAPATHS + TOPIC_METAPATHS   # topic paths used when topic nodes exist
     walks_per_node: int = 10
     walk_length: int = 40            # nodes per walk
     transition_weights: str = "uniform"  # "uniform" | "log1p_comments" (STEP 14 interaction weight)
