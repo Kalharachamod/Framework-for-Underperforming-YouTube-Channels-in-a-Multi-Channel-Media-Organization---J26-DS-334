@@ -50,9 +50,12 @@ EXPLANATION_COLUMNS = {
     "source_channel_id": "string", "source_channel_name": "string", "destination_channel_id": "string",
     "destination_channel_name": "string", "rank": "Int64", "candidate_destinations": "Int64",
     "scored_destinations": "Int64", "score_percentile": "Float64", "audience_bridge_score": "Float64",
-    "raw_diffusion_score": "Float64", "normalized_diffusion": "Float64", "raw_topic_similarity": "Float64",
-    "normalized_topic_similarity": "Float64", "w_diffusion": "Float64", "w_topic": "Float64",
-    "diffusion_contribution": "Float64", "topic_contribution": "Float64", "diffusion_share_of_base": "Float64",
+    "raw_diffusion_score": "Float64", "normalized_diffusion": "Float64", "raw_embedding_similarity": "Float64",
+    "normalized_embedding_similarity": "Float64", "raw_topic_similarity": "Float64",
+    "normalized_topic_similarity": "Float64", "w_diffusion": "Float64", "w_embedding": "Float64", "w_topic": "Float64",
+    "embedding_source": "string", "diffusion_contribution": "Float64", "embedding_contribution": "Float64",
+    "topic_contribution": "Float64", "diffusion_share_of_base": "Float64", "embedding_share_of_base": "Float64",
+    "topic_share_of_base": "Float64",
     "base_score": "Float64", "shared_commenters": "Int64", "evidence_confidence": "Float64",
     "topic_coverage_confidence": "Float64", "confidence": "Float64", "reconstructed_score": "Float64",
     "reconstruction_error": "Float64", "next_higher_destination": "string", "next_higher_score": "Float64",
@@ -80,7 +83,8 @@ class ExplainConfig:
     min_temporal_active_days: int = 2           # one day cannot show repeated activity
     consistent_temporal_active_days: int | None = None   # no defensible default: disabled
     broad_video_coverage: float | None = None             # no defensible default: disabled
-    alternative_weights: tuple[float, ...] = (0.0, 0.25, 0.75, 1.0)
+    alternative_weights: tuple[tuple[float, float, float], ...] = (     # (w_diffusion, w_embedding, w_topic)
+        (1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0), (0.5, 0.5, 0.0), (0.5, 0.0, 0.5), (0.0, 0.5, 0.5))
     competitors: int = 3
 
     def __post_init__(self):
@@ -103,6 +107,7 @@ class ExplainConfig:
 
 RATIONALE = {
     "reconstruction_tolerance": "absolute float64 tolerance for (w_d*n_d + w_t*n_t) * (n/(n+k)) * coverage",
+    "alternative_weights": "corners and edge midpoints of the weight simplex (w_diffusion, w_embedding, w_topic)",
     "strong_relative_fraction": "relative, per-source criterion: the component value is > 0 and ranks in the top "
                                 "ceil(fraction * candidates) of the source's candidates (top quartile by convention)",
     "strong_shared_commenters": "n >= confidence_k of the scoring experiment, i.e. evidence_confidence >= 0.5 "
@@ -133,15 +138,17 @@ def explain(bridge: ab.BridgeResult, config: ExplainConfig = ExplainConfig(),
     _check_inputs(bridge, inp)
     scores = bridge.scores[bridge.scores["source_channel_id"] != bridge.scores["destination_channel_id"]]
     scores = scores.reset_index(drop=True)
-    w_d, w_t = float(bridge.metadata["config"]["w_diffusion"]), float(bridge.metadata["config"]["w_topic"])
-    k = float(bridge.metadata["config"]["confidence_k"])
+    cfg = bridge.metadata["config"]
+    w_d, w_t = float(cfg["w_diffusion"]), float(cfg["w_topic"])
+    w_e, source = float(cfg.get("w_embedding", 0.0)), str(cfg.get("embedding_source", "none"))
+    k = float(cfg["confidence_k"])
     config_id = config.config_id()
     created = pd.Timestamp(datetime.now(timezone.utc).replace(microsecond=0))
 
-    evidence = evd.build_evidence(scores, bridge.snapshot_id, inp.as_of, inp.graph)
+    evidence = evd.build_evidence(scores, bridge.snapshot_id, inp.as_of, inp.graph, embedding_used=w_e > 0)
     names = _channel_names(bridge.snapshot_id)
     ctx = ranking_context(scores, config.competitors)
-    rebuilt = reconstruct(scores, w_d, w_t, k)
+    rebuilt = reconstruct(scores, w_d, w_t, k, w_e)
     ev_by = evidence.set_index(["source_channel_id", "destination_channel_id"])
     component_ranks = _component_ranks(scores)
     eval_ctx = evaluation_context(bridge)
@@ -150,26 +157,34 @@ def explain(bridge: ab.BridgeResult, config: ExplainConfig = ExplainConfig(),
     for i, r in scores.iterrows():
         key = (r.source_channel_id, r.destination_channel_id)
         e = ev_by.loc[key]
-        reasons = select_reasons(r, e, component_ranks.loc[i], k, config)
+        reasons = select_reasons(r, e, component_ranks.loc[i], k, config, w_e)
         status = ("incomplete" if r.score_status != "ok" else
                   "reconstruction_mismatch" if not (rebuilt.loc[i, "error"] <= config.reconstruction_tolerance)
                   else "complete")
         notes = uncertainty_notes(r, e, status, eval_ctx, k)
         base = r.base_score
-        share = (r.diffusion_contribution / base) if status != "incomplete" and pd.notna(base) and base > 0 else pd.NA
+        has_base = status != "incomplete" and pd.notna(base) and base > 0
+
+        def share(part, has_base=has_base, base=base):
+            return part / base if has_base else pd.NA
         c = ctx.loc[i]
         rows.append({
             "source_channel_id": key[0], "source_channel_name": names.get(key[0]), "destination_channel_id": key[1],
             "destination_channel_name": names.get(key[1]), "rank": r["rank"], **c.to_dict(),
             "audience_bridge_score": r.audience_bridge_score, "raw_diffusion_score": r.raw_diffusion_score,
-            "normalized_diffusion": r.normalized_diffusion, "raw_topic_similarity": r.raw_topic_similarity,
-            "normalized_topic_similarity": r.normalized_topic_similarity, "w_diffusion": w_d, "w_topic": w_t,
-            "diffusion_contribution": r.diffusion_contribution, "topic_contribution": r.topic_contribution,
-            "diffusion_share_of_base": share, "base_score": base, "shared_commenters": r.shared_commenters,
+            "normalized_diffusion": r.normalized_diffusion, "raw_embedding_similarity": r.raw_embedding_similarity,
+            "normalized_embedding_similarity": r.normalized_embedding_similarity,
+            "raw_topic_similarity": r.raw_topic_similarity, "normalized_topic_similarity": r.normalized_topic_similarity,
+            "w_diffusion": w_d, "w_embedding": w_e, "w_topic": w_t, "embedding_source": source,
+            "diffusion_contribution": r.diffusion_contribution, "embedding_contribution": r.embedding_contribution,
+            "topic_contribution": r.topic_contribution, "diffusion_share_of_base": share(r.diffusion_contribution),
+            "embedding_share_of_base": share(r.embedding_contribution), "topic_share_of_base": share(r.topic_contribution),
+            "base_score": base, "shared_commenters": r.shared_commenters,
             "evidence_confidence": r.evidence_confidence, "topic_coverage_confidence": r.topic_coverage_confidence,
             "confidence": r.confidence, "reconstructed_score": rebuilt.loc[i, "score"],
             "reconstruction_error": rebuilt.loc[i, "error"], "reason_codes": ";".join(x["reason_code"] for x in reasons),
-            "explanation_text": explanation_text(r, c, reasons, names, status, share),
+            "explanation_text": explanation_text(r, c, reasons, names, status, share(r.diffusion_contribution),
+                                                 w_e, source),
             "uncertainty_notes": "; ".join(notes), "explanation_status": status,
             "snapshot_id": bridge.snapshot_id, "experiment_id": bridge.experiment_id,
             "explanation_config_id": config_id, "created_at": created,
@@ -178,7 +193,7 @@ def explain(bridge: ab.BridgeResult, config: ExplainConfig = ExplainConfig(),
 
     explanations = _typed(pd.DataFrame(rows, columns=list(EXPLANATION_COLUMNS)), EXPLANATION_COLUMNS)
     reasons_df = _typed(pd.DataFrame(reason_rows, columns=list(REASON_COLUMNS)), REASON_COLUMNS)
-    sensitivity = sens.analyse(scores, w_d, w_t, config.alternative_weights)
+    sensitivity = sens.analyse(scores, (w_d, w_e, w_t), config.alternative_weights)
     prov = {"snapshot_id": bridge.snapshot_id, "experiment_id": bridge.experiment_id,
             "explanation_config_id": config_id}
     tables = {
@@ -201,7 +216,8 @@ def explain(bridge: ab.BridgeResult, config: ExplainConfig = ExplainConfig(),
         "sensitivity_note": "Score sensitivity analysis recomputed from stored components only; not causal inference.",
         "evidence_states": {"observed": "evidence exists", "zero": "both channels observed, value is 0",
                             "insufficient_coverage": "a channel has no stored videos or commenters",
-                            "missing": "required input not available"},
+                            "missing": "required input not available",
+                            "not_used": "the scoring experiment has no embedding component"},
         "privacy": "aggregate counts only; no raw or pseudonymized commenter identifiers in any output",
         "interpretation": NOTE, "created_at": created.isoformat().replace("+00:00", "Z"),
     }
@@ -234,12 +250,14 @@ def _check_inputs(bridge: ab.BridgeResult, inp: bl.BaselineInput) -> None:
 
 # --- decomposition ------------------------------------------------------------------------------
 
-def reconstruct(scores: pd.DataFrame, w_d: float, w_t: float, k: float) -> pd.DataFrame:
+def reconstruct(scores: pd.DataFrame, w_d: float, w_t: float, k: float, w_e: float = 0.0) -> pd.DataFrame:
     """Rebuild every score from its stored inputs with the experiment's weights (no stored intermediates)."""
     n = scores["shared_commenters"].astype("Float64")
     conf = (n / (n + k)) * scores["topic_coverage_confidence"].astype("Float64")
     base = w_d * scores["normalized_diffusion"].astype("Float64") + \
         w_t * scores["normalized_topic_similarity"].astype("Float64")
+    if w_e > 0:
+        base = base + w_e * scores["normalized_embedding_similarity"].astype("Float64")
     rebuilt = (base * conf).astype("Float64")
     error = (rebuilt - scores["audience_bridge_score"].astype("Float64")).abs()
     return pd.DataFrame({"score": rebuilt, "error": error.astype("Float64")}, index=scores.index)
@@ -274,7 +292,7 @@ def ranking_context(scores: pd.DataFrame, competitors: int = 3) -> pd.DataFrame:
 
 def _component_ranks(scores: pd.DataFrame) -> pd.DataFrame:
     out = pd.DataFrame(index=scores.index)
-    for col in ("normalized_diffusion", "normalized_topic_similarity"):
+    for col in ("normalized_diffusion", "normalized_embedding_similarity", "normalized_topic_similarity"):
         out[col] = scores.groupby("source_channel_id")[col].rank(method="min", ascending=False)
         out[col + "_n"] = scores.groupby("source_channel_id")[col].transform("count")
     return out
@@ -282,7 +300,7 @@ def _component_ranks(scores: pd.DataFrame) -> pd.DataFrame:
 
 # --- reasons and uncertainty -----------------------------------------------------------------
 
-def select_reasons(r, e, ranks, k: float, cfg: ExplainConfig) -> list[dict]:
+def select_reasons(r, e, ranks, k: float, cfg: ExplainConfig, w_e: float = 0.0) -> list[dict]:
     out = []
 
     def add(code, text, criterion, value=None, threshold=None):
@@ -290,9 +308,12 @@ def select_reasons(r, e, ranks, k: float, cfg: ExplainConfig) -> list[dict]:
                     "value": None if value is None or pd.isna(value) else float(value),
                     "threshold": None if threshold is None else float(threshold)})
 
-    for col, code, label in (("normalized_diffusion", "strong_structural_connectivity", "structural connectivity "
-                              "(PPR diffusion)"), ("normalized_topic_similarity", "high_topic_similarity",
-                                                  "topic similarity")):
+    components = [("normalized_diffusion", "strong_structural_connectivity", "structural connectivity (PPR diffusion)"),
+                  ("normalized_topic_similarity", "high_topic_similarity", "topic similarity")]
+    if w_e > 0:
+        components.insert(1, ("normalized_embedding_similarity", "strong_embedding_similarity",
+                              "embedding similarity (learned graph representation)"))
+    for col, code, label in components:
         n, rk, v = ranks[col + "_n"], ranks[col], r[col]
         if pd.notna(v) and v > 0 and n and pd.notna(rk):
             cut = math.ceil(cfg.strong_relative_fraction * n)
@@ -359,14 +380,16 @@ def uncertainty_notes(r, e, status: str, eval_ctx: dict, k: float) -> list[str]:
     return notes
 
 
-def explanation_text(r, c, reasons: list[dict], names: dict, status: str, share) -> str:
+def explanation_text(r, c, reasons: list[dict], names: dict, status: str, share, w_e: float = 0.0,
+                     source: str = "none") -> str:
     src = names.get(r.source_channel_id) or r.source_channel_id
     dst = names.get(r.destination_channel_id) or r.destination_channel_id
     if status == "incomplete":
         return f"{src} -> {dst}: no score ({r.score_status}). " + " ".join(x["reason_text"] for x in reasons)
     head = (f"{src} -> {dst}: rank {int(r['rank'])} of {int(c['scored_destinations'])} scored destinations; "
             f"Audience Bridge Score {r.audience_bridge_score:.4f} = (diffusion {r.diffusion_contribution:.4f} + "
-            f"topic {r.topic_contribution:.4f}) x confidence {r.confidence:.4f}.")
+            + (f"embedding {r.embedding_contribution:.4f} [{source}] + " if w_e > 0 else "")
+            + f"topic {r.topic_contribution:.4f}) x confidence {r.confidence:.4f}.")
     if pd.notna(share):
         head += f" Diffusion provides {share:.0%} of the base score."
     return " ".join([head, *(x["reason_text"] for x in reasons)])

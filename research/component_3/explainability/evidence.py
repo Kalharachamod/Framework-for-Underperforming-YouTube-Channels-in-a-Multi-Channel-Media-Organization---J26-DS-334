@@ -27,6 +27,7 @@ from research.component_3.preprocessing import hetero_graph as hg
 from research.component_3.preprocessing import research_dataset as rd
 
 OBSERVED, ZERO, INSUFFICIENT, MISSING = "observed", "zero", "insufficient_coverage", "missing"
+NOT_USED = "not_used"   # the scoring experiment has no embedding component (w_embedding = 0)
 EVIDENCE_COLUMNS = {
     "source_channel_id": "string", "destination_channel_id": "string",
     "source_stored_videos": "Int64", "destination_stored_videos": "Int64",
@@ -40,7 +41,8 @@ EVIDENCE_COLUMNS = {
     "shared_active_days": "Int64", "shared_first_comment_at": "datetime64[us, UTC]",
     "shared_last_comment_at": "datetime64[us, UTC]", "shared_span_days": "Float64", "temporal_state": "string",
     "topic_similarity": "Float64", "source_topic_coverage": "Float64", "destination_topic_coverage": "Float64",
-    "topic_state": "string", "snapshot_id": "string", "as_of": "datetime64[us, UTC]",
+    "topic_state": "string", "embedding_similarity": "Float64", "embedding_state": "string",
+    "snapshot_id": "string", "as_of": "datetime64[us, UTC]",
 }
 
 
@@ -72,14 +74,15 @@ def shared_activity(snapshot_id: str, as_of: datetime) -> pd.DataFrame:
 
 
 def build_evidence(scores: pd.DataFrame, snapshot_id: str, as_of: datetime, graph: hg.HeteroGraph,
-                   features: gf.FeatureSet | None = None) -> pd.DataFrame:
+                   features: gf.FeatureSet | None = None, embedding_used: bool = False) -> pd.DataFrame:
     """Evidence rows for the (source, destination) pairs of ``scores`` (a STEP 19 score table)."""
     if features is None:
         features = load_feature_set(snapshot_id, as_of, graph)
     if features.snapshot_id != snapshot_id or features.as_of != as_of:
         raise ValueError("features come from a different snapshot or as_of than the scored result")
     pairs = scores[["source_channel_id", "destination_channel_id", "raw_topic_similarity", "source_topic_coverage",
-                    "destination_topic_coverage"]].rename(columns={"raw_topic_similarity": "topic_similarity"})
+                    "destination_topic_coverage", "raw_embedding_similarity"]].rename(
+        columns={"raw_topic_similarity": "topic_similarity", "raw_embedding_similarity": "embedding_similarity"})
     if pairs.empty:
         return pd.DataFrame(columns=list(EVIDENCE_COLUMNS)).astype(EVIDENCE_COLUMNS)
 
@@ -126,6 +129,8 @@ def build_evidence(scores: pd.DataFrame, snapshot_id: str, as_of: datetime, grap
     topic_ok = df["topic_similarity"].notna() & df["source_topic_coverage"].notna() & \
         df["destination_topic_coverage"].notna()
     df["topic_state"] = [OBSERVED if ok else MISSING for ok in topic_ok]
+    df["embedding_state"] = [NOT_USED if not embedding_used else OBSERVED if pd.notna(v) else MISSING
+                             for v in df["embedding_similarity"]]
     df = df.assign(snapshot_id=snapshot_id, as_of=pd.Timestamp(as_of))
     return df[list(EVIDENCE_COLUMNS)].astype(EVIDENCE_COLUMNS).reset_index(drop=True)
 

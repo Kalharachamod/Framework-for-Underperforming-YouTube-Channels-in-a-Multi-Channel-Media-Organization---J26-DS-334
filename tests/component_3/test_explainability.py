@@ -25,9 +25,13 @@ def sid(isolated_data_dir, ticking):  # noqa: F811
     return build_snapshot()
 
 
+NO_EMB = ab.BridgeConfig(w_diffusion=0.5, w_embedding=0.0, w_topic=0.5, embedding_source="none")
+
+
 @pytest.fixture
 def bridge(sid):
-    return ab.run(sid, encoder=FakeEncoder())
+    """Two-component configuration, so known values from STEP 19/22 can be asserted exactly."""
+    return ab.run(sid, NO_EMB, encoder=FakeEncoder())
 
 
 @pytest.fixture
@@ -91,7 +95,7 @@ def test_zero_missing_and_insufficient_are_distinct(result):
 def test_confidence_interpretation(bridge, sid):
     x = result_codes(ex.explain(bridge), "A", "C")
     assert "low_confidence_sparse_evidence" in x and "strong_shared_commenter_evidence" not in x
-    strong = ab.run(sid, ab.BridgeConfig(confidence_k=2.0), encoder=FakeEncoder())
+    strong = ab.run(sid, replace(NO_EMB, confidence_k=2.0), encoder=FakeEncoder())
     assert "strong_shared_commenter_evidence" in result_codes(ex.explain(strong), "A", "C")
     assert "no_shared_commenter_evidence" in result_codes(ex.explain(bridge), "A", "D")
 
@@ -168,12 +172,16 @@ def test_sensitivity_component_removal(result):
 
 
 def test_alternative_weights_sum_to_one(bridge, result):
-    for sc in sens.scenarios(0.5, 0.5, (0.0, 0.25, 0.75, 1.0)):
-        assert sc["w_diffusion"] + sc["w_topic"] == pytest.approx(1.0)
-    assert {"weights_wd0_wt1", "weights_wd1_wt0"} <= set(result.tables["bridge_sensitivity_results"].scenario)
+    for sc in sens.scenarios((0.5, 0.0, 0.5), ex.ExplainConfig().alternative_weights):
+        assert sum(sc["weights"].values()) == pytest.approx(1.0)
+    names = set(result.tables["bridge_sensitivity_results"].scenario)
+    assert {"weights_d0_e0_t1", "weights_d1_e0_t0"} <= names and "embedding_removed" not in names   # w_e = 0
+    emb_only = result.tables["bridge_sensitivity_results"]
+    assert set(emb_only[emb_only.scenario == "weights_d0_e1_t0"].status) == {
+        "not_computed: a required component is not stored", "not_computed: incomplete score components"}
     with pytest.raises(ValueError):
-        sens.scenarios(0.5, 0.5, (1.5,))
-    assert bridge.scores.equals(ab.run(bridge.snapshot_id, encoder=FakeEncoder()).scores)   # production untouched
+        sens.scenarios((0.5, 0.0, 0.5), ((1.5, 0.0, 0.0),))
+    assert bridge.scores.equals(ab.run(bridge.snapshot_id, NO_EMB, encoder=FakeEncoder()).scores)   # untouched
 
 
 # 14-18. determinism, privacy, temporal, sparse, provenance ----------------------------------------
@@ -232,7 +240,8 @@ def test_provenance(result, bridge, sid):
 
 # 19. integration with STEP 19-21 -------------------------------------------------------------
 
-def test_integration_with_evaluation(sid, bridge):
+def test_integration_with_evaluation(sid):
+    bridge = ab.run(sid, encoder=FakeEncoder())          # default configuration, as evaluated by STEP 21
     before = ex.explain(bridge).metadata["evaluation_context"]
     assert before["evaluations_of_this_experiment"] == [] and "not an empirical evaluation" in before["note"]
     r = ev.evaluate(sid, ev.EvaluationConfig(run_sparse=False, run_temporal=False), encoder=FakeEncoder(),
@@ -250,3 +259,34 @@ def test_cli(sid, bridge, capsys):
     assert ex.main(["--snapshot", sid]) == 0
     out = capsys.readouterr().out
     assert "not empirical validation" in out and "rank 1" in out
+
+
+# --- three-component score (default configuration) -------------------------------------------
+
+def test_explanations_with_embedding_component(sid):
+    r = ex.explain(ab.run(sid, encoder=FakeEncoder()))
+    x = row(r.tables["bridge_score_explanations"], "A", "C")
+    assert x.explanation_status == "complete" and x.reconstruction_error <= 1e-12
+    assert x.w_embedding == pytest.approx(1 / 3) and x.embedding_source == "metapath2vec"
+    assert x.base_score == pytest.approx(x.diffusion_contribution + x.embedding_contribution + x.topic_contribution)
+    assert x.diffusion_share_of_base + x.embedding_share_of_base + x.topic_share_of_base == pytest.approx(1.0)
+    assert "embedding" in x.explanation_text and "[metapath2vec]" in x.explanation_text
+    e = row(r.tables["bridge_evidence_summaries"], "A", "C")
+    assert e.embedding_state == evd.OBSERVED and -1 <= e.embedding_similarity <= 1
+    assert row(r.tables["bridge_evidence_summaries"], "A", "X").embedding_state == evd.MISSING
+    s = r.tables["bridge_sensitivity_results"]
+    assert {"embedding_removed", "diffusion_removed", "topic_removed"} <= set(s.scenario)
+    assert (s[(s.scenario == "original") & (s.status == "ok")].score_delta.abs() < 1e-12).all()
+    removed = s[(s.scenario == "embedding_removed") & (s.source_channel_id == CN["A"]) & (s.destination_channel_id == CN["C"])]
+    assert removed.scenario_score.iloc[0] == pytest.approx((x.diffusion_contribution + x.topic_contribution) * x.confidence)
+
+
+def test_embedding_reason_is_relative_and_configurable(sid):
+    r = ex.explain(ab.run(sid, encoder=FakeEncoder()))
+    reasons = r.tables["bridge_explanation_reasons"]
+    emb = reasons[reasons.reason_code == "strong_embedding_similarity"]
+    assert len(emb) > 0 and (emb.criterion.str.contains("per-source rank")).all()
+    none = ex.explain(ab.run(sid, NO_EMB, encoder=FakeEncoder())).tables["bridge_explanation_reasons"]
+    assert "strong_embedding_similarity" not in set(none.reason_code)
+    assert set(ex.explain(ab.run(sid, NO_EMB, encoder=FakeEncoder())).tables["bridge_evidence_summaries"]
+               .embedding_state) == {evd.NOT_USED}
