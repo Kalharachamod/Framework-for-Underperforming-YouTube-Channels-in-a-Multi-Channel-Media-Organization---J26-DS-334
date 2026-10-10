@@ -12,7 +12,7 @@ Commenter                          Commenter
   Video                                       (derived; weight = #comments on the channel)
     │ belongs_to (weight = 1)
     ▼
- Channel                           Video ── has_topic ──▶ Topic   (schema ready, empty until topic modelling)
+ Channel                           Video ── has_topic ──▶ Topic   (filled from a topic run with --topic-run)
 ```
 
 ## Building
@@ -20,6 +20,8 @@ Commenter                          Commenter
 ```powershell
 python -m research.component_3.preprocessing.hetero_graph                 # latest research snapshot
 python -m research.component_3.preprocessing.hetero_graph --snapshot rs-20261008T093922Z
+python -m research.component_3.model.topic_similarity --topics 10          # topic clusters first, then:
+python -m research.component_3.preprocessing.hetero_graph --topic-run latest   # graph WITH topic nodes
 ```
 
 - **Input:** the research snapshot's Parquet files, queried with DuckDB. There's no YouTube access.
@@ -34,7 +36,7 @@ python -m research.component_3.preprocessing.hetero_graph --snapshot rs-20261008
 | `channel` | `channel:<channel_id>` | `label` (name), `published_at` (created), `subscriber_count`, `view_count`, `video_count` |
 | `video` | `video:<video_id>` | `label` (title), `channel_id`, `published_at`, `duration_seconds`, `view_count`, `like_count`, `comment_count` |
 | `commenter` | `commenter:<pseudonym>` | none beyond the ID (minimal by design) |
-| `topic` | `topic:<topic_id>` | `label`, supplied by the later topic-modelling stage; **empty now** |
+| `topic` | `topic:<topic_id>` | `label` ("cluster tNN"), from the KMeans topic clusters of a STEP 18 topic run (`--topic-run`); empty if the graph is built without one |
 
 All nodes share one table, `graph_nodes`, with `node_id`, `node_type`, `key` (the ID within its type), and nullable attribute columns.
 
@@ -45,7 +47,7 @@ All nodes share one table, `graph_nodes`, with `node_id`, `node_type`, `key` (th
 | `comments` | commenter → video | no | **Number of comments** (top-level + replies) by the commenter on the video; one edge per pair, not one per comment | `comment_count`, `reply_count`, `first_at`, `last_at` (first and last comment time) |
 | `belongs_to` | video → channel | no | **1.0** (structural) | none |
 | `participates_in` | commenter → channel | **yes** | **Sum of the commenter's `comments` weights** on that channel's videos | `comment_count`, `reply_count`, `video_count`, `first_at`, `last_at` (first and last interaction) |
-| `has_topic` | video → topic | no | Topic weight in [0, 1] from the topic stage (**no topics yet**) | none |
+| `has_topic` | video → topic | no | Topic weight in [0, 1] from the topic run (hard assignment: 1.0) | none |
 
 - `participates_in` is **derived** from `comments` + `belongs_to`, using the video's channel. It's marked `derived = true` and isn't an independent behavioural event.
 - To avoid double counting, algorithms that walk commenter → video → channel should leave it out: `to_networkx(include_derived=False)`.

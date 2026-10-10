@@ -26,7 +26,7 @@ Walks **repeat** a meta-path, so each starts and ends with the same node type. T
 | `CVChVC` | commenter → video → channel → video → commenter | Commenter-to-channel structure (symmetric form of Commenter → Video → Channel) |
 | `ChVCVCh` | channel → video → commenter → video → channel | Cross-channel connectivity through shared commenter participation |
 | `VChV` | video –belongs_to– channel –belongs_to– video | Videos in the same channel context |
-| `VTV` (later) | video –has_topic– topic –has_topic– video | Videos sharing a topic; **usable only once topic nodes exist** |
+| `VTV` | video –has_topic– topic –has_topic– video | Videos sharing a topic. In the default set, and used whenever the graph has topic nodes (`hetero_graph --topic-run`) |
 
 - **Configurable:** meta-paths are set through `Config(metapaths=...)`. The set is deliberately small rather than every possible path.
 - **Validation before training:** each meta-path must have valid node types and relations, relations that connect the stated types, and a repeatable (cyclic) form. Its node types and relations must also be **present in the graph**.

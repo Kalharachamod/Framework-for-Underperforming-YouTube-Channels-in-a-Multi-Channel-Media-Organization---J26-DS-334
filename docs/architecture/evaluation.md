@@ -16,6 +16,8 @@ python -m research.component_3.evaluation.evaluate --topic-backend char_lsa --sk
 |---|---|---|
 | `audience_bridge_score` | proposed method | STEP 19 `audience_bridge_score`, through `score_channels(ctx)` in `model/audience_bridge.py` |
 | `ppr_diffusion` | component of proposed method | STEP 17 `diffusion_score` (directional) |
+| `metapath2vec_similarity` | component of proposed method | Cosine of the two channels' STEP 15 embeddings (primary) |
+| `hgt_similarity` | component of proposed method (alternative) | Cosine of the two channels' STEP 16 embeddings |
 | `topic_similarity` | component of proposed method | STEP 18 `topic_similarity` (symmetric) |
 | `louvain` | baseline | STEP 20 same-community indicator (binary, many ties) |
 | `node2vec` | baseline | STEP 20 raw cosine similarity |
@@ -68,7 +70,7 @@ Otherwise the pair is recorded as `not_comparable` with the reason. If no pair i
 - **Subsampling:** comments, or whole commenters (`--sparse-unit commenters`), are subsampled at each retain fraction (default 0.75 / 0.5 / 0.25) with fixed seeds (default 0 / 1 / 2). Channels, videos and `as_of` stay unchanged.
 - **Isolation:** each simulation writes its snapshot, graph and features into its **own temporary data directory**, which is deleted afterwards. The source snapshot is checksum-verified before and after, and production data is never written.
 - **Results:** agreement with the full-data ranking (Spearman, Kendall, top-k Jaccard) and `score_coverage`, the share of full-data scored pairs still scored.
-- **Topic similarity is excluded by default:** it depends only on video text, which comment subsampling doesn't change. The Audience Bridge Score is included, since its confidence and diffusion inputs depend on comments.
+- **Topic similarity is excluded by default:** it depends only on video text, which comment subsampling doesn't change. The Audience Bridge Score and `metapath2vec_similarity` are included, since they depend on comments. HGT is excluded by default because retraining it for every simulation is slow.
 
 **Performance.** These are measured values; none are estimated:
 - **Time:** wall-clock time per stage (`time.perf_counter`).

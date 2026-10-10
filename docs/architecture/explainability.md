@@ -26,10 +26,13 @@ The decomposition uses the STEP 19 experiment's own weights and `k`, read from `
 
 ```
 diffusion_contribution = w_d × normalized_diffusion
+embedding_contribution = w_e × normalized_embedding_similarity   (0 when the experiment has w_e = 0)
 topic_contribution     = w_t × normalized_topic_similarity
-base_score             = diffusion_contribution + topic_contribution
+base_score             = diffusion_contribution + embedding_contribution + topic_contribution
 audience_bridge_score  = base_score × confidence,  confidence = n/(n+k) × topic coverage
 ```
+
+Each part's share of the base score is recorded (`diffusion_share_of_base`, `embedding_share_of_base`, `topic_share_of_base`), together with the experiment's `embedding_source`.
 
 Every score is **rebuilt from its stored inputs**, and `reconstruction_error` is recorded. The `explanation_status` is one of:
 
@@ -51,6 +54,7 @@ Every score is **rebuilt from its stored inputs**, and `reconstruction_error` is
 | Stored videos, unique commenters, comments per channel | STEP 14 `graph_node_features` |
 | Interaction counts, video coverage and temporal support of the shared commenters | DuckDB aggregate over the snapshot's comments up to `as_of`: comments and distinct videos on each channel, distinct active days, first and last comment, span |
 | Topic similarity and topic coverage | the STEP 19 score row, which comes from STEP 18 |
+| Channel-embedding similarity (raw cosine) | the STEP 19 score row (metapath2vec or HGT) |
 
 Every evidence group has a **state**, and the states are never treated as interchangeable:
 
@@ -59,13 +63,15 @@ Every evidence group has a **state**, and the states are never treated as interc
 | `observed` | the evidence exists (value > 0) |
 | `zero` | both channels were observed with commenters, and the value is 0 |
 | `insufficient_coverage` | a channel has no stored videos or commenters, so absence tells us nothing |
-| `missing` | the required input isn't available (e.g. no topic profile) |
+| `missing` | the required input isn't available (e.g. no topic profile, or no embedding for a channel) |
+| `not_used` | the experiment has no embedding part (`w_e = 0`), so embedding evidence doesn't apply |
 
 ## Reason rules (`ExplainConfig`)
 
 | Reason code | Rule | Default and rationale |
 |---|---|---|
 | `strong_structural_connectivity` | normalized diffusion > 0 and per-source rank ≤ ceil(fraction × candidates) | fraction 0.25: a relative, per-source top-quartile convention |
+| `strong_embedding_similarity` | the same rule on normalized embedding similarity (only when `w_e > 0`) | as above |
 | `high_topic_similarity` | the same rule on normalized topic similarity | as above |
 | `strong_shared_commenter_evidence` | shared commenters ≥ the experiment's `k` | the half-saturation point of the scoring's own confidence |
 | `low_confidence_sparse_evidence` | 0 < shared commenters < `k` | as above |
@@ -104,9 +110,11 @@ Context is computed **within one source, snapshot and experiment only**. A score
 
 `sensitivity.py` recomputes scores **only from the stored component values** under these scenarios:
 - `original`
-- `diffusion_removed` and `topic_removed` (that contribution set to 0, the weights unchanged)
+- `diffusion_removed`, `embedding_removed` and `topic_removed` (that contribution set to 0, the weights unchanged; only for parts with a weight above 0)
 - `confidence_removed`
-- alternative weights `w_d ∈ {0, 0.25, 0.75, 1}` with `w_t = 1 − w_d`
+- alternative weights `(w_d, w_e, w_t)`: the corners `(1,0,0)`, `(0,1,0)`, `(0,0,1)` and edge midpoints `(½,½,0)`, `(½,0,½)`, `(0,½,½)` of the weight simplex
+
+A scenario that needs a part the experiment didn't store (e.g. embedding weights for a run without embeddings) is reported as `not_computed`, never treated as 0.
 
 Each scenario is stored separately, with its configuration, score, rank, `score_delta` and `rank_change` (> 0 means the destination moved up). Ties are broken by destination ID.
 

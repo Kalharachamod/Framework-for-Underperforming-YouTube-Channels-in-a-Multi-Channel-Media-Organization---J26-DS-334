@@ -26,7 +26,7 @@ It's built from the **same STEP 13 graph**: its node IDs, types, relations and w
 |---|---|---|---|
 | `comments` | commenter → video | video → commenter (`derived_diffusion_edge`) | `ln(1 + comment_count)` (STEP 14 `interaction_weight`) |
 | `belongs_to` | video → channel | channel → video (`derived_diffusion_edge`) | 1.0 |
-| `has_topic` | video → topic | topic → video | Topic weight (once topics exist) |
+| `has_topic` | video → topic | topic → video | Topic weight. **Excluded by default** (`include_topic_edges=False`) |
 | `participates_in` | **excluded by default** | | It's derived from `comments` + `belongs_to`, so including it would count the same evidence twice (`include_derived_participation=True` to add it) |
 
 **Direction: relation-aware bidirectional.** Observed edges point commenter → video → channel. A walk could then never leave a channel, so every observed edge also gets a reverse edge, kept with its relation and direction and labelled `derived_diffusion_edge`. This choice is explicit in the configuration, not a library default.
@@ -121,4 +121,4 @@ Each run uses **one** research snapshot's graph, recorded via `snapshot_id` and 
 
 - **Sample dependence:** scores reflect the **observed sample**. With low collection coverage and few shared commenters, most mass stays inside the source channel, and cross-channel scores are tiny or exactly 0 (unreachable).
 - **Parameter sensitivity:** results depend on α, the transition rule and the relation weights. These are documented defaults, not tuned values.
-- **No topics yet:** topic similarity and confidence weighting aren't included; that happens in later steps.
+- **Topic edges are excluded by default** (`PPRConfig.include_topic_edges = False`). Diffusion then stays an audience-structure signal, and topic content enters the Audience Bridge Score only through its own topic-similarity component, so it isn't counted twice. Set `include_topic_edges=True` to study diffusion through topics.
