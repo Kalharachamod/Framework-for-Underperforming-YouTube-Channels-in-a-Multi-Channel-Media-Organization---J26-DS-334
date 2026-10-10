@@ -70,6 +70,7 @@ class PPRConfig:
     relation_weights: tuple[tuple[str, float], ...] = ()    # e.g. (("comments:reverse", 0.5),)
     personalization: str = "source_channel"                 # or "source_channel_videos"
     include_source: bool = False                            # source excluded from destination ranking
+    include_topic_edges: bool = False                       # has_topic edges; off: topic enters the score separately
 
     def to_dict(self) -> dict[str, Any]:
         d = asdict(self)
@@ -120,7 +121,9 @@ def build_diffusion_graph(graph: hg.HeteroGraph, config: PPRConfig = PPRConfig()
     nodes = graph.nodes.sort_values("node_id", kind="stable")
     node_ids = nodes["node_id"].tolist()
     index = {n: i for i, n in enumerate(node_ids)}
-    relations = ["comments", "belongs_to", "has_topic"] + (["participates_in"] if config.include_derived_participation else [])
+    # has_topic is excluded by default so diffusion stays an audience-structure signal: topic content
+    # enters the Audience Bridge Score through its own topic-similarity component (no double counting).
+    relations = ["comments", "belongs_to"] + (["has_topic"] if config.include_topic_edges else [])         + (["participates_in"] if config.include_derived_participation else [])
     observed = graph.edges[graph.edges["relation"].isin(relations)]
 
     base = np.where(observed["relation"].isin(["comments", "participates_in"]),
