@@ -141,7 +141,10 @@ class BridgeExperiment(_Model):
     method_version: str | None
     provisional: bool
     w_diffusion: float
+    w_embedding: float
     w_topic: float
+    embedding_source: str = Field(description="metapath2vec (primary), hgt (alternative) or none")
+    embedding_experiment_id: str | None
     confidence_k: float
     pairs: int | None
     scored_pairs: int | None
@@ -160,6 +163,7 @@ class BridgeDestination(_Model):
     destination_channel_name: str | None
     audience_bridge_score: float | None
     diffusion_component: float | None
+    embedding_component: float | None
     topic_component: float | None
     confidence_component: float | None
     base_score: float | None
@@ -179,11 +183,16 @@ class BridgeRankingResponse(Page):
 class ScoreBreakdown(_Model):
     raw_diffusion_score: float | None
     normalized_diffusion: float | None
+    raw_embedding_similarity: float | None
+    normalized_embedding_similarity: float | None
     raw_topic_similarity: float | None
     normalized_topic_similarity: float | None
     w_diffusion: float
+    w_embedding: float
     w_topic: float
+    embedding_source: str
     diffusion_component: float | None
+    embedding_component: float | None
     topic_component: float | None
     base_score: float | None
     shared_commenters: int | None
@@ -211,6 +220,8 @@ class EvidenceSummary(_Model):
     temporal_state: str
     topic_similarity: float | None
     topic_state: str
+    embedding_similarity: float | None
+    embedding_state: str
 
 
 class ExplanationReason(_Model):

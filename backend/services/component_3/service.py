@@ -29,7 +29,8 @@ FILTER_VALUE = re.compile(r"^[a-z0-9_]{1,64}$")
 PSEUDONYM = "anon_"
 INTERPRETATION = ("Audience Bridge Scores are potential audience bridge signals from a provisional formula; they "
                   "do not show audience migration, subscriber transfer, causality or growth.")
-FORMULA = "audience_bridge_score = (diffusion_component + topic_component) x confidence_component"
+FORMULA = ("audience_bridge_score = (diffusion_component + embedding_component + topic_component) "
+           "x confidence_component")
 EVAL_TABLES = {"ranking": "ranking_evaluation_results", "top_k": "top_k_evaluation_results",
                "temporal_stability": "temporal_stability_results", "sparse_robustness": "sparse_robustness_results",
                "performance": "computational_performance_results"}
@@ -214,7 +215,9 @@ class Component3Service:
             items.append({
                 "experiment_id": eid, "snapshot_id": sid, "created_at": _ts(m.get("created_at")),
                 "method_version": m.get("method_version"), "provisional": bool(m.get("provisional")),
-                "w_diffusion": float(cfg.get("w_diffusion")), "w_topic": float(cfg.get("w_topic")),
+                "w_diffusion": float(cfg.get("w_diffusion")), "w_embedding": float(cfg.get("w_embedding", 0.0)),
+                "w_topic": float(cfg.get("w_topic")), "embedding_source": str(cfg.get("embedding_source", "none")),
+                "embedding_experiment_id": m.get("inputs", {}).get("embedding_experiment_id"),
                 "confidence_k": float(cfg.get("confidence_k")), "pairs": cov.get("pairs"),
                 "scored_pairs": cov.get("scored"),
                 "explanation_ids": [x["explanation_id"] for x in expl if x.get("experiment_id") == eid],
@@ -247,14 +250,17 @@ class Component3Service:
         if not include_unscored:
             where += " AND audience_bridge_score IS NOT NULL"
         total = self.store.count(path, where, [node])
-        df = self.store.query(path, ["destination_channel_id", "rank", "audience_bridge_score",
-                                     "diffusion_contribution", "topic_contribution", "confidence", "base_score",
-                                     "score_status"], where, [node],
+        wanted = ["destination_channel_id", "rank", "audience_bridge_score", "diffusion_contribution",
+                  "embedding_contribution", "topic_contribution", "confidence", "base_score", "score_status"]
+        present = set(self.store.columns(path))          # runs before the embedding component lack it
+        df = self.store.query(path, [c for c in wanted if c in present], where, [node],
                               order_by="rank ASC NULLS LAST, destination_channel_id", limit=limit, offset=offset)
+        has_emb = "embedding_contribution" in present
         names = dict(zip(self._channels(snap)["node_id"], self._channels(snap)["channel_name"]))
         items = [{"rank": _v(r.rank), "destination_channel_id": _public(r.destination_channel_id),
                   "destination_channel_name": _v(names.get(r.destination_channel_id)),
                   "audience_bridge_score": _v(r.audience_bridge_score), "diffusion_component": _v(r.diffusion_contribution),
+                  "embedding_component": _v(r.embedding_contribution) if has_emb else 0.0,
                   "topic_component": _v(r.topic_contribution), "confidence_component": _v(r.confidence),
                   "base_score": _v(r.base_score), "score_status": str(r.score_status)} for r in df.itertuples()]
         return _clean({"snapshot_id": snap.snapshot_id, "experiment_id": run["experiment_id"],
@@ -276,12 +282,19 @@ class Component3Service:
         if s.empty:
             raise NotFound(f"pair {_public(src)} -> {_public(dst)} is not in experiment {eid}")
         r = s.iloc[0]
+
+        def g(col, default=None):
+            return _v(r[col]) if col in r.index else default
         breakdown = {
             "raw_diffusion_score": _v(r["raw_diffusion_score"]), "normalized_diffusion": _v(r["normalized_diffusion"]),
+            "raw_embedding_similarity": g("raw_embedding_similarity"),
+            "normalized_embedding_similarity": g("normalized_embedding_similarity"),
             "raw_topic_similarity": _v(r["raw_topic_similarity"]),
             "normalized_topic_similarity": _v(r["normalized_topic_similarity"]),
-            "w_diffusion": float(cfg["w_diffusion"]), "w_topic": float(cfg["w_topic"]),
-            "diffusion_component": _v(r["diffusion_contribution"]), "topic_component": _v(r["topic_contribution"]),
+            "w_diffusion": float(cfg["w_diffusion"]), "w_embedding": float(cfg.get("w_embedding", 0.0)),
+            "w_topic": float(cfg["w_topic"]), "embedding_source": str(cfg.get("embedding_source", "none")),
+            "diffusion_component": _v(r["diffusion_contribution"]),
+            "embedding_component": g("embedding_contribution", 0.0), "topic_component": _v(r["topic_contribution"]),
             "base_score": _v(r["base_score"]), "shared_commenters": _v(r["shared_commenters"]),
             "evidence_confidence": _v(r["evidence_confidence"]),
             "topic_coverage_confidence": _v(r["topic_coverage_confidence"]), "confidence_component": _v(r["confidence"]),
@@ -321,6 +334,9 @@ class Component3Service:
             "shared_videos_on_source", "shared_videos_on_destination", "source_video_coverage",
             "destination_video_coverage", "video_coverage_state", "shared_active_days", "shared_first_comment_at",
             "shared_last_comment_at", "temporal_state", "topic_similarity", "topic_state")}
+        if evidence is not None:      # explanations made before the embedding component have no such fields
+            evidence["embedding_similarity"] = _v(e["embedding_similarity"]) if "embedding_similarity" in e.index else None
+            evidence["embedding_state"] = str(_v(e["embedding_state"])) if "embedding_state" in e.index else "not_used"
         notes = [n for n in str(_v(xr["uncertainty_notes"]) or "").split("; ") if n]
         return {"explanation_status": "available", "explanation_detail": None,
                 "explanation_id": run["explanation_id"], "explanation_config_id": _v(xr["explanation_config_id"]),

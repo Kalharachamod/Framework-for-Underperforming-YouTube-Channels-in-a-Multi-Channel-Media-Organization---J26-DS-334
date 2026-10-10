@@ -164,9 +164,11 @@ def test_pair_decomposition_and_explanation(client, full):
     body = get(client, f"{API}/bridge/{A}/destinations/{C}")
     sc.BridgePairResponse.model_validate(body)
     b = body["score_breakdown"]
-    assert body["audience_bridge_score"] == pytest.approx((b["diffusion_component"] + b["topic_component"]) *
-                                                          b["confidence_component"]) == pytest.approx(0.4)
-    assert b["w_diffusion"] == 0.5 and b["shared_commenters"] == 2
+    assert body["audience_bridge_score"] == pytest.approx(
+        (b["diffusion_component"] + b["embedding_component"] + b["topic_component"]) * b["confidence_component"])
+    assert b["w_diffusion"] == pytest.approx(1 / 3) and b["w_embedding"] == pytest.approx(1 / 3)
+    assert b["embedding_source"] == "metapath2vec" and b["shared_commenters"] == 2
+    assert body["evidence_summary"]["embedding_state"] == "observed"
     assert body["explanation_status"] == "available" and body["explanation_outcome"] == "complete"
     assert body["evidence_summary"]["shared_commenter_state"] == "observed"
     assert {r["reason_code"] for r in body["explanation_reasons"]} >= {"low_confidence_sparse_evidence"}
@@ -181,7 +183,9 @@ def test_missing_explanation_artifact(tmp_path, monkeypatch):
     body = get(c, f"{API}/bridge/{A}/destinations/{C}")
     assert body["explanation_status"] == "unavailable" and "no explanation artifact" in body["explanation_detail"]
     assert body["explanation_reasons"] == [] and body["evidence_summary"] is None
-    assert body["audience_bridge_score"] == pytest.approx(0.4)                 # the stored score is still served
+    b = body["score_breakdown"]                                                 # the stored score is still served
+    assert body["audience_bridge_score"] == pytest.approx(
+        (b["diffusion_component"] + b["embedding_component"] + b["topic_component"]) * b["confidence_component"])
     assert get(c, f"{API}/evaluation/runs")["items"] == []
     err = get(c, f"{API}/evaluation/eval-000000000000/ranking", 404)["error"]
     assert err["code"] == "artifact_unavailable"
@@ -195,8 +199,8 @@ def test_evaluation_results(client, full):
     assert runs[0]["evaluation_id"] == full["evid"] and runs[0]["audience_bridge_experiment_id"] == full["eid"]
     body = get(client, f"{API}/evaluation/{full['evid']}/ranking", method="audience_bridge_score", metric="spearman")
     sc.EvaluationRowsResponse.model_validate(body)
-    assert body["total"] == 4 and {i["reference_method"] for i in body["items"]} == \
-        {"ppr_diffusion", "topic_similarity", "louvain", "node2vec"}
+    assert body["total"] == 6 and {i["reference_method"] for i in body["items"]} == \
+        {"ppr_diffusion", "topic_similarity", "metapath2vec_similarity", "hgt_similarity", "louvain", "node2vec"}
     assert get(client, f"{API}/evaluation/{full['evid']}/temporal_stability")["items"][0]["status"] == \
         "insufficient_temporal_data"
     perf = get(client, f"{API}/evaluation/{full['evid']}/performance", method="input_preparation")
