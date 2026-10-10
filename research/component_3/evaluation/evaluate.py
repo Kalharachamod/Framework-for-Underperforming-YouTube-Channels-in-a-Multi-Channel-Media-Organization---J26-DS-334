@@ -85,7 +85,8 @@ class EvaluationConfig:
     sparse_unit: str = "comments"
     sparse_fractions: tuple[float, ...] = (0.75, 0.5, 0.25)
     sparse_seeds: tuple[int, ...] = (0, 1, 2)
-    sparse_methods: tuple[str, ...] = ("audience_bridge_score", "ppr_diffusion", "louvain", "node2vec")
+    sparse_methods: tuple[str, ...] = ("audience_bridge_score", "ppr_diffusion", "metapath2vec_similarity", "louvain",
+                                       "node2vec")
 
     def __post_init__(self):
         unknown = sorted((set(self.methods) | set(self.sparse_methods)) - set(me.METHODS))
@@ -152,10 +153,11 @@ class _Runner:
 
 
 def evaluate(snapshot_id: str, config: EvaluationConfig = EvaluationConfig(), *, encoder=None,
-             node2vec_config=None, louvain_config=None, ppr_config=None, topic_config=None) -> EvaluationResult:
+             node2vec_config=None, louvain_config=None, ppr_config=None, topic_config=None, m2v_config=None,
+             hgt_config=None) -> EvaluationResult:
     info = snapshots.get_research_snapshot(snapshot_id)
     configs = {"node2vec_config": node2vec_config, "louvain_config": louvain_config, "ppr_config": ppr_config,
-               "topic_config": topic_config}
+               "topic_config": topic_config, "m2v_config": m2v_config, "hgt_config": hgt_config}
     runner = _Runner(encoder, configs)
     ks = tuple(sorted(set(config.ks)))
     started = time.perf_counter()

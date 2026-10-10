@@ -12,6 +12,8 @@ Methods:
   audience_bridge_score  proposed (STEP 19 model/audience_bridge.py); "unavailable" if that module is absent
   ppr_diffusion          component of proposed (STEP 17 diffusion_score)
   topic_similarity       component of proposed (STEP 18 topic_similarity, symmetric)
+  metapath2vec_similarity component of proposed (STEP 15 channel-embedding cosine, primary)
+  hgt_similarity         component of proposed, alternative embedding (STEP 16 channel-embedding cosine)
   louvain                baseline (STEP 20 binary same-community indicator)
   node2vec               baseline (STEP 20 raw cosine similarity)
 """
@@ -56,6 +58,8 @@ class MethodContext:
     louvain_config: Any = None
     ppr_config: Any = None
     topic_config: Any = None
+    m2v_config: Any = None
+    hgt_config: Any = None
 
 
 def standardize(raw: pd.DataFrame, *, method: str, role: str, signal_type: str, score_col: str,
@@ -122,6 +126,24 @@ def _node2vec(ctx: MethodContext) -> tuple[pd.DataFrame, str, dict]:
     return df, r.experiment_id, {"embedded_nodes": int(len(r.embeddings.nodes))}
 
 
+def _embedding(source: str):
+    def adapter(ctx: MethodContext) -> tuple[pd.DataFrame, str, dict]:
+        from research.component_3.model import audience_bridge as ab
+
+        inp = ctx.baseline_input
+        emb = ab.embeddings_for(inp.graph, source, m2v_config=ctx.m2v_config, hgt_config=ctx.hgt_config)
+        ch = inp.channels
+        pairs = pd.DataFrame([(a, b) for a in ch for b in ch if a != b],
+                             columns=["source_channel_id", "destination_channel_id"])
+        pairs["embedding_similarity"] = ab.channel_cosine(emb, pairs)
+        name = "metapath2vec_similarity" if source == "metapath2vec" else "hgt_similarity"
+        df = standardize(pairs, method=name, role="component of proposed method", signal_type="graded",
+                         score_col="embedding_similarity", snapshot_id=inp.snapshot_id,
+                         experiment_id=emb.experiment_id, channels=ch)
+        return df, emb.experiment_id, {"embedded_channels": int(sum(n in set(emb.nodes["node_id"]) for n in ch))}
+    return adapter
+
+
 def _abs(ctx: MethodContext) -> tuple[pd.DataFrame, str, dict]:
     """Slot for the proposed Audience Bridge Score (STEP 19). Uses ``score_channels(ctx)`` from
     ABS_MODULE when it exists, which must return (raw table with an 'audience_bridge_score'
@@ -139,11 +161,13 @@ METHODS: dict[str, Callable[[MethodContext], tuple[pd.DataFrame, str, dict]]] = 
     "audience_bridge_score": _abs,
     "ppr_diffusion": _ppr,
     "topic_similarity": _topic,
+    "metapath2vec_similarity": _embedding("metapath2vec"),
+    "hgt_similarity": _embedding("hgt"),
     "louvain": _louvain,
     "node2vec": _node2vec,
 }
 PROPOSED = ("audience_bridge_score",)
-PROPOSED_COMPONENTS = ("ppr_diffusion", "topic_similarity")
+PROPOSED_COMPONENTS = ("ppr_diffusion", "topic_similarity", "metapath2vec_similarity", "hgt_similarity")
 BASELINES = ("louvain", "node2vec")
 
 

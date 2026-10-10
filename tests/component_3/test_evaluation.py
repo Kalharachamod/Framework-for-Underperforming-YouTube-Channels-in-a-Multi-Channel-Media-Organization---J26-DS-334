@@ -421,4 +421,5 @@ def test_full_run_with_step19_scores(sid):
     r = run_eval(sid, ev.EvaluationConfig(run_sparse=False, run_temporal=False))
     assert r.metadata["proposed_method"]["status"] == "ok" and r.metadata["proposed_method"]["note"] is None
     agree = rows(r.tables["ranking_evaluation_results"], analysis="agreement", method="audience_bridge_score")
-    assert set(agree.reference_method) == {"ppr_diffusion", "topic_similarity", "louvain", "node2vec"}
+    assert set(agree.reference_method) == {"ppr_diffusion", "topic_similarity", "metapath2vec_similarity",
+                                         "hgt_similarity", "louvain", "node2vec"}
