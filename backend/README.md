@@ -84,14 +84,14 @@ How selection works:
   "source_channel_id": "UCJr5vlnK6HEBVISUtxnq_sg", "source_channel_name": "Derana Little Star",
   "include_unscored": false,
   "items": [{"rank": 1, "destination_channel_id": "UCs8gVM6lPhRZk3L_zZmedpw", "destination_channel_name": "Dream Star",
-             "audience_bridge_score": 0.8853, "diffusion_component": 0.5, "topic_component": 0.4591,
+             "audience_bridge_score": 0.8853, "diffusion_component": 0.5, "embedding_component": 0.0, "topic_component": 0.4591,
              "confidence_component": 0.9231, "base_score": 0.9591, "score_status": "ok"}],
   "note": "Audience Bridge Scores are potential audience bridge signals ..."
 }
 ```
 
 The pair endpoint adds:
-- `score_breakdown`: raw and normalized components, weights, `shared_commenters`, the confidence parts, and the formula
+- `score_breakdown`: raw and normalized diffusion, embedding and topic components, the three weights, `embedding_source`, `shared_commenters`, the confidence parts, and the formula
 - `explanation_status`: `available`, or `unavailable` with `explanation_detail` when no STEP 22 artifact exists for the experiment
 - `evidence_summary`, `explanation_reasons`, `uncertainty_notes` and `ranking_context`
 

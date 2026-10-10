@@ -62,13 +62,21 @@ On Linux or macOS, the cron equivalent is:
 ## 4. After each run (analysis pipeline, local)
 
 ```powershell
-python -m research.component_3.preprocessing.hetero_graph        # graph of the latest snapshot
+python -m research.component_3.model.topic_similarity --topics 10   # topic clusters (choose and report N)
+python -m research.component_3.preprocessing.hetero_graph --topic-run latest   # graph with topic nodes
 python -m research.component_3.preprocessing.graph_features      # features
 python -m research.component_3.model.metapath2vec                # primary embeddings
 python -m research.component_3.model.hgt                         # alternative embeddings
 python -m research.component_3.model.ppr_diffusion               # diffusion
-python -m research.component_3.model.topic_similarity            # topic similarity
+python -m research.component_3.model.audience_bridge             # Audience Bridge Score (diffusion + embedding + topic)
+python -m research.component_3.model.audience_bridge --embedding-source hgt    # same with the HGT embeddings
+python -m research.component_3.model.baselines louvain           # Louvain baseline
+python -m research.component_3.model.baselines node2vec          # node2vec baseline
+python -m research.component_3.explainability.explain            # explanations of the latest bridge run
+python -m research.component_3.evaluation.evaluate               # evaluation (add --skip-sparse for a quick run)
 ```
+
+The API and dashboard then serve these results (see [backend/README.md](../backend/README.md)).
 
 ## Scope and open items
 

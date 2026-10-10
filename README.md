@@ -273,7 +273,12 @@ python -m shared.data_collection.run_collection --max-videos 50 --snapshot
 ```
 See the [collection runbook](docs/collection_runbook.md) for scheduling and the analysis pipeline.
 
-> **Note:** Backend and frontend run instructions will be added when implementation begins.
+**7. Run the API and dashboard** (read-only views of the stored research results)
+```bash
+python -m uvicorn backend.main:app --reload --port 8000     # API, docs at http://localhost:8000/docs
+cd frontend && npm install && npm run dev                    # dashboard at http://localhost:5173
+```
+Details: [backend/README.md](backend/README.md) and [frontend/README.md](frontend/README.md). `API_CORS_ORIGINS`, `API_MAX_PAGE_SIZE` and `API_REQUEST_TIMEOUT_SECONDS` in `.env` configure the API.
 
 </details>
 
