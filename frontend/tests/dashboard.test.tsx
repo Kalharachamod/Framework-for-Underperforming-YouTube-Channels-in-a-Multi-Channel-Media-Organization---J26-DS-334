@@ -62,7 +62,7 @@ describe("Audience Bridges", () => {
     await userEvent.selectOptions(select, A);
     const table = await screen.findByRole("table");
     const rows = within(table).getAllByRole("row");
-    expect(rows[1]).toHaveTextContent("1Test Channel C0.43210.5000.3000.540");
+    expect(rows[1]).toHaveTextContent("1Test Channel C0.43210.5000.1000.2000.540");
     expect(rows[2]).toHaveTextContent("Test Channel B");
     expect(screen.getByText(EID)).toBeInTheDocument();
     const called = fetchMock.mock.calls.map((c) => String(c[0])).find((u) => u.includes("/destinations"));
@@ -99,7 +99,7 @@ describe("Explainability", () => {
     mockFetch(defaultRoutes());
     renderAt(`/explainability?source=${A}&destination=${C}`);
     expect(await screen.findByText("0.4321")).toBeInTheDocument();
-    expect(screen.getByText("0.500 = 0.5 × 1.000")).toBeInTheDocument();
+    expect(screen.getByText("0.500 = 0.500 × 1.000")).toBeInTheDocument();
     expect(screen.getByText(/× 0.540/)).toBeInTheDocument();
     expect(screen.getAllByText("Observed").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Zero").length).toBeGreaterThan(0);

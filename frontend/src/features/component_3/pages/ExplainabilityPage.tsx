@@ -14,6 +14,7 @@ const STATE_TEXT: Record<string, [Tone, string, string]> = {
   zero: ["neutral", "Zero", "Both channels were observed; the value is genuinely 0."],
   insufficient_coverage: ["warn", "Insufficient coverage", "A channel has no stored videos or commenters, so absence is not informative."],
   missing: ["bad", "Missing", "The input needed for this evidence is not available."],
+  not_used: ["neutral", "Not used", "This scoring experiment has no embedding component."],
 };
 
 function StateBadge({ state }: { state: EvidenceState }) {
@@ -76,14 +77,16 @@ export function ExplainabilityPage() {
                   <span className="muted"> Audience Bridge Score{p.rank !== null ? ` · rank ${p.rank}` : ""}</span>
                 </p>
                 {p.score_status !== "ok" && <p><Badge tone="warn">{p.score_status}</Badge></p>}
-                <ComponentBar diffusion={b.diffusion_component} topic={b.topic_component} />
+                <ComponentBar diffusion={b.diffusion_component} embedding={b.embedding_component} topic={b.topic_component} />
                 <KeyValues
                   rows={[
-                    ["Diffusion contribution", `${num(b.diffusion_component)} = ${b.w_diffusion} × ${num(b.normalized_diffusion)}`],
-                    ["Topic contribution", `${num(b.topic_component)} = ${b.w_topic} × ${num(b.normalized_topic_similarity)}`],
+                    ["Diffusion contribution", `${num(b.diffusion_component)} = ${num(b.w_diffusion)} × ${num(b.normalized_diffusion)}`],
+                    ["Embedding contribution", b.w_embedding > 0 ? `${num(b.embedding_component)} = ${num(b.w_embedding)} × ${num(b.normalized_embedding_similarity)} (${b.embedding_source})` : "not used in this experiment"],
+                    ["Topic contribution", `${num(b.topic_component)} = ${num(b.w_topic)} × ${num(b.normalized_topic_similarity)}`],
                     ["Base score", num(b.base_score)],
                     ["Confidence adjustment", `× ${num(b.confidence_component)} (evidence ${num(b.evidence_confidence)} × topic coverage ${num(b.topic_coverage_confidence)})`],
                     ["Raw PPR diffusion", num(b.raw_diffusion_score, 6)],
+                    ["Raw embedding cosine", num(b.raw_embedding_similarity)],
                     ["Raw topic similarity", num(b.raw_topic_similarity)],
                   ]}
                 />
@@ -148,6 +151,7 @@ export function ExplainabilityPage() {
                           <tr><td>Active days of shared commenters</td><td className="num">{int(e.shared_active_days)}</td><td rowSpan={2}><StateBadge state={e.temporal_state} /></td></tr>
                           <tr><td>First / last shared comment</td><td>{date(e.shared_first_comment_at)} / {date(e.shared_last_comment_at)}</td></tr>
                           <tr><td>Topic similarity (raw cosine)</td><td className="num">{num(e.topic_similarity)}</td><td><StateBadge state={e.topic_state} /></td></tr>
+                          <tr><td>Channel-embedding similarity (raw cosine)</td><td className="num">{num(e.embedding_similarity)}</td><td><StateBadge state={e.embedding_state} /></td></tr>
                         </tbody>
                       </table>
                     </TableWrap>

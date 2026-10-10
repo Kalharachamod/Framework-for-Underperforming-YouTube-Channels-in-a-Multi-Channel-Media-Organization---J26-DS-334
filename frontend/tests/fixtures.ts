@@ -42,25 +42,25 @@ export const channels = {
 
 export const experiments = {
   snapshot_id: SID,
-  items: [{ experiment_id: EID, snapshot_id: SID, created_at: "2026-01-02T00:00:00Z", method_version: "1.0-provisional", provisional: true, w_diffusion: 0.5, w_topic: 0.5, confidence_k: 3, pairs: 6, scored_pairs: 6, explanation_ids: [XID], evaluation_ids: [EVID] }],
+  items: [{ experiment_id: EID, snapshot_id: SID, created_at: "2026-01-02T00:00:00Z", method_version: "1.0-provisional", provisional: true, w_diffusion: 0.25, w_topic: 0.25, confidence_k: 3, pairs: 6, scored_pairs: 6, explanation_ids: [XID], evaluation_ids: [EVID], w_embedding: 0.5, embedding_source: "metapath2vec", embedding_experiment_id: "m2v-eeeeeeeeeeee" }],
 };
 
 export const ranking = (source = A) => ({
   total: 2, limit: 10, offset: 0, snapshot_id: SID, experiment_id: EID, source_channel_id: source,
   source_channel_name: "Test Channel A", include_unscored: false, note: "Potential audience bridge signals.",
   items: [
-    { rank: 1, destination_channel_id: C, destination_channel_name: "Test Channel C", audience_bridge_score: 0.4321, diffusion_component: 0.5, topic_component: 0.3, confidence_component: 0.54, base_score: 0.8, score_status: "ok" },
-    { rank: 2, destination_channel_id: B, destination_channel_name: "Test Channel B", audience_bridge_score: 0.1234, diffusion_component: 0.2, topic_component: 0.1, confidence_component: 0.41, base_score: 0.3, score_status: "ok" },
+    { rank: 1, destination_channel_id: C, destination_channel_name: "Test Channel C", audience_bridge_score: 0.4321, diffusion_component: 0.5, embedding_component: 0.1, topic_component: 0.2, confidence_component: 0.54, base_score: 0.8, score_status: "ok" },
+    { rank: 2, destination_channel_id: B, destination_channel_name: "Test Channel B", audience_bridge_score: 0.1234, diffusion_component: 0.2, embedding_component: 0.05, topic_component: 0.05, confidence_component: 0.41, base_score: 0.3, score_status: "ok" },
   ],
 });
 
 export const pair = (overrides: Record<string, unknown> = {}) => ({
   snapshot_id: SID, experiment_id: EID, source_channel_id: A, source_channel_name: "Test Channel A",
   destination_channel_id: C, destination_channel_name: "Test Channel C", rank: 1, audience_bridge_score: 0.4321, score_status: "ok",
-  score_breakdown: { raw_diffusion_score: 0.0123, normalized_diffusion: 1, raw_topic_similarity: 0.9, normalized_topic_similarity: 0.6, w_diffusion: 0.5, w_topic: 0.5, diffusion_component: 0.5, topic_component: 0.3, base_score: 0.8, shared_commenters: 4, evidence_confidence: 0.5714, topic_coverage_confidence: 0.945, confidence_component: 0.54, formula: "audience_bridge_score = (diffusion_component + topic_component) x confidence_component" },
+  score_breakdown: { raw_diffusion_score: 0.0123, normalized_diffusion: 1, raw_embedding_similarity: 0.7, normalized_embedding_similarity: 0.2, raw_topic_similarity: 0.9, normalized_topic_similarity: 0.8, w_diffusion: 0.5, w_embedding: 0.5, w_topic: 0.25, embedding_source: "metapath2vec", diffusion_component: 0.5, embedding_component: 0.1, topic_component: 0.2, base_score: 0.8, shared_commenters: 4, evidence_confidence: 0.5714, topic_coverage_confidence: 0.945, confidence_component: 0.54, formula: "audience_bridge_score = (diffusion_component + topic_component) x confidence_component" },
   explanation_status: "available", explanation_detail: null, explanation_id: XID, explanation_config_id: "xcfg-dddddddddddd", explanation_outcome: "complete",
   explanation_text: "Test explanation.",
-  evidence_summary: { shared_commenters: 4, shared_commenter_state: "observed", jaccard_similarity: 0.25, directional_overlap_source_to_destination: 0.8, shared_comments_on_source: 6, shared_comments_on_destination: 5, shared_videos_on_source: 2, shared_videos_on_destination: 1, source_video_coverage: 1, destination_video_coverage: 0.5, video_coverage_state: "observed", shared_active_days: 0, shared_first_comment_at: null, shared_last_comment_at: null, temporal_state: "zero", topic_similarity: null, topic_state: "missing" },
+  evidence_summary: { shared_commenters: 4, shared_commenter_state: "observed", jaccard_similarity: 0.25, directional_overlap_source_to_destination: 0.8, shared_comments_on_source: 6, shared_comments_on_destination: 5, shared_videos_on_source: 2, shared_videos_on_destination: 1, source_video_coverage: 1, destination_video_coverage: 0.5, video_coverage_state: "observed", shared_active_days: 0, shared_first_comment_at: null, shared_last_comment_at: null, temporal_state: "zero", topic_similarity: null, topic_state: "missing", embedding_similarity: 0.7, embedding_state: "observed" },
   explanation_reasons: [{ reason_code: "strong_structural_connectivity", reason_text: "Strong structural connectivity (test).", criterion: "rank <= ceil(0.25 * candidates)", value: 1, threshold: 1 }],
   uncertainty_notes: ["no labelled evaluation of this experiment: the score is not empirically validated"],
   ranking_context: { candidate_destinations: 2, scored_destinations: 2, score_percentile: 1, next_higher_destination_id: null, next_higher_score: null, next_lower_destination_id: B, next_lower_score: 0.1234 },

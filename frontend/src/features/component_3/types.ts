@@ -104,7 +104,10 @@ export interface BridgeExperiment {
   method_version: string | null;
   provisional: boolean;
   w_diffusion: number;
+  w_embedding: number;
   w_topic: number;
+  embedding_source: string;
+  embedding_experiment_id: string | null;
   confidence_k: number;
   pairs: number | null;
   scored_pairs: number | null;
@@ -123,6 +126,7 @@ export interface BridgeDestination {
   destination_channel_name: string | null;
   audience_bridge_score: number | null;
   diffusion_component: number | null;
+  embedding_component: number | null;
   topic_component: number | null;
   confidence_component: number | null;
   base_score: number | null;
@@ -142,11 +146,16 @@ export interface BridgeRankingResponse extends Page {
 export interface ScoreBreakdown {
   raw_diffusion_score: number | null;
   normalized_diffusion: number | null;
+  raw_embedding_similarity: number | null;
+  normalized_embedding_similarity: number | null;
   raw_topic_similarity: number | null;
   normalized_topic_similarity: number | null;
   w_diffusion: number;
+  w_embedding: number;
   w_topic: number;
+  embedding_source: string;
   diffusion_component: number | null;
+  embedding_component: number | null;
   topic_component: number | null;
   base_score: number | null;
   shared_commenters: number | null;
@@ -156,7 +165,7 @@ export interface ScoreBreakdown {
   formula: string;
 }
 
-export type EvidenceState = "observed" | "zero" | "insufficient_coverage" | "missing" | string;
+export type EvidenceState = "observed" | "zero" | "insufficient_coverage" | "missing" | "not_used" | string;
 
 export interface EvidenceSummary {
   shared_commenters: number | null;
@@ -176,6 +185,8 @@ export interface EvidenceSummary {
   temporal_state: EvidenceState;
   topic_similarity: number | null;
   topic_state: EvidenceState;
+  embedding_similarity: number | null;
+  embedding_state: EvidenceState;
 }
 
 export interface ExplanationReason {

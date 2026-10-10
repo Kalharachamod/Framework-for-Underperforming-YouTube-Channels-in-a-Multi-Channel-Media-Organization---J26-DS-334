@@ -35,7 +35,7 @@ export function ContextBar() {
         disabled={!exps.length}
         options={exps.map((e) => ({
           value: e.experiment_id,
-          label: `${e.experiment_id} (w_d ${e.w_diffusion}, w_t ${e.w_topic}${e.provisional ? ", provisional" : ""})`,
+          label: `${e.experiment_id} (${e.w_embedding > 0 ? e.embedding_source : "no embeddings"}${e.provisional ? ", provisional" : ""})`,
         }))}
       />
     </div>

@@ -57,25 +57,28 @@ export function HorizontalBarChart({
   );
 }
 
-/** Base score split into its diffusion and topic parts, on a fixed 0–1 axis. */
-export function ComponentBar({ diffusion, topic }: { diffusion: number | null; topic: number | null }) {
-  if (diffusion === null || topic === null) return <p className="muted">Score components not available for this pair.</p>;
+/** Base score split into its diffusion, embedding and topic parts, on a fixed 0–1 axis. */
+export function ComponentBar({ diffusion, embedding, topic }: { diffusion: number | null; embedding: number | null; topic: number | null }) {
+  if (diffusion === null || topic === null || embedding === null) return <p className="muted">Score components not available for this pair.</p>;
   const d = Math.max(0, Math.min(1, diffusion)) * 100;
-  const t = Math.max(0, Math.min(1 - d / 100, topic)) * 100;
+  const e = Math.max(0, Math.min(1 - d / 100, embedding)) * 100;
+  const t = Math.max(0, Math.min(1 - (d + e) / 100, topic)) * 100;
   return (
     <figure
       className="chart"
-      aria-label={`Base score ${(diffusion + topic).toFixed(3)}: diffusion ${diffusion.toFixed(3)} plus topic ${topic.toFixed(3)}, axis 0 to 1`}
+      aria-label={`Base score ${(diffusion + embedding + topic).toFixed(3)}: diffusion ${diffusion.toFixed(3)} plus embedding ${embedding.toFixed(3)} plus topic ${topic.toFixed(3)}, axis 0 to 1`}
     >
       <figcaption className="chart__caption">
         Base score composition <span className="muted">(axis 0 to 1)</span>
       </figcaption>
       <div className="stack" aria-hidden="true">
         <span className="stack__part stack__part--diffusion" style={{ width: `${d}%` }} />
+        <span className="stack__part stack__part--embedding" style={{ width: `${e}%` }} />
         <span className="stack__part stack__part--topic" style={{ width: `${t}%` }} />
       </div>
       <p className="legend">
         <span className="legend__swatch legend__swatch--diffusion" aria-hidden="true" /> Diffusion {diffusion.toFixed(3)}
+        <span className="legend__swatch legend__swatch--embedding" aria-hidden="true" /> Embedding {embedding.toFixed(3)}
         <span className="legend__swatch legend__swatch--topic" aria-hidden="true" /> Topic {topic.toFixed(3)}
       </p>
     </figure>

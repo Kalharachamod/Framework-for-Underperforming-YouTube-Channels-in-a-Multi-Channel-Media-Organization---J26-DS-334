@@ -82,8 +82,9 @@ export function BridgesPage() {
                   <tr>
                     <th scope="col">Rank</th>
                     <th scope="col">Destination</th>
-                    <th scope="col" title="(diffusion + topic) × confidence">Bridge score</th>
+                    <th scope="col" title="(diffusion + embedding + topic) × confidence">Bridge score</th>
                     <th scope="col" title="w_diffusion × normalized PPR diffusion (structural connectivity)">Diffusion</th>
+                    <th scope="col" title="w_embedding × normalized channel-embedding similarity (metapath2vec / HGT)">Embedding</th>
                     <th scope="col" title="w_topic × normalized topic similarity">Topic</th>
                     <th scope="col" title="Shared-commenter evidence × topic coverage">Confidence</th>
                     <th scope="col">Status</th>
@@ -99,6 +100,7 @@ export function BridgesPage() {
                       <td>{r.destination_channel_name ?? r.destination_channel_id}</td>
                       <td className="num">{num(r.audience_bridge_score, 4)}</td>
                       <td className="num">{num(r.diffusion_component)}</td>
+                      <td className="num">{num(r.embedding_component)}</td>
                       <td className="num">{num(r.topic_component)}</td>
                       <td className="num">{num(r.confidence_component)}</td>
                       <td>{r.score_status === "ok" ? "ok" : r.score_status}</td>

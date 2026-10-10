@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { EmptyState, ErrorState, Loading } from "../../../components/common/States";
 import { Badge, Card, KeyValues, Notice, PageHeader } from "../../../components/common/ui";
-import { date, int } from "../../../utils/format";
+import { date, int, num } from "../../../utils/format";
 import { LIMITATIONS, Provenance } from "../ContextBar";
 import { useResearch } from "../ResearchContext";
 
@@ -60,7 +60,8 @@ export function OverviewPage() {
             <KeyValues
               rows={[
                 ["Latest experiment", <code key="e">{exp.experiment_id}</code>],
-                ["Weights", `diffusion ${exp.w_diffusion} · topic ${exp.w_topic}`],
+                ["Weights", `diffusion ${num(exp.w_diffusion)} · embedding ${num(exp.w_embedding)} · topic ${num(exp.w_topic)}`],
+                ["Embeddings", exp.w_embedding > 0 ? `${exp.embedding_source}${exp.embedding_experiment_id ? ` (${exp.embedding_experiment_id})` : ""}` : "not used"],
                 ["Confidence k", String(exp.confidence_k)],
                 ["Scored pairs", `${int(exp.scored_pairs)} of ${int(exp.pairs)}`],
                 ["Formula", exp.provisional ? <Badge key="p" tone="warn">Provisional</Badge> : <Badge key="p" tone="ok">Confirmed</Badge>],
