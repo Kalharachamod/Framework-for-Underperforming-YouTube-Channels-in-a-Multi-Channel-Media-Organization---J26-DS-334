@@ -430,6 +430,28 @@ def _plain(v):
     return v.item() if hasattr(v, "item") else v
 
 
+# --- topic assignments from a saved topic run (STEP 18) -------------------------------------------
+
+TOPICS_DIR = "topics"   # research/component_3/model/topic_similarity.TOPICS_DIR
+
+
+def load_topic_assignments(snapshot_id: str, run: str = "latest") -> tuple[pd.DataFrame, pd.DataFrame]:
+    """(topics, video_topics) of a saved topic run of ``snapshot_id`` that has topic clusters."""
+    root = graph_dir(snapshot_id).parent / TOPICS_DIR
+    runs = sorted(d for d in root.glob("top-*") if (d / "topic_run.json").is_file()) if root.is_dir() else []
+    if run != "latest":
+        runs = [d for d in runs if d.name == run]
+    runs = [d for d in runs if (d / "topics.parquet").is_file() and (d / "video_topics.parquet").is_file()]
+    if not runs:
+        raise GraphBuildError(f"no topic run with topic clusters ({run}) for snapshot {snapshot_id}; run "
+                              "python -m research.component_3.model.topic_similarity --topics N first")
+    chosen = max(runs, key=lambda d: json.loads((d / "topic_run.json").read_text(encoding="utf-8"))["created_at"])
+    meta = json.loads((chosen / "topic_run.json").read_text(encoding="utf-8"))
+    if meta.get("snapshot_id") != snapshot_id:
+        raise GraphBuildError("the topic run belongs to a different snapshot")
+    return read_dataset(chosen / "topics.parquet")[["topic_id", "label"]],         read_dataset(chosen / "video_topics.parquet")[["video_id", "topic_id", "weight"]]
+
+
 # --- command line ---------------------------------------------------------------------------
 
 def main(argv: list[str] | None = None) -> int:
@@ -437,10 +459,13 @@ def main(argv: list[str] | None = None) -> int:
 
     parser = argparse.ArgumentParser(prog="hetero_graph", description="Build the Component 3 heterogeneous graph.")
     parser.add_argument("--snapshot", help="research snapshot id (default: latest)")
+    parser.add_argument("--topic-run", help="add topic nodes from a saved topic run of the same snapshot "
+                                            "('latest' or top-<id>; run topic_similarity --topics N first)")
     args = parser.parse_args(argv)
     try:
         sid = args.snapshot or snapshots.latest_research_snapshot().snapshot_id
-        graph = build_graph(sid)
+        topics, video_topics = load_topic_assignments(sid, args.topic_run) if args.topic_run else (None, None)
+        graph = build_graph(sid, topics=topics, video_topics=video_topics)
         path = save_graph(graph)
     except (GraphBuildError, GraphValidationError, FileExistsError, snapshots.SnapshotNotFoundError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
