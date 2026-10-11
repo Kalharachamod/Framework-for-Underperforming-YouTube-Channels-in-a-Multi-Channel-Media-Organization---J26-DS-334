@@ -68,10 +68,15 @@ def comparability(a: SnapshotProfile, b: SnapshotProfile, min_depth_ratio: float
 
 
 def plan(snapshot_ids: Sequence[str], min_depth_ratio: float = 0.8) -> tuple[list[SnapshotProfile], list[dict]]:
-    """Profiles (oldest first) and the consecutive pairs with their comparability verdicts."""
+    """Profiles (oldest first) and, for every snapshot after the first, the pair with its predecessor:
+    the most recent earlier snapshot with the SAME channel set (so a snapshot of a different scope, e.g.
+    a pilot, in between does not hide a comparable pair); without one, the immediately preceding
+    snapshot, which is then reported as not comparable."""
     profiles = sorted((profile(s) for s in dict.fromkeys(snapshot_ids)), key=lambda p: p.extracted_at)
     pairs = []
-    for a, b in zip(profiles, profiles[1:]):
+    for i, b in enumerate(profiles[1:], start=1):
+        same = [a for a in profiles[:i] if a.channels == b.channels]
+        a = same[-1] if same else profiles[i - 1]
         ok, why = comparability(a, b, min_depth_ratio)
         pairs.append({"earlier": a.snapshot_id, "later": b.snapshot_id, "comparable": ok, "reason": why})
     return profiles, pairs
@@ -88,7 +93,7 @@ def stability(snapshot_ids: Sequence[str], methods: Sequence[str], ks: Sequence[
     rows = []
     if not usable:
         reason = ("fewer than 2 research snapshots" if len(pairs) == 0 else
-                  "no consecutive pair of snapshots has comparable observation windows")
+                  "no snapshot has a comparable earlier snapshot (same channels and collection depth)")
         summary.update(status=INSUFFICIENT, reason=reason)
         for m in methods:
             rows.append({"method": m, "earlier_snapshot_id": None, "later_snapshot_id": None, "comparable": False,

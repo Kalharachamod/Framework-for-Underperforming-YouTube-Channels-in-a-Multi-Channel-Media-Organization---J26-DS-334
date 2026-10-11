@@ -58,7 +58,7 @@ Agreement is consistency between methods, **not correctness**.
 - `topk_distinct_destinations`: how many destinations appear across all sources' top-k lists. A low value means a few hubs dominate.
 - `topk_boundary_tie_share`: the share of sources whose k-th and (k+1)-th scores tie.
 
-**Temporal stability.** Two consecutive snapshots are compared only when all of these hold:
+**Temporal stability.** Each snapshot is paired with the most recent earlier snapshot that has the same channel set, so a snapshot of a different scope (such as a 3-channel pilot) in between doesn't hide a comparable pair. A pair is compared only when all of these hold:
 - they have the same channel set
 - they have a similar collection depth: the ratio of median stored videos per channel is at least `min_depth_ratio` (0.8)
 - their data differs

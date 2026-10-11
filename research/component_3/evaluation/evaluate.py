@@ -47,7 +47,7 @@ from shared.utils import snapshots
 from shared.utils.parquet_io import read_dataset, write_dataset
 
 EVALUATION_DIR = "evaluation"
-EVALUATION_VERSION = "1.0"
+EVALUATION_VERSION = "1.1"   # 1.1: temporal pairs use the latest earlier snapshot with the same channel set
 METADATA_FILE = "evaluation_run_metadata.json"
 COMPARISON_NOTE = ("Agreement and stability measure consistency between rankings, not correctness. "
                    "No result shows audience migration, audience transfer, causality or growth.")
