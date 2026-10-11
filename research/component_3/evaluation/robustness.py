@@ -57,7 +57,11 @@ def read_frames(snapshot_id: str) -> dict[str, pd.DataFrame]:
 
 
 def subsample(comments: pd.DataFrame, fraction: float, seed: int, unit: str = "comments") -> pd.DataFrame:
-    """Deterministic subsample keeping ``round(fraction * n)`` comments or commenters (seeded)."""
+    """Deterministic subsample keeping ``round(fraction * n)`` comments or commenters (seeded).
+
+    A reply cannot exist without its parent: replies whose parent comment was not retained are
+    removed as well, so the result keeps valid threads (the actual retained count is recorded
+    by ``simulate`` as ``simulated_comments``)."""
     if not 0 < fraction <= 1:
         raise ValueError("retain fraction must be in (0, 1]")
     if unit not in UNITS:
@@ -66,10 +70,14 @@ def subsample(comments: pd.DataFrame, fraction: float, seed: int, unit: str = "c
     if unit == "comments":
         order = comments.sort_values("comment_id").index.to_numpy()
         keep = rng.permutation(order)[: int(round(fraction * len(order)))]
-        return comments.loc[sorted(keep)].reset_index(drop=True)
-    who = np.array(sorted(comments["author_channel_id"].dropna().unique()))
-    kept = set(rng.permutation(who)[: int(round(fraction * len(who)))])
-    return comments[comments["author_channel_id"].isin(kept)].reset_index(drop=True)
+        sub = comments.loc[sorted(keep)]
+    else:
+        who = np.array(sorted(comments["author_channel_id"].dropna().unique()))
+        kept = set(rng.permutation(who)[: int(round(fraction * len(who)))])
+        sub = comments[comments["author_channel_id"].isin(kept)]
+    parents = set(sub["comment_id"])
+    valid = sub["parent_comment_id"].isna() | sub["parent_comment_id"].isin(parents)
+    return sub[valid].reset_index(drop=True)
 
 
 def simulate(snapshot_id: str, reference: dict[str, pd.DataFrame], methods: Sequence[str],
