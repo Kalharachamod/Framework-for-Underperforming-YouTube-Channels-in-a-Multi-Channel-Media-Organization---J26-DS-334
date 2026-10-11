@@ -349,3 +349,50 @@ def test_api_reads_do_not_modify_artifacts(client, full):
         client.get(u)
     after = {p: p.stat().st_mtime_ns for p in Path(full["root"]).rglob("*") if p.is_file()}
     assert before == after
+
+
+# --- dashboard aggregates -------------------------------------------------------------------------
+
+def test_dashboard_summary_and_channels(client, full):
+    s = get(client, f"{API}/dashboard/summary")
+    sc.DashboardSummary.model_validate(s)
+    assert (s["channels"], s["videos"], s["collected_comments"]) == (7, 7, 16)
+    assert s["unique_commenters"] == 8 and s["snapshot_id"] == full["sid"]
+    assert s["views"] is None and s["videos_without_views"] == 7       # synthetic videos carry no public counts
+    ch = get(client, f"{API}/dashboard/channels")
+    sc.ChannelPerformanceResponse.model_validate(ch)
+    by = {c["channel_id"]: c for c in ch["items"]}
+    assert by[A]["videos"] == 2 and by[A]["unique_commenters"] == 3 and by[X]["videos"] == 0
+    assert by[X]["views"] is None                                        # not observed -> NULL, never 0
+
+
+def test_dashboard_top_videos_timeline_overlap(client):
+    tv = get(client, f"{API}/dashboard/top-videos", limit=3)
+    assert tv["items"] == []                                            # no public view counts in synthetic data
+    assert get(client, f"{API}/dashboard/top-videos", 404, channel_id="UC_unknown")["error"]["code"] == "not_found"
+    assert get(client, f"{API}/dashboard/top-videos", 422, limit=500)["error"]["code"] == "invalid_parameter"
+    tl = get(client, f"{API}/dashboard/views-timeline", granularity="week", periods=4)
+    sc.ViewsTimelineResponse.model_validate(tl)
+    assert all(len(sr["videos"]) == len(tl["periods"]) for sr in tl["series"])
+    assert sum(sum(sr["videos"]) for sr in tl["series"]) == 7
+    assert get(client, f"{API}/dashboard/views-timeline", 422, granularity="day")["error"]["code"] == "invalid_parameter"
+    ov = get(client, f"{API}/dashboard/overlap")
+    pairs = {frozenset((e["source_channel_id"], e["destination_channel_id"])): e["shared_commenters"] for e in ov["edges"]}
+    assert pairs[frozenset((A, B))] == 2 and len(ov["nodes"]) == 7
+    assert ov["commenters_on_multiple_channels"] == 7     # G1-G4, H1-H3 comment on 2+ channels; F1 on one
+
+
+def test_dashboard_topics_and_bridges(client, full):
+    assert get(client, f"{API}/dashboard/topics", 404)["error"]["code"] == "artifact_unavailable"   # no clusters
+    tb = get(client, f"{API}/dashboard/top-bridges", limit=3)
+    sc.TopBridgesResponse.model_validate(tb)
+    assert tb["experiment_id"] == full["eid"] and 0 < len(tb["items"]) <= 3
+    scores = [i["audience_bridge_score"] for i in tb["items"]]
+    assert scores == sorted(scores, reverse=True) and all(sv > 0 for sv in scores)
+    assert all(i["source_channel_id"] != i["destination_channel_id"] for i in tb["items"])
+
+
+def test_dashboard_responses_have_no_identifiers(client):
+    blob = "".join(client.get(f"{API}/dashboard/{u}").text for u in
+                   ("summary", "channels", "top-videos", "views-timeline", "overlap", "top-bridges"))
+    assert "anon_" not in blob and not any(v in blob for v in RAW.values()) and "commenter:" not in blob
