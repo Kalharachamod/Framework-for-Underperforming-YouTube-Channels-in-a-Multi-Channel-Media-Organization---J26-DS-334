@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { HorizontalBarChart } from "../../../components/charts/BarChart";
 import { EmptyState, ErrorState, Loading } from "../../../components/common/States";
-import { Badge, Card, KeyValues, Notice, PageHeader, Select, TableWrap } from "../../../components/common/ui";
+import { Badge, Card, KeyValues, Notice, PageHeader, Select, StatCard, StatGrid, TableWrap } from "../../../components/common/ui";
 import { useApi } from "../../../hooks/useApi";
 import { date, label, num, scalar } from "../../../utils/format";
 import { component3Api } from "../api";
@@ -112,6 +112,14 @@ export function EvaluationPage() {
 
           {meta.status === "loading" && <Loading />}
           {meta.status === "error" && <ErrorState error={meta.error} onRetry={meta.reload} />}
+          {meta.status === "success" && (
+            <StatGrid label="Evaluation summary">
+              <StatCard label="Methods evaluated" value={`${Object.values(meta.data.methods).filter((m) => m.status === "ok").length} of ${Object.keys(meta.data.methods).length}`} hint="status ok" />
+              <StatCard label="Relevance labels" value={scalar(meta.data.labels.status ?? "supplied")} hint="needed for accuracy metrics" />
+              <StatCard label="Temporal" value={label(String(meta.data.temporal.status ?? "—"))} />
+              <StatCard label="Sparse simulations" value={scalar(meta.data.sparse_robustness.runs ?? 0)} hint="seeded comment subsamples" />
+            </StatGrid>
+          )}
           {meta.status === "success" && (
             <div className="grid grid--2">
               <Card title="Methods">

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { EmptyState, ErrorState, Loading } from "../../../components/common/States";
-import { Badge, Card, KeyValues, PageHeader, Pager, Select, TableWrap } from "../../../components/common/ui";
+import { Badge, Card, KeyValues, PageHeader, Pager, Select, StatCard, StatGrid, TableWrap } from "../../../components/common/ui";
 import { useApi } from "../../../hooks/useApi";
 import { date, int, num, pct } from "../../../utils/format";
 import { component3Api } from "../api";
@@ -40,6 +40,14 @@ export function ChannelExplorerPage() {
       {channel === "" && <EmptyState title="Select a channel to inspect it." />}
       {detail.status === "loading" && <Loading />}
       {detail.status === "error" && <ErrorState error={detail.error} onRetry={detail.reload} />}
+      {detail.status === "success" && (
+        <StatGrid label="Channel summary">
+          <StatCard label="Stored videos" value={int(detail.data.stored_video_count)} hint={`coverage ${pct(detail.data.collection_coverage, 1)} of public videos`} />
+          <StatCard label="Comments" value={int(detail.data.comment_count)} hint="collected, public" />
+          <StatCard label="Unique commenters" value={int(detail.data.unique_commenter_count)} hint="aggregate count" />
+          <StatCard label="Subscribers" value={int(detail.data.observed_subscriber_count)} hint="public, at collection" />
+        </StatGrid>
+      )}
       {detail.status === "success" && (
         <div className="grid grid--2">
           <Card title={detail.data.channel_name ?? detail.data.channel_id}>

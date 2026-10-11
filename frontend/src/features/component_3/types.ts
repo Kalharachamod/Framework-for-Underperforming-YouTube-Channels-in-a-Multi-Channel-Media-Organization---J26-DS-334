@@ -275,3 +275,135 @@ export interface EvaluationMetadataResponse {
   interpretation: string | null;
   versions: Record<string, string>;
 }
+
+// --- dashboard aggregates (backend /api/v1/component-3/dashboard/*) -----------------------------------
+
+export interface DashboardSummary {
+  snapshot_id: string;
+  extracted_at: string | null;
+  channels: number;
+  subscribers: number | null;
+  channels_hidden_subscribers: number;
+  videos: number;
+  views: number | null;
+  likes: number | null;
+  videos_without_views: number;
+  public_comments: number | null;
+  collected_comments: number;
+  unique_commenters: number;
+  first_video: string | null;
+  last_video: string | null;
+  note: string;
+}
+
+export interface ChannelPerformance {
+  channel_id: string;
+  channel_name: string | null;
+  subscriber_count: number | null;
+  channel_views: number | null;
+  channel_videos: number | null;
+  videos: number;
+  views: number | null;
+  likes: number | null;
+  public_comments: number | null;
+  last_video: string | null;
+  collected_comments: number;
+  unique_commenters: number;
+}
+
+export interface ChannelPerformanceResponse {
+  snapshot_id: string;
+  items: ChannelPerformance[];
+  note: string;
+}
+
+export interface TopVideo {
+  video_id: string;
+  title: string | null;
+  channel_id: string;
+  channel_name: string | null;
+  published_at: string | null;
+  views: number | null;
+  likes: number | null;
+  comments: number | null;
+  duration_seconds: number | null;
+  thumbnail_url: string;
+  video_url: string;
+}
+
+export interface TopVideosResponse {
+  snapshot_id: string;
+  items: TopVideo[];
+  note: string;
+}
+
+export interface TimelineSeries {
+  channel_id: string;
+  channel_name: string | null;
+  views: (number | null)[];
+  videos: number[];
+  total_views: number;
+}
+
+export interface ViewsTimelineResponse {
+  snapshot_id: string;
+  granularity: "week" | "month";
+  periods: string[];
+  series: TimelineSeries[];
+  note: string;
+}
+
+export interface OverlapNode {
+  channel_id: string;
+  channel_name: string | null;
+  unique_commenters: number;
+}
+
+export interface OverlapEdge {
+  source_channel_id: string;
+  destination_channel_id: string;
+  shared_commenters: number;
+  jaccard_similarity: number | null;
+}
+
+export interface OverlapResponse {
+  snapshot_id: string;
+  commenters_on_multiple_channels: number;
+  nodes: OverlapNode[];
+  edges: OverlapEdge[];
+  note: string;
+}
+
+export interface TopicSummary {
+  topic_id: string;
+  label: string;
+  videos: number;
+  share: number | null;
+  views: number | null;
+  top_channel_name: string | null;
+}
+
+export interface TopicsResponse {
+  snapshot_id: string;
+  topic_run_id: string;
+  items: TopicSummary[];
+  note: string;
+}
+
+export interface TopBridge {
+  source_channel_id: string;
+  source_channel_name: string | null;
+  destination_channel_id: string;
+  destination_channel_name: string | null;
+  audience_bridge_score: number | null;
+  confidence: number | null;
+  shared_commenters: number | null;
+  rank: number | null;
+}
+
+export interface TopBridgesResponse {
+  snapshot_id: string;
+  experiment_id: string;
+  items: TopBridge[];
+  note: string;
+}

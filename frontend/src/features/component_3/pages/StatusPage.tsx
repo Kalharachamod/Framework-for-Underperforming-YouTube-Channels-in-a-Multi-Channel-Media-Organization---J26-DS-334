@@ -1,5 +1,5 @@
 import { ErrorState, Loading } from "../../../components/common/States";
-import { Badge, Card, KeyValues, PageHeader, TableWrap } from "../../../components/common/ui";
+import { Badge, Card, KeyValues, PageHeader, StatCard, StatGrid, TableWrap } from "../../../components/common/ui";
 import { useApi } from "../../../hooks/useApi";
 import { API_BASE_URL } from "../../../services/apiClient";
 import { date, label } from "../../../utils/format";
@@ -12,6 +12,14 @@ export function StatusPage() {
   return (
     <>
       <PageHeader title="System Status" description="API health and research pipeline readiness are reported separately." />
+      {status.status === "success" && (
+        <StatGrid label="Pipeline summary">
+          <StatCard label="Research snapshots" value={String(status.data.snapshots.length)} />
+          <StatCard label="Artifacts available" value={`${status.data.artifacts.filter((a) => a.status === "available").length} of ${status.data.artifacts.length}`}
+            tone={status.data.artifacts.length && status.data.artifacts.every((a) => a.status === "available") ? "ok" : "neutral"} />
+          <StatCard label="Artifacts missing" value={String(status.data.artifacts.filter((a) => a.status !== "available").length)} />
+        </StatGrid>
+      )}
       <div className="grid grid--2">
         <Card title="API">
           {health.status === "loading" && <Loading label="Checking API…" />}

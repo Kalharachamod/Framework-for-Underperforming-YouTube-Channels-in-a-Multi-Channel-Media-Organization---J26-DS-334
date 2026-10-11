@@ -1,7 +1,7 @@
 import { useSearchParams } from "react-router-dom";
 import { ComponentBar } from "../../../components/charts/BarChart";
 import { EmptyState, ErrorState, Loading } from "../../../components/common/States";
-import { Badge, Card, KeyValues, Notice, PageHeader, Select, TableWrap, type Tone } from "../../../components/common/ui";
+import { Badge, Card, KeyValues, Notice, PageHeader, Select, StatCard, StatGrid, TableWrap, type Tone } from "../../../components/common/ui";
 import { useApi } from "../../../hooks/useApi";
 import { date, int, label, num, pct } from "../../../utils/format";
 import { component3Api } from "../api";
@@ -70,12 +70,15 @@ export function ExplainabilityPage() {
         const e = p.evidence_summary;
         return (
           <>
+            <StatGrid label="Pair summary">
+              <StatCard label="Audience Bridge Score" value={num(p.audience_bridge_score, 4)} hint="0–1, provisional formula" />
+              <StatCard label="Rank" value={p.rank === null ? "—" : String(p.rank)}
+                hint={p.ranking_context ? `of ${int(p.ranking_context.scored_destinations)} scored destinations` : undefined} />
+              <StatCard label="Confidence" value={num(b.confidence_component)} hint="evidence × topic coverage" />
+              <StatCard label="Shared commenters" value={int(b.shared_commenters)} hint="aggregate count" />
+            </StatGrid>
             <div className="grid grid--2">
-              <Card title={`${p.source_channel_name ?? p.source_channel_id} → ${p.destination_channel_name ?? p.destination_channel_id}`}>
-                <p className="score">
-                  <span className="score__value">{num(p.audience_bridge_score, 4)}</span>
-                  <span className="muted"> Audience Bridge Score{p.rank !== null ? ` · rank ${p.rank}` : ""}</span>
-                </p>
+              <Card title={`Score decomposition: ${p.source_channel_name ?? p.source_channel_id} → ${p.destination_channel_name ?? p.destination_channel_id}`}>
                 {p.score_status !== "ok" && <p><Badge tone="warn">{p.score_status}</Badge></p>}
                 <ComponentBar diffusion={b.diffusion_component} embedding={b.embedding_component} topic={b.topic_component} />
                 <KeyValues

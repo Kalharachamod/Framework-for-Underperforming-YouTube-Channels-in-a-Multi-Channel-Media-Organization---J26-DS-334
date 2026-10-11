@@ -1,6 +1,13 @@
 /** Component 3 endpoints (paths and parameters exactly as in backend/api/component_3/routes.py). */
 import { getJson, hasKeys, isList, type Params, type Validator } from "../../services/apiClient";
 import type {
+  ChannelPerformanceResponse,
+  DashboardSummary,
+  OverlapResponse,
+  TopBridgesResponse,
+  TopicsResponse,
+  TopVideosResponse,
+  ViewsTimelineResponse,
   BridgeExperimentListResponse,
   BridgePairResponse,
   BridgeRankingResponse,
@@ -97,6 +104,28 @@ export const component3Api = {
       shape(["items", "total", "columns"], ["items", "columns"]),
       signal,
     ),
+
+  dashboardSummary: (c: Context, signal?: AbortSignal) =>
+    getJson<DashboardSummary>(`${BASE}/dashboard/summary`, snap(c), shape(["channels", "videos", "unique_commenters"]), signal),
+
+  dashboardChannels: (c: Context, signal?: AbortSignal) =>
+    getJson<ChannelPerformanceResponse>(`${BASE}/dashboard/channels`, snap(c), shape(["items"], ["items"]), signal),
+
+  topVideos: (c: Context, limit: number, signal?: AbortSignal) =>
+    getJson<TopVideosResponse>(`${BASE}/dashboard/top-videos`, { ...snap(c), limit }, shape(["items"], ["items"]), signal),
+
+  viewsTimeline: (c: Context, granularity: "week" | "month", periods: number, signal?: AbortSignal) =>
+    getJson<ViewsTimelineResponse>(`${BASE}/dashboard/views-timeline`, { ...snap(c), granularity, periods },
+      shape(["periods", "series"], ["periods", "series"]), signal),
+
+  overlap: (c: Context, signal?: AbortSignal) =>
+    getJson<OverlapResponse>(`${BASE}/dashboard/overlap`, snap(c), shape(["nodes", "edges"], ["nodes", "edges"]), signal),
+
+  topics: (c: Context, signal?: AbortSignal) =>
+    getJson<TopicsResponse>(`${BASE}/dashboard/topics`, snap(c), shape(["items"], ["items"]), signal),
+
+  topBridges: (c: Context, limit: number, signal?: AbortSignal) =>
+    getJson<TopBridgesResponse>(`${BASE}/dashboard/top-bridges`, { ...ctx(c), limit }, shape(["items", "experiment_id"], ["items"]), signal),
 
   /** All rows of an evaluation table, following pages (bounded to 20 pages). */
   async evaluationAllRows(

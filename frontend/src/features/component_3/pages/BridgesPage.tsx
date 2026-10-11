@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { HorizontalBarChart } from "../../../components/charts/BarChart";
 import { EmptyState, ErrorState, Loading } from "../../../components/common/States";
-import { Card, Notice, PageHeader, Pager, Select, TableWrap } from "../../../components/common/ui";
+import { Card, Notice, PageHeader, Pager, Select, StatCard, StatGrid, TableWrap } from "../../../components/common/ui";
 import { useApi } from "../../../hooks/useApi";
 import { num } from "../../../utils/format";
 import { component3Api } from "../api";
@@ -25,6 +25,7 @@ export function BridgesPage() {
   const options = channels.status === "success" ? channels.data.items.map((c) => ({ value: c.channel_id, label: c.channel_name ?? c.channel_id })) : [];
   // Defensive: a source is never its own destination (the API already excludes self pairs).
   const rows = ranking.status === "success" ? ranking.data.items.filter((r) => r.destination_channel_id !== ranking.data.source_channel_id) : [];
+  const scored = rows.flatMap((r) => (r.audience_bridge_score === null ? [] : [r.audience_bridge_score]));
 
   return (
     <>
@@ -69,12 +70,20 @@ export function BridgesPage() {
       )}
       {ranking.status === "success" && rows.length > 0 && (
         <>
-          <Card title={`Destinations for ${ranking.data.source_channel_name ?? ranking.data.source_channel_id}`}>
+          <StatGrid label="Ranking summary">
+            <StatCard label="Source channel" value={ranking.data.source_channel_name ?? ranking.data.source_channel_id} />
+            <StatCard label="Destinations" value={String(ranking.data.total)} hint={includeUnscored ? "including unscored pairs" : "with a score"} />
+            <StatCard label="Top destination" value={rows[0].destination_channel_name ?? rows[0].destination_channel_id} hint={offset === 0 ? "rank 1" : `rank ${rows[0].rank ?? "—"} on this page`} />
+            <StatCard label="Highest score on page" value={scored.length ? num(Math.max(...scored), 3) : "—"} hint="0–1, provisional formula" />
+          </StatGrid>
+          <Card title={`Score by destination: ${ranking.data.source_channel_name ?? ranking.data.source_channel_id}`}>
             <HorizontalBarChart
               title="Audience Bridge Score by destination"
               unit="score"
               bars={rows.map((r) => ({ key: r.destination_channel_id, label: `${r.rank ?? "–"}. ${r.destination_channel_name ?? r.destination_channel_id}`, value: r.audience_bridge_score }))}
             />
+          </Card>
+          <Card title="Ranked destinations and score components">
             <TableWrap label="Ranked destinations">
               <table className="table">
                 <caption className="sr-only">Ranked destination channels with score components</caption>
