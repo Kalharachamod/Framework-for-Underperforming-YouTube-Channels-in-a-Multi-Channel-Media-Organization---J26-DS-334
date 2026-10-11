@@ -137,3 +137,64 @@ def evaluation_rows(evaluation_id: str, table: sc.EvaluationTable, svc: Service,
     `performance`. An empty `items` list means no row matched the filters; an unknown method or an
     unsupported filter is `invalid_parameter`; a run that does not exist is `not_found`."""
     return svc.evaluation_rows(evaluation_id, table, snapshot_id, method, metric, *paging)
+
+
+# --- dashboard aggregates ---------------------------------------------------------------------------
+
+def dashboard(request: Request):
+    from backend.services.component_3.dashboard import DashboardService
+
+    return DashboardService(request.app.state.component3)
+
+
+Dashboard = Annotated[object, Depends(dashboard)]
+DASH = "Component 3: dashboard"
+
+
+@router.get("/dashboard/summary", response_model=sc.DashboardSummary, tags=[DASH], responses=ERRORS,
+            summary="Snapshot totals")
+def dashboard_summary(dash: Dashboard, snapshot_id: SnapshotQ = None):
+    """Totals of the collected snapshot: channels, videos, public view/like/comment counts of the collected
+    videos, collected comments and the number of distinct (pseudonymized) commenters."""
+    return dash.summary(snapshot_id)
+
+
+@router.get("/dashboard/channels", response_model=sc.ChannelPerformanceResponse, tags=[DASH], responses=ERRORS,
+            summary="Channel performance (collected videos)")
+def dashboard_channels(dash: Dashboard, snapshot_id: SnapshotQ = None):
+    return dash.channels(snapshot_id)
+
+
+@router.get("/dashboard/top-videos", response_model=sc.TopVideosResponse, tags=[DASH], responses=ERRORS,
+            summary="Most-viewed collected videos")
+def dashboard_top_videos(dash: Dashboard, request: Request,
+                         limit: Annotated[int, Query(ge=1, le=50)] = 5, snapshot_id: SnapshotQ = None,
+                         channel_id: Annotated[str | None, Query(description="Only this channel (UC...).")] = None):
+    return dash.top_videos(snapshot_id, limit, channel_id)
+
+
+@router.get("/dashboard/views-timeline", response_model=sc.ViewsTimelineResponse, tags=[DASH], responses=ERRORS,
+            summary="Views of collected videos by publish period")
+def dashboard_views_timeline(dash: Dashboard, snapshot_id: SnapshotQ = None,
+                             granularity: Annotated[str, Query(description="week or month")] = "month",
+                             periods: Annotated[int, Query(ge=2, le=104)] = 12):
+    return dash.views_timeline(snapshot_id, granularity, periods)
+
+
+@router.get("/dashboard/overlap", response_model=sc.OverlapResponse, tags=[DASH], responses=ERRORS,
+            summary="Shared-commenter overlap network")
+def dashboard_overlap(dash: Dashboard, snapshot_id: SnapshotQ = None):
+    return dash.overlap(snapshot_id)
+
+
+@router.get("/dashboard/topics", response_model=sc.TopicsResponse, tags=[DASH], responses=ERRORS,
+            summary="Topic cluster sizes")
+def dashboard_topics(dash: Dashboard, snapshot_id: SnapshotQ = None):
+    return dash.topics(snapshot_id)
+
+
+@router.get("/dashboard/top-bridges", response_model=sc.TopBridgesResponse, tags=[DASH], responses=ERRORS,
+            summary="Highest Audience Bridge Scores")
+def dashboard_top_bridges(dash: Dashboard, limit: Annotated[int, Query(ge=1, le=50)] = 6,
+                          snapshot_id: SnapshotQ = None, experiment_id: ExperimentQ = None):
+    return dash.top_bridges(snapshot_id, experiment_id, limit)

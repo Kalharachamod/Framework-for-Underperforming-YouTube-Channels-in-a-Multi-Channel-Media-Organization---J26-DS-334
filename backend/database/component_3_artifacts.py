@@ -151,6 +151,22 @@ class Component3Store:
         except (duckdb.Error, OSError) as exc:
             raise StorageError(f"artifact query failed ({type(exc).__name__})") from None
 
+    def aggregate(self, sql: str, files: dict[str, Path], params: Sequence[Any] = ()) -> pd.DataFrame:
+        """Run an aggregate query written in code over named Parquet files (``{name}`` placeholders become
+        read_parquet views). Values from requests are passed only as bound parameters."""
+        missing = [n for n, p in files.items() if not p.is_file()]
+        if missing:
+            raise FileNotFoundError(", ".join(missing))
+        try:
+            with duckdb_connection(MEMORY) as con:
+                for name, path in files.items():
+                    if not re.fullmatch(r"[a-z_]+", name):
+                        raise ValueError("invalid view name")
+                    con.execute(f"CREATE VIEW {name} AS SELECT * FROM read_parquet('{path.as_posix().replace(chr(39), chr(39) * 2)}')")
+                return con.execute(sql, list(params)).df()
+        except (duckdb.Error, OSError) as exc:
+            raise StorageError(f"artifact query failed ({type(exc).__name__})") from None
+
     def columns(self, path: Path) -> list[str]:
         try:
             with duckdb_connection(MEMORY) as con:

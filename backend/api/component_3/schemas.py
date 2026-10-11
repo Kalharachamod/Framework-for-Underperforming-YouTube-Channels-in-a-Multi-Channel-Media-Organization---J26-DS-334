@@ -312,3 +312,135 @@ class EvaluationMetadataResponse(_Model):
     performance: dict[str, Scalar]
     interpretation: str | None
     versions: dict[str, str]
+
+
+# --- dashboard aggregates -------------------------------------------------------------------------
+
+class DashboardSummary(_Model):
+    snapshot_id: str
+    extracted_at: datetime | None
+    channels: int
+    subscribers: int | None = Field(description="Sum of public subscriber counts (channels hiding it excluded).")
+    channels_hidden_subscribers: int
+    videos: int
+    views: int | None = Field(description="Sum of public view counts of the collected videos.")
+    likes: int | None
+    videos_without_views: int
+    public_comments: int | None = Field(description="Sum of public comment counts of the collected videos.")
+    collected_comments: int
+    unique_commenters: int = Field(description="Distinct pseudonymized commenters (count only).")
+    first_video: datetime | None
+    last_video: datetime | None
+    note: str
+
+
+class ChannelPerformance(_Model):
+    channel_id: str
+    channel_name: str | None
+    subscriber_count: int | None
+    channel_views: int | None
+    channel_videos: int | None
+    videos: int
+    views: int | None
+    likes: int | None
+    public_comments: int | None
+    last_video: datetime | None
+    collected_comments: int
+    unique_commenters: int
+
+
+class ChannelPerformanceResponse(_Model):
+    snapshot_id: str
+    items: list[ChannelPerformance]
+    note: str
+
+
+class TopVideo(_Model):
+    video_id: str
+    title: str | None
+    channel_id: str
+    channel_name: str | None
+    published_at: datetime | None
+    views: int | None
+    likes: int | None
+    comments: int | None
+    duration_seconds: int | None
+    thumbnail_url: str
+    video_url: str
+
+
+class TopVideosResponse(_Model):
+    snapshot_id: str
+    items: list[TopVideo]
+    note: str
+
+
+class TimelineSeries(_Model):
+    channel_id: str
+    channel_name: str | None
+    views: list[int | None]
+    videos: list[int]
+    total_views: int
+
+
+class ViewsTimelineResponse(_Model):
+    snapshot_id: str
+    granularity: Literal["week", "month"]
+    periods: list[str]
+    series: list[TimelineSeries]
+    note: str
+
+
+class OverlapNode(_Model):
+    channel_id: str
+    channel_name: str | None
+    unique_commenters: int
+
+
+class OverlapEdge(_Model):
+    source_channel_id: str
+    destination_channel_id: str
+    shared_commenters: int
+    jaccard_similarity: float | None
+
+
+class OverlapResponse(_Model):
+    snapshot_id: str
+    commenters_on_multiple_channels: int = Field(description="Distinct commenters seen on 2+ channels (count only).")
+    nodes: list[OverlapNode]
+    edges: list[OverlapEdge]
+    note: str
+
+
+class TopicSummary(_Model):
+    topic_id: str
+    label: str
+    videos: int
+    share: float | None
+    views: int | None
+    top_channel_name: str | None
+
+
+class TopicsResponse(_Model):
+    snapshot_id: str
+    topic_run_id: str
+    items: list[TopicSummary]
+    note: str
+
+
+class TopBridge(_Model):
+    source_channel_id: str
+    source_channel_name: str | None
+    destination_channel_id: str
+    destination_channel_name: str | None
+    audience_bridge_score: float | None
+    confidence: float | None
+    shared_commenters: int | None
+    rank: int | None
+
+
+class TopBridgesResponse(_Model):
+    snapshot_id: str
+    experiment_id: str
+    items: list[TopBridge]
+    note: str
