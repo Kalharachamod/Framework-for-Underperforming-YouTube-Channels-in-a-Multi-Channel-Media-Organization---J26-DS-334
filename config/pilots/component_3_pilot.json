@@ -1,0 +1,26 @@
+{
+  "description": "Component 3 controlled real-data pilot (STEP 26). Channels are referenced by their title in config/organizations/*.json and resolved to channel ids at run time; they must belong to a group in research_channels.json.",
+  "channel_titles": ["TV Derana", "Dream Star", "Derana City Of Music"],
+  "channel_note": "eTunes is not in the approved Derana channel set; Derana City Of Music is the music-profile substitute.",
+  "collection": {
+    "max_videos_per_channel": 15,
+    "max_threads_per_video": 50,
+    "fetch_all_replies": false,
+    "published_since": null,
+    "request_timeout_seconds": 30,
+    "max_retries": 3,
+    "retry_backoff_seconds": 1.0,
+    "max_quota_units": 500
+  },
+  "pipeline": {
+    "stages": ["research_data", "topics", "graph", "features", "metapath2vec", "hgt", "ppr_diffusion",
+               "audience_bridge", "louvain", "node2vec", "explainability", "evaluation"],
+    "n_topics": 10,
+    "seed": 42,
+    "topic_backend": "e5",
+    "evaluation_sparse_fractions": [0.5],
+    "evaluation_sparse_seeds": [0, 1]
+  },
+  "min_free_disk_gb": 1.0,
+  "report_path": "docs/component_3_pilot_report.md"
+}
