@@ -16,7 +16,9 @@ replaces the current rows.
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from datetime import date, datetime, timezone
+from typing import Any
 
 import pandas as pd
 import psycopg
@@ -49,31 +51,45 @@ def export_snapshot_day(
     return summaries, info
 
 
-def export_research_snapshot(conn: psycopg.Connection) -> ResearchSnapshotInfo:
-    """Freeze the full current channels / videos / comments as a research snapshot.
+def export_research_snapshot(conn: psycopg.Connection, *, scope: Mapping[str, Sequence[str]] | None = None,
+                             source: str = "supabase_postgresql",
+                             details: Mapping[str, Any] | None = None) -> ResearchSnapshotInfo:
+    """Freeze the current channels / videos / comments as a research snapshot.
 
     All three tables are read in one REPEATABLE READ, READ ONLY transaction, so
     they reflect the same moment even if a collector is writing. Only the schema
     columns are exported (commenter ids are already pseudonyms in the database).
+
+    ``scope`` optionally restricts the export to given ids per dataset, e.g.
+    ``{"channels": [...], "videos": [...], "comments": [...]}`` for a pilot; datasets
+    not named in ``scope`` are exported in full. The scope is recorded in the manifest.
     """
+    scope = {k: sorted(set(v)) for k, v in (scope or {}).items()}
+    unknown = sorted(set(scope) - set(DATASETS))
+    if unknown:
+        raise ValueError(f"unknown dataset(s) in scope: {unknown}")
     conn.commit()
     previous = (conn.isolation_level, conn.read_only)
     conn.isolation_level, conn.read_only = IsolationLevel.REPEATABLE_READ, True
     try:
         extracted_at = datetime.now(timezone.utc)
-        frames = {name: _read_table(conn, name) for name in DATASETS}
+        frames = {name: _read_table(conn, name, scope.get(name)) for name in DATASETS}
         conn.commit()
     finally:
         conn.rollback()
         conn.isolation_level, conn.read_only = previous
     return create_research_snapshot(
-        frames, source="supabase_postgresql", extracted_at=extracted_at,
+        frames, source=source, extracted_at=extracted_at,
         details={"database_schema": "research", "isolation": "repeatable_read",
-                 "tables": {name: f"research.{name}" for name in DATASETS}})
+                 "tables": {name: f"research.{name}" for name in DATASETS},
+                 "scope": {name: len(ids) for name, ids in scope.items()} or "full tables",
+                 **dict(details or {})})
 
 
-def _read_table(conn: psycopg.Connection, dataset: str) -> pd.DataFrame:
+def _read_table(conn: psycopg.Connection, dataset: str, ids: Sequence[str] | None = None) -> pd.DataFrame:
     spec = get_spec(dataset)
     columns = list(spec.model.DTYPES)
-    rows = conn.execute(f"SELECT {', '.join(columns)} FROM research.{spec.name} ORDER BY {spec.key}").fetchall()
+    where, params = ("", []) if ids is None else (f" WHERE {spec.key} = ANY(%s)", [list(ids)])
+    rows = conn.execute(f"SELECT {', '.join(columns)} FROM research.{spec.name}{where} ORDER BY {spec.key}",
+                        params).fetchall()
     return pd.DataFrame(rows, columns=columns).astype(spec.model.DTYPES)
