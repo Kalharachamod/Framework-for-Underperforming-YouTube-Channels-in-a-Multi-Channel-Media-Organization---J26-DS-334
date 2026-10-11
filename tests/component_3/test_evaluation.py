@@ -53,9 +53,10 @@ class FakeEncoder:
                          for t in texts], dtype=float).reshape(len(texts), 2)
 
 
-def build_snapshot(interactions=INTERACTIONS, videos=None, extracted=datetime(2026, 10, 1, tzinfo=timezone.utc)):
+def build_snapshot(interactions=INTERACTIONS, videos=None, extracted=datetime(2026, 10, 1, tzinfo=timezone.utc),
+                   channels="ABCDEFX"):
     videos = videos if videos is not None else VIDEOS
-    chans = [Channel(channel_id=CH[k], channel_name=k, collected_at=T) for k in "ABCDEFX"]
+    chans = [Channel(channel_id=CH[k], channel_name=k, collected_at=T) for k in channels]
     vids = [Video(video_id=v, channel_id=CH[c], title=f"{TITLES[c]} {v}", published_at="2026-09-01T00:00:00Z",
                   collected_at=T) for v, c in videos.items()]
     comms = [Comment(comment_id=f"k{i}", video_id=v, channel_id=CH[videos[v]], author_channel_id=P[w],
@@ -423,3 +424,33 @@ def test_full_run_with_step19_scores(sid):
     agree = rows(r.tables["ranking_evaluation_results"], analysis="agreement", method="audience_bridge_score")
     assert set(agree.reference_method) == {"ppr_diffusion", "topic_similarity", "metapath2vec_similarity",
                                          "hgt_similarity", "louvain", "node2vec"}
+
+
+def test_subsample_never_leaves_orphan_replies():
+    """Real data has replies (found by the STEP 26 pilot): a reply is dropped with its parent."""
+    rows = []
+    for t in range(20):
+        rows.append({"comment_id": f"t{t:02d}", "parent_comment_id": None, "author_channel_id": P["G1"] if t % 2 else P["H1"]})
+        for r in range(3):
+            rows.append({"comment_id": f"t{t:02d}.r{r}", "parent_comment_id": f"t{t:02d}",
+                         "author_channel_id": P["G2"] if r % 2 else P["H2"]})
+    comments = pd.DataFrame(rows)
+    for unit in rb.UNITS:
+        for seed in range(10):
+            sub = rb.subsample(comments, 0.5, seed, unit)
+            replies = sub[sub.parent_comment_id.notna()]
+            assert replies.parent_comment_id.isin(set(sub.comment_id)).all(), (unit, seed)
+            assert len(sub) <= len(comments)   # may be empty if only reply authors were kept
+
+
+def test_pilot_in_between_does_not_hide_comparable_snapshots(isolated_data_dir, ticking):
+    """A snapshot with a different channel set between two comparable ones (e.g. a pilot) is skipped
+    as a predecessor (found when the STEP 27 run followed the STEP 26 pilot)."""
+    first = build_snapshot(interactions=INTERACTIONS[:-2])
+    pilot = build_snapshot(videos={"A1": "A", "B1": "B"}, interactions=[("G1", "A1"), ("G1", "B1")],
+                           extracted=datetime(2026, 10, 2, tzinfo=timezone.utc), channels="AB")
+    later = build_snapshot(extracted=datetime(2026, 10, 3, tzinfo=timezone.utc))
+    _, pairs = tp.plan([first, pilot, later])
+    by_later = {p["later"]: p for p in pairs}
+    assert by_later[later]["earlier"] == first and by_later[later]["comparable"] is True
+    assert by_later[pilot]["comparable"] is False
