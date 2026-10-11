@@ -30,6 +30,9 @@ psycopg[binary]>=3.2
 
 # YouTube Data API v3: accessed over HTTPS with the standard library (shared/data_collection/youtube_client.py)
 
+# Component 3 findings report figures (research/component_3/findings.py)
+matplotlib>=3.8
+
 # Backend API (read-only access to research artifacts)
 fastapi>=0.115
 uvicorn>=0.30
