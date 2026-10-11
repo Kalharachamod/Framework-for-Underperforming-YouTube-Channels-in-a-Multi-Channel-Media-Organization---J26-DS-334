@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AppRoutes, NAV } from "../src/routes/AppRoutes";
-import { A, B, C, EID, SID, XID, defaultRoutes, mockFetch, pair, ranking, status } from "./fixtures";
+import { A, B, C, EID, SID, XID, dashChannels, defaultRoutes, mockFetch, pair, ranking, status } from "./fixtures";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -27,10 +27,10 @@ describe("navigation and layout", () => {
   });
 });
 
-describe("Overview", () => {
+describe("Research overview", () => {
   it("shows loading and then only values returned by the API", async () => {
     mockFetch(defaultRoutes());
-    renderAt("/");
+    renderAt("/overview");
     expect(screen.getByRole("status")).toHaveTextContent(/Loading/);
     expect((await screen.findAllByText(EID)).length).toBeGreaterThan(0);
     expect(screen.getAllByText(SID).length).toBeGreaterThan(0);
@@ -41,13 +41,13 @@ describe("Overview", () => {
 
   it("shows an empty state when no research data exists", async () => {
     mockFetch(defaultRoutes({ status: status({ research_data: "missing", snapshots: [], latest_snapshot_id: null, snapshot_id: null, artifacts: [] }) }));
-    renderAt("/");
+    renderAt("/overview");
     expect(await screen.findByText("No research data yet")).toBeInTheDocument();
   });
 
   it("shows an error with no fabricated numbers when the API fails", async () => {
     mockFetch(() => ({ status: 503, body: { error: { code: "storage_unavailable", message: "research artifacts could not be read" } } }));
-    renderAt("/");
+    renderAt("/overview");
     expect(await screen.findByRole("alert")).toHaveTextContent("research artifacts could not be read");
     expect(screen.queryByText(/\d+\.\d{3}/)).not.toBeInTheDocument();
   });
@@ -171,5 +171,49 @@ describe("privacy", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(/commenter identifiers/);
     expect(container.innerHTML).not.toContain("anon_");
     expect(B).toBeTruthy();
+  });
+});
+
+
+describe("Dashboard", () => {
+  it("shows KPI totals, panels and the data highlight from the API only", async () => {
+    mockFetch(defaultRoutes());
+    renderAt("/");
+    expect(await screen.findByText("Audience Insight Dashboard")).toBeInTheDocument();
+    const kpis = await screen.findByRole("region", { name: "Snapshot totals" });
+    expect(within(kpis).getByText("12K")).toBeInTheDocument();            // views 12345 (compact format)
+    expect(within(kpis).getByText("40")).toBeInTheDocument();             // collected comments
+    expect(within(kpis).getByText("12")).toBeInTheDocument();             // unique commenters
+    expect(await screen.findByText("Data highlight")).toBeInTheDocument();
+    expect(screen.getAllByText(/Test Channel A → Test Channel C/).length).toBeGreaterThan(0);
+    expect(await screen.findByText("Test video title one")).toBeInTheDocument();
+    expect(await screen.findByText("Topic 1")).toBeInTheDocument();
+    expect(screen.queryByText(/demographic|sentiment|AI Insight/i)).not.toBeInTheDocument();
+  });
+
+  it("shows missing values as a dash, never as zero", async () => {
+    mockFetch(defaultRoutes());
+    renderAt("/");
+    const table = (await screen.findAllByRole("region", { name: "Channel performance" })).at(-1)!;
+    const rowC = within(table).getByText("Test Channel C").closest("tr")!;
+    expect(rowC).toHaveTextContent("—");                                   // views not observed
+    expect(dashChannels.items[2].views).toBeNull();
+  });
+
+  it("explains an unavailable topic run instead of inventing topics", async () => {
+    mockFetch((url) => (url.pathname.endsWith("/dashboard/topics")
+      ? { status: 404, body: { error: { code: "artifact_unavailable", message: "no topic run with topic clusters" } } }
+      : defaultRoutes()(url)));
+    renderAt("/");
+    expect(await screen.findByText("no topic run with topic clusters")).toBeInTheDocument();
+  });
+
+  it("lists the tracked research channels and searches them", async () => {
+    mockFetch(defaultRoutes());
+    renderAt("/");
+    const nav = screen.getByRole("navigation", { name: "Primary" });
+    expect(await within(nav).findByText("Tracked channels (3)")).toBeInTheDocument();
+    expect(within(nav).getByRole("link", { name: /Test Channel A/ })).toHaveAttribute("href", `/channels?channel=${A}`);
+    expect(screen.getByLabelText("Search channels")).toHaveAttribute("list", "channel-search-options");
   });
 });

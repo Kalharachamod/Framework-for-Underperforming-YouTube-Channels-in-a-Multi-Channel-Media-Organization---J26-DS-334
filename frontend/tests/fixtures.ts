@@ -117,6 +117,13 @@ export function defaultRoutes(overrides: Partial<Record<string, unknown>> = {}):
     if (p === "/bridge/experiments") return pick("experiments", experiments);
     if (/^\/bridge\/[^/]+\/destinations$/.test(p)) return pick("ranking", ranking(decodeURIComponent(p.split("/")[2])));
     if (/^\/bridge\/[^/]+\/destinations\/[^/]+$/.test(p)) return pick("pair", pair());
+    if (p === "/dashboard/summary") return pick("dashSummary", dashSummary);
+    if (p === "/dashboard/channels") return pick("dashChannels", dashChannels);
+    if (p === "/dashboard/top-videos") return pick("topVideos", topVideos);
+    if (p === "/dashboard/views-timeline") return pick("timeline", timeline);
+    if (p === "/dashboard/overlap") return pick("overlap", overlap);
+    if (p === "/dashboard/topics") return pick("topics", topics);
+    if (p === "/dashboard/top-bridges") return pick("topBridges", topBridges);
     if (p === "/evaluation/runs") return pick("evaluationRuns", evaluationRuns);
     if (p.endsWith("/metadata")) return pick("evaluationMeta", evaluationMeta);
     const table = p.match(/^\/evaluation\/[^/]+\/([a-z_]+)$/)?.[1];
@@ -124,3 +131,49 @@ export function defaultRoutes(overrides: Partial<Record<string, unknown>> = {}):
     return undefined;
   };
 }
+
+// --- dashboard aggregates (TEST DATA ONLY) ---------------------------------------------------------
+
+export const dashSummary = {
+  snapshot_id: SID, extracted_at: "2026-01-01T00:00:00Z", channels: 3, subscribers: 150, channels_hidden_subscribers: 1,
+  videos: 6, views: 12345, likes: 321, videos_without_views: 0, public_comments: 50, collected_comments: 40,
+  unique_commenters: 12, first_video: "2025-11-01T00:00:00Z", last_video: "2025-12-20T00:00:00Z", note: "test note",
+};
+
+export const dashChannels = {
+  snapshot_id: SID, note: "test",
+  items: [
+    { channel_id: A, channel_name: "Test Channel A", subscriber_count: 100, channel_views: 1000, channel_videos: 4, videos: 2, views: 9000, likes: 200, public_comments: 30, last_video: "2025-12-20T00:00:00Z", collected_comments: 25, unique_commenters: 7 },
+    { channel_id: B, channel_name: "Test Channel B", subscriber_count: null, channel_views: 500, channel_videos: 4, videos: 2, views: 3000, likes: 100, public_comments: 15, last_video: "2025-12-10T00:00:00Z", collected_comments: 10, unique_commenters: 4 },
+    { channel_id: C, channel_name: "Test Channel C", subscriber_count: 50, channel_views: null, channel_videos: 2, videos: 2, views: null, likes: null, public_comments: null, last_video: null, collected_comments: 5, unique_commenters: 3 },
+  ],
+};
+
+export const topVideos = {
+  snapshot_id: SID, note: "test",
+  items: [{ video_id: "vid_test_1", title: "Test video title one", channel_id: A, channel_name: "Test Channel A", published_at: "2025-12-01T00:00:00Z", views: 8000, likes: 150, comments: 20, duration_seconds: 300, thumbnail_url: "https://i.ytimg.com/vi/vid_test_1/mqdefault.jpg", video_url: "https://www.youtube.com/watch?v=vid_test_1" }],
+};
+
+export const timeline = {
+  snapshot_id: SID, granularity: "month", periods: ["2025-11-01", "2025-12-01"], note: "Views of the collected videos grouped by publish date (test).",
+  series: [{ channel_id: A, channel_name: "Test Channel A", views: [4000, 5000], videos: [1, 1], total_views: 9000 },
+           { channel_id: B, channel_name: "Test Channel B", views: [0, 3000], videos: [0, 2], total_views: 3000 }],
+};
+
+export const overlap = {
+  snapshot_id: SID, note: "test", commenters_on_multiple_channels: 5,
+  nodes: [{ channel_id: A, channel_name: "Test Channel A", unique_commenters: 7 }, { channel_id: B, channel_name: "Test Channel B", unique_commenters: 4 },
+          { channel_id: C, channel_name: "Test Channel C", unique_commenters: 3 }],
+  edges: [{ source_channel_id: A, destination_channel_id: B, shared_commenters: 4, jaccard_similarity: 0.5 }],
+};
+
+export const topics = {
+  snapshot_id: SID, topic_run_id: "top-ffffffffffff", note: "Topic clusters are unlabelled (test).",
+  items: [{ topic_id: "t00", label: "Topic 1", videos: 4, share: 0.667, views: 9000, top_channel_name: "Test Channel A" },
+          { topic_id: "t01", label: "Topic 2", videos: 2, share: 0.333, views: 3000, top_channel_name: "Test Channel B" }],
+};
+
+export const topBridges = {
+  snapshot_id: SID, experiment_id: EID, note: "test",
+  items: [{ source_channel_id: A, source_channel_name: "Test Channel A", destination_channel_id: C, destination_channel_name: "Test Channel C", audience_bridge_score: 0.4321, confidence: 0.54, shared_commenters: 4, rank: 1 }],
+};
