@@ -26,12 +26,36 @@ export function Card({ title, actions, children }: { title?: string; actions?: R
   );
 }
 
-export function PageHeader({ title, description }: { title: string; description?: ReactNode }) {
+export function PageHeader({ title, description, eyebrow = "Component 3 · Audience Bridge Scoring" }: {
+  title: string;
+  description?: ReactNode;
+  eyebrow?: string;
+}) {
   return (
     <header className="page-header">
+      <p className="page-header__eyebrow">{eyebrow}</p>
       <h1>{title}</h1>
-      {description && <p className="muted">{description}</p>}
+      {description && <p className="page-header__description">{description}</p>}
     </header>
+  );
+}
+
+/** One headline number. `value` is shown exactly as given (callers format it; missing values are "—"). */
+export function StatCard({ label, value, hint, tone }: { label: string; value: ReactNode; hint?: ReactNode; tone?: Tone }) {
+  return (
+    <div className={`stat${tone ? ` stat--${tone}` : ""}`}>
+      <span className="stat__label">{label}</span>
+      <span className="stat__value">{value}</span>
+      {hint && <span className="stat__hint">{hint}</span>}
+    </div>
+  );
+}
+
+export function StatGrid({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <section className="stat-grid" aria-label={label}>
+      {children}
+    </section>
   );
 }
 

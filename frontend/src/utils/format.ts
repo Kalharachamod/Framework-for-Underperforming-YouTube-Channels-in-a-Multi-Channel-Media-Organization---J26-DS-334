@@ -33,3 +33,14 @@ export function scalar(value: unknown): string {
   if (typeof value === "boolean") return value ? "yes" : "no";
   return String(value);
 }
+
+/** 1234 -> "1.2K", 2_400_000 -> "2.4M"; NULL -> "—" (never 0). */
+export function compact(value: number | null | undefined): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) return DASH;
+  const abs = Math.abs(value);
+  if (abs >= 1e9) return `${(value / 1e9).toFixed(1)}B`;
+  if (abs >= 1e6) return `${(value / 1e6).toFixed(1)}M`;
+  if (abs >= 1e4) return `${Math.round(value / 1e3)}K`;
+  if (abs >= 1e3) return `${(value / 1e3).toFixed(1)}K`;
+  return String(Math.round(value));
+}

@@ -48,6 +48,11 @@ const KNOWN_CODES = new Set<ApiErrorCode>([
 const IDENTIFIER_PATTERN = /anon_[0-9a-f]{8,}|commenter:/;
 const inFlight = new Map<string, Promise<unknown>>();
 
+/** Test support: forget shared in-flight requests so one test's request can never serve another test. */
+export function resetInFlightRequests(): void {
+  inFlight.clear();
+}
+
 export function buildUrl(path: string, params: Params = {}, base: string = API_BASE_URL): string {
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
