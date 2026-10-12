@@ -24,13 +24,14 @@ export interface OverlapLink {
 const short = (s: string, n = 18) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 const k = (v: number) => (v >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : v >= 1e4 ? `${Math.round(v / 1e3)}K` : v >= 1e3 ? `${(v / 1e3).toFixed(1)}K` : String(v));
 
-export function VennDiagram({ channels, shared, max = 6 }: { channels: OverlapChannel[]; shared: number; max?: number }) {
+/** `compact` enlarges text and shortens names for narrow panels (the SVG is scaled down there). */
+export function VennDiagram({ channels, shared, max = 6, compact = false, labelChars = 18 }: { channels: OverlapChannel[]; shared: number; max?: number; compact?: boolean; labelChars?: number }) {
   const top = [...channels].sort((p, q) => q.value - p.value).slice(0, max);
   const W = 560, H = 440, cx = W / 2, cy = H / 2, d = 62, r = 100, lr = 182;
   const summary = `Top ${top.length} channels by unique commenters: ${top.map((t) => `${t.label} ${t.value}`).join(", ")}; ${shared} commenters seen on 2 or more channels.`;
   return (
-    <figure className="venn" aria-label={summary}>
-      <svg viewBox={`0 -16 ${W} ${H + 24}`} role="img" aria-hidden="true">
+    <figure className={compact ? "venn venn--compact" : "venn"} aria-label={summary}>
+      <svg viewBox={compact ? `${cx - 172} ${cy - 172} 344 344` : `0 -16 ${W} ${H + 24}`} role="img" aria-hidden="true">
         {top.map((t, i) => {
           const a = (2 * Math.PI * i) / top.length - Math.PI / 2;
           return <circle key={t.id} cx={cx + d * Math.cos(a)} cy={cy + d * Math.sin(a)} r={r} fill={t.color} fillOpacity={0.16} stroke={t.color} strokeOpacity={0.35} />;
@@ -45,9 +46,13 @@ export function VennDiagram({ channels, shared, max = 6 }: { channels: OverlapCh
             <g key={`l${t.id}`}>
               <circle cx={bx} cy={by} r={13} fill={t.color} stroke="#fff" strokeWidth={2} />
               <text x={bx} y={by + 4} textAnchor="middle" className="venn__initials">{initials(t.label)}</text>
-              <text x={x} y={y - 8} textAnchor={anchor} className="venn__name">{short(t.label)}</text>
-              <text x={x} y={y + 9} textAnchor={anchor} className="venn__value">{k(t.value)}</text>
-              <text x={x} y={y + 22} textAnchor={anchor} className="venn__sub">unique commenters</text>
+              {!compact && (
+                <>
+                  <text x={x} y={y - 8} textAnchor={anchor} className="venn__name">{short(t.label, labelChars)}</text>
+                  <text x={x} y={y + 9} textAnchor={anchor} className="venn__value">{k(t.value)}</text>
+                  <text x={x} y={y + 22} textAnchor={anchor} className="venn__sub">unique commenters</text>
+                </>
+              )}
             </g>
           );
         })}
@@ -55,6 +60,14 @@ export function VennDiagram({ channels, shared, max = 6 }: { channels: OverlapCh
         <text x={cx} y={cy - 2} textAnchor="middle" className="venn__badge-value">{k(shared)}</text>
         <text x={cx} y={cy + 15} textAnchor="middle" className="venn__badge-sub">on 2+ channels</text>
       </svg>
+      {compact && (
+        <ul className="venn__legend">
+          {top.map((t) => (
+            <li key={t.id}><span className="venn__dot" style={{ background: t.color }} /><span className="venn__legend-name">{t.label}</span><span className="venn__legend-value">{k(t.value)}</span></li>
+          ))}
+          <li className="venn__legend-note">unique commenters per channel</li>
+        </ul>
+      )}
     </figure>
   );
 }
