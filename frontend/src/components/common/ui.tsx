@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { InfoTip } from "./InfoTip";
 
 export type Tone = "ok" | "warn" | "bad" | "neutral";
 
@@ -12,12 +13,12 @@ export function Badge({ tone, children }: { tone: Tone; children: ReactNode }) {
   );
 }
 
-export function Card({ title, actions, children }: { title?: string; actions?: ReactNode; children: ReactNode }) {
+export function Card({ title, actions, info, children }: { title?: string; actions?: ReactNode; info?: ReactNode; children: ReactNode }) {
   return (
     <section className="card" aria-label={title}>
       {(title || actions) && (
         <header className="card__header">
-          {title && <h2 className="card__title">{title}</h2>}
+          {title && <h2 className="card__title">{title}{info && <InfoTip label={`About: ${title}`}>{info}</InfoTip>}</h2>}
           {actions}
         </header>
       )}

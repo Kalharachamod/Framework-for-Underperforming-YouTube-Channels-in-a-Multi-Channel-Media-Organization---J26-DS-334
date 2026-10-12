@@ -69,7 +69,7 @@ export function AppShell({ nav, header, sidebarExtra, children }: {
           ))}
           {sidebarExtra}
         </nav>
-        <p className="sidebar__foot">Read-only research view · J26-DS-334</p>
+        <p className="sidebar__foot">Read-only research view</p>
       </aside>
       {open && <button type="button" className="backdrop" aria-label="Close menu" onClick={() => setOpen(false)} />}
       <div className="content">

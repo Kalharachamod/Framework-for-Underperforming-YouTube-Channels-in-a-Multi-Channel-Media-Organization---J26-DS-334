@@ -45,7 +45,7 @@ function niceMax(v: number): number {
   return Math.ceil(v / p / 2) * 2 * p;
 }
 
-export function LineChart({ labels, series, height = 260, yLabel, summary }: {
+export function LineChart({ labels, series, height = 300, yLabel, summary }: {
   labels: string[];
   series: Series[];
   height?: number;
@@ -70,14 +70,14 @@ export function LineChart({ labels, series, height = 260, yLabel, summary }: {
           </g>
         ))}
         <text x={12} y={T + (H - T - B) / 2} transform={`rotate(-90 12 ${T + (H - T - B) / 2})`} textAnchor="middle" className="linechart__tick">{yLabel}</text>
-        {labels.map((l, i) => (i % every === 0 || i === labels.length - 1) && ((labels.length - 1 - i >= every / 2) || i === labels.length - 1) && (
+        {labels.map((l, i) => (i % every === 0 || i === labels.length - 1) && ((labels.length - 1 - i >= every) || i === labels.length - 1) && (
           <text key={l} x={x(i)} y={H - 8} textAnchor={i === labels.length - 1 ? "end" : i === 0 ? "start" : "middle"} className="linechart__tick">{l}</text>
         ))}
         <defs>
           {series.map((s) => (
             <linearGradient key={s.key} id={`lc-${s.key}`} x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor={s.color} stopOpacity={0.22} />
-              <stop offset="100%" stopColor={s.color} stopOpacity={0} />
+              <stop offset="0%" stopColor={s.color} stopOpacity={0.3} />
+              <stop offset="100%" stopColor={s.color} stopOpacity={0.02} />
             </linearGradient>
           ))}
         </defs>
@@ -106,7 +106,7 @@ export function LineChart({ labels, series, height = 260, yLabel, summary }: {
         <div className="linechart__tooltip" style={{ left: `${(x(hover) / W) * 100}%` }}>
           <strong>{labels[hover]}</strong>
           {series.map((s) => (
-            <span key={s.key}><i style={{ background: s.color }} /> {s.label}: {(s.values[hover] ?? 0).toLocaleString("en-US")}</span>
+            <span key={s.key}><i style={{ background: s.color }} /> <span className="linechart__tip-name">{s.label}</span><b>{fmt(s.values[hover] ?? 0)}</b></span>
           ))}
         </div>
       )}
