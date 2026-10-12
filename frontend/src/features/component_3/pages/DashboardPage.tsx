@@ -1,41 +1,48 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { LineChart, Sparkline } from "../../../components/charts/LineChart";
-import { HubNetwork, VennDiagram } from "../../../components/charts/Overlap";
-import { ChannelAvatar, colorFor } from "../../../components/common/ChannelAvatar";
-import { Icon } from "../../../components/common/Icon";
+import { AudienceRing, MiniArea } from "../../../components/charts/AudienceRing";
+import { CountUp } from "../../../components/common/CountUp";
 import { EmptyState, ErrorState, Loading } from "../../../components/common/States";
-import { Card, TableWrap } from "../../../components/common/ui";
+import { TableWrap } from "../../../components/common/ui";
 import { useApi } from "../../../hooks/useApi";
 import { compact, date, int, num, pct } from "../../../utils/format";
 import { component3Api } from "../api";
 import { LIMITATIONS, Provenance } from "../ContextBar";
 import { useResearch } from "../ResearchContext";
 
-function greeting(): string {
-  const h = new Date().getHours();
-  return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
-}
+type Sort = "views" | "likes" | "comments";
 
-function duration(sec: number): string {
-  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s2 = sec % 60;
-  return h ? `${h}:${String(m).padStart(2, "0")}:${String(s2).padStart(2, "0")}` : `${m}:${String(s2).padStart(2, "0")}`;
-}
-
-function Kpi({ icon, tone, label, value, hint, spark, sparkLabel }: {
-  icon: string; tone: string; label: string; value: string; hint?: string; spark?: number[]; sparkLabel?: string;
-}) {
+/** Editorial section: number and title on the left, content on the right. */
+function Section({ n, title, lead, children, aside }: { n: string; title: string; lead?: ReactNode; children: ReactNode; aside?: ReactNode }) {
   return (
-    <div className="kpi">
-      <span className={`kpi__icon kpi__icon--${tone}`}><Icon name={icon} size={22} /></span>
-      <div className="kpi__body">
-        <span className="kpi__label">{label}</span>
-        <span className="kpi__value-row">
-          <span className="kpi__value">{value}</span>
-          {spark && sparkLabel && <Sparkline values={spark} color="var(--kpi-spark)" label={sparkLabel} />}
-        </span>
-        {hint && <span className="kpi__hint">{hint}</span>}
-      </div>
+    <section className="ed-section" aria-label={title}>
+      <header className="ed-section__head">
+        <span className="ed-section__n">{n}</span>
+        <h2>{title}</h2>
+        {lead && <p>{lead}</p>}
+        {aside}
+      </header>
+      <div className="ed-section__body">{children}</div>
+    </section>
+  );
+}
+
+function Toggle<T extends string>({ label, value, options, onChange }: { label: string; value: T; options: [T, string][]; onChange: (v: T) => void }) {
+  return (
+    <div className="ed-toggle" role="tablist" aria-label={label}>
+      {options.map(([k, l]) => (
+        <button key={k} type="button" role="tab" aria-selected={value === k} className={value === k ? "is-active" : ""} onClick={() => onChange(k)}>{l}</button>
+      ))}
+    </div>
+  );
+}
+
+function Figure({ label, value, format, hint }: { label: string; value: number | null; format: (v: number | null) => string; hint?: string }) {
+  return (
+    <div className="ed-figure">
+      <span className="ed-figure__label">{label}</span>
+      <span className="ed-figure__value"><CountUp value={value} format={format} /></span>
+      {hint && <span className="ed-figure__hint">{hint}</span>}
     </div>
   );
 }
@@ -44,210 +51,193 @@ export function DashboardPage() {
   const { snapshotId, experimentId, status } = useResearch();
   const c = { snapshotId, experimentId };
   const [granularity, setGranularity] = useState<"month" | "week">("month");
+  const [sort, setSort] = useState<Sort>("views");
   const summary = useApi((s) => component3Api.dashboardSummary(c, s), [snapshotId]);
   const channels = useApi((s) => component3Api.dashboardChannels(c, s), [snapshotId]);
   const timeline = useApi((s) => component3Api.viewsTimeline(c, granularity, granularity === "month" ? 12 : 16, s), [snapshotId, granularity]);
   const overlap = useApi((s) => component3Api.overlap(c, s), [snapshotId]);
-  const videos = useApi((s) => component3Api.topVideos(c, 5, s), [snapshotId]);
+  const videos = useApi((s) => component3Api.topVideos(c, 4, s, sort), [snapshotId, sort]);
   const topics = useApi((s) => component3Api.topics(c, s), [snapshotId]);
   const bridges = useApi((s) => component3Api.topBridges(c, 6, s), [snapshotId, experimentId]);
 
-  const order = useMemo(() => (channels.status === "success" ? channels.data.items.map((x) => x.channel_id) : []), [channels]);
-  const totals = useMemo(() => {
-    if (timeline.status !== "success") return null;
-    const n = timeline.data.periods.length;
-    return {
-      views: Array.from({ length: n }, (_, i) => timeline.data.series.reduce((a, s) => a + (s.views[i] ?? 0), 0)),
-      videos: Array.from({ length: n }, (_, i) => timeline.data.series.reduce((a, s) => a + s.videos[i], 0)),
-    };
-  }, [timeline]);
+  const maxCommenters = useMemo(() => (channels.status === "success" ? Math.max(1, ...channels.data.items.map((x) => x.unique_commenters)) : 1), [channels]);
 
   if (status.status === "success" && status.data.research_data === "missing") {
     return <EmptyState title="No research data yet"><p>Run the collection pipeline and create a research snapshot first.</p></EmptyState>;
   }
   if (summary.status === "error") return <ErrorState error={summary.error} onRetry={summary.reload} />;
   const s = summary.status === "success" ? summary.data : null;
-  const top = bridges.status === "success" ? bridges.data.items[0] : undefined;
-  const periodLabel = (p: string) => (granularity === "month" ? p.slice(0, 7) : p.slice(5));
+  const shared = overlap.status === "success" ? overlap.data.commenters_on_multiple_channels : null;
+  const lead = bridges.status === "success" ? bridges.data.items[0] : undefined;
+  const rest = bridges.status === "success" ? bridges.data.items.slice(1) : [];
+  const xplLink = (a: string, b: string) => `/explainability?source=${encodeURIComponent(a)}&destination=${encodeURIComponent(b)}`;
 
   return (
-    <>
-      <section className="hero">
-        <div>
-          <p className="hero__greeting">{greeting()} · Component 3 Audience Intelligence</p>
-          <h1>Audience Insight Dashboard</h1>
-          <p className="page-header__description">Cross-channel audience structure of the approved research channels, from public YouTube data.</p>
-        </div>
-        {top && (
-          <Link className="highlight" to={`/explainability?source=${encodeURIComponent(top.source_channel_id)}&destination=${encodeURIComponent(top.destination_channel_id)}`}>
-            <span className="highlight__icon"><Icon name="explain" size={20} /></span>
-            <span>
-              <span className="highlight__title">Data highlight <span className="highlight__chev" aria-hidden="true">›</span></span>
-              <span className="highlight__text">
-                Strongest potential audience bridge: <strong>{top.source_channel_name} → {top.destination_channel_name}</strong>
-              </span>
-              <span className="highlight__meta">score {num(top.audience_bridge_score, 3)} · {int(top.shared_commenters)} shared commenters · provisional formula</span>
-            </span>
-          </Link>
+    <div className="ed">
+      <header className="ed-mast">
+        <p className="ed-mast__eyebrow">
+          Audience intelligence{s && <> · Snapshot <span className="mono">{s.snapshot_id}</span>{s.extracted_at && <> · {date(s.extracted_at).slice(0, 10)}</>}</>}
+        </p>
+        <h1 className="ed-mast__title">
+          {shared !== null && s ? (
+            <><em>{int(shared)}</em> commenters appear on more than one channel.</>
+          ) : "Cross-channel audience intelligence."}
+        </h1>
+        {shared !== null && s && s.unique_commenters > 0 && (
+          <p className="ed-mast__sub">That is {pct(shared / s.unique_commenters, 1)} of {int(s.unique_commenters)} commenters across {int(s.channels)} channels. These shared audiences are where potential bridges between channels form.</p>
         )}
-      </section>
+      </header>
 
       {summary.status === "loading" || !s ? <Loading label="Loading dashboard…" /> : (
-        <section className="kpi-grid" aria-label="Snapshot totals">
-          <Kpi icon="users" tone="red" label="Channels" value={int(s.channels)} hint={`${compact(s.subscribers)} subscribers`} />
-          <Kpi icon="play" tone="blue" label="Videos" value={int(s.videos)} hint={`${date(s.first_video).slice(0, 7)} → ${date(s.last_video).slice(0, 7)}`}
-            spark={totals?.videos} sparkLabel="Collected videos per period" />
-          <Kpi icon="eye" tone="green" label="Views" value={compact(s.views)} hint="collected videos, public counts"
-            spark={totals?.views} sparkLabel="Views of collected videos per publish period" />
-          <Kpi icon="comment" tone="purple" label="Comments" value={compact(s.collected_comments)} hint={`collected of ${compact(s.public_comments)} public`} />
-          <Kpi icon="thumb" tone="orange" label="Unique commenters" value={compact(s.unique_commenters)} hint={`${compact(s.likes)} likes on collected videos`} />
+        <section className="ed-ledger" aria-label="Snapshot totals">
+          <Figure label="Channels" value={s.channels} format={int} hint={`${compact(s.subscribers)} subscribers`} />
+          <Figure label="Videos" value={s.videos} format={int} hint={`${date(s.first_video).slice(0, 7)} – ${date(s.last_video).slice(0, 7)}`} />
+          <Figure label="Views" value={s.views} format={compact} hint="collected videos" />
+          <Figure label="Comments" value={s.collected_comments} format={compact} hint={`of ${compact(s.public_comments)} public`} />
+          <Figure label="Commenters" value={s.unique_commenters} format={compact} hint={`${compact(s.likes)} likes`} />
         </section>
       )}
 
-      <div className="grid grid--wide-left">
-        <Card title="Views of collected videos by publish date" actions={
-          <div className="segmented" role="group" aria-label="Granularity">
-            {(["month", "week"] as const).map((g) => (
-              <button key={g} type="button" className={granularity === g ? "is-active" : ""} aria-pressed={granularity === g} onClick={() => setGranularity(g)}>
-                {g === "month" ? "Monthly" : "Weekly"}
-              </button>
-            ))}
-          </div>}>
-          {timeline.status === "loading" && <Loading />}
-          {timeline.status === "error" && <ErrorState error={timeline.error} />}
-          {timeline.status === "success" && (timeline.data.series.length === 0 ? <EmptyState title="No videos in this period" /> : (
-            <>
-              <LineChart labels={timeline.data.periods.map(periodLabel)} yLabel="Views"
-                summary={`Views of collected videos by publish ${granularity} for the top channels`}
-                series={timeline.data.series.slice(0, 6).map((x) => ({ key: x.channel_id, label: x.channel_name ?? x.channel_id, color: colorFor(x.channel_id, order), values: x.views }))} />
-              <p className="muted small">{timeline.data.note}</p>
-            </>
-          ))}
-        </Card>
-        <Card title="Channel audience overlap">
-          {overlap.status === "loading" && <Loading />}
-          {overlap.status === "error" && <ErrorState error={overlap.error} />}
-          {overlap.status === "success" && (
-            <>
-              <VennDiagram shared={overlap.data.commenters_on_multiple_channels}
-                channels={overlap.data.nodes.map((n) => ({ id: n.channel_id, label: n.channel_name ?? n.channel_id, value: n.unique_commenters, color: colorFor(n.channel_id, order) }))} />
-              <ol className="mini-list">
-                {overlap.data.edges.slice(0, 3).map((e) => {
-                  const nm = (id: string) => overlap.data.nodes.find((n) => n.channel_id === id)?.channel_name ?? id;
-                  return <li key={`${e.source_channel_id}-${e.destination_channel_id}`}><span>{nm(e.source_channel_id)} ↔ {nm(e.destination_channel_id)}</span><strong>{int(e.shared_commenters)}</strong></li>;
-                })}
-              </ol>
-              <p className="muted small">Top channels by unique commenters; the centre shows commenters seen on 2+ channels. Layout is illustrative (overlap areas are not to scale); numbers are exact.</p>
-            </>
-          )}
-        </Card>
-      </div>
-
-      <div className="grid grid--2">
-        <Card title="Channel performance" actions={<Link to="/channels" className="card-link">View all →</Link>}>
-          {channels.status === "loading" && <Loading />}
-          {channels.status === "error" && <ErrorState error={channels.error} />}
-          {channels.status === "success" && (
-            <TableWrap label="Channel performance">
-              <table className="table table--compact">
-                <thead><tr><th scope="col">#</th><th scope="col">Channel</th><th scope="col" className="col-optional">Subscribers</th><th scope="col">Views*</th><th scope="col" className="col-optional">Videos*</th><th scope="col">Commenters</th></tr></thead>
-                <tbody>
-                  {channels.data.items.slice(0, 8).map((x, i) => (
-                    <tr key={x.channel_id}>
-                      <td>{i + 1}</td>
-                      <td><span className="channel-cell"><ChannelAvatar id={x.channel_id} name={x.channel_name} order={order} size={22} /><Link to={`/channels?channel=${encodeURIComponent(x.channel_id)}`}>{x.channel_name ?? x.channel_id}</Link></span></td>
-                      <td className="num col-optional">{compact(x.subscriber_count)}</td>
-                      <td className="num">{compact(x.views)}</td>
-                      <td className="num col-optional">{int(x.videos)}</td>
-                      <td className="num">{int(x.unique_commenters)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </TableWrap>
-          )}
-          <p className="muted small">* collected videos only (up to the collection limit per channel).</p>
-        </Card>
-        <Card title="Top performing content">
-          {videos.status === "loading" && <Loading />}
-          {videos.status === "error" && <ErrorState error={videos.error} />}
-          {videos.status === "success" && (videos.data.items.length === 0 ? <EmptyState title="No view counts available" /> : (
-            <ul className="video-list">
-              {videos.data.items.map((v) => (
-                <li key={v.video_id}>
-                  <a href={v.video_url} target="_blank" rel="noreferrer" className="video-thumb">
-                    <img src={v.thumbnail_url} alt="" loading="lazy" width={112} height={63} />
-                    {v.duration_seconds !== null && <span className="video-thumb__duration">{duration(v.duration_seconds)}</span>}
-                  </a>
-                  <div className="video-body">
-                    <a href={v.video_url} target="_blank" rel="noreferrer" className="video-title">{v.title ?? v.video_id}</a>
-                    <span className="video-meta"><ChannelAvatar id={v.channel_id} name={v.channel_name} order={order} size={16} /> {v.channel_name} · {date(v.published_at).slice(0, 10)}</span>
-                  </div>
-                  <div className="video-stats">
-                    <span title="Views"><Icon name="eye" size={14} /> {compact(v.views)}</span>
-                    <span title="Likes"><Icon name="thumb" size={14} /> {compact(v.likes)}</span>
-                    <span title="Comments"><Icon name="comment" size={14} /> {compact(v.comments)}</span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ))}
-        </Card>
-      </div>
-
-      <div className="grid grid--3">
-        <Card title="Audience overlap network">
-          {overlap.status === "loading" && <Loading />}
-          {overlap.status === "error" && <ErrorState error={overlap.error} />}
-          {overlap.status === "success" && (
-            <>
-              <HubNetwork
-                channels={overlap.data.nodes.map((n) => ({ id: n.channel_id, label: n.channel_name ?? n.channel_id, value: n.unique_commenters, color: colorFor(n.channel_id, order) }))}
-                links={overlap.data.edges.map((e) => ({ a: e.source_channel_id, b: e.destination_channel_id, weight: e.shared_commenters }))} />
-              <p className="muted small">Most-connected channels by shared commenters (aggregate counts; not audience migration).</p>
-            </>
-          )}
-        </Card>
-        <Card title="Content topics">
-          {topics.status === "loading" && <Loading />}
-          {topics.status === "error" && <ErrorState error={topics.error} />}
-          {topics.status === "success" && (
-            <>
-              <ol className="bar-list">
-                {topics.data.items.map((t) => (
-                  <li key={t.topic_id}>
-                    <span className="bar-list__label">{t.label}<small>{t.top_channel_name ? `mostly ${t.top_channel_name}` : ""}</small></span>
-                    <span className="bar-list__track"><span style={{ width: `${(t.share ?? 0) * 100}%` }} /></span>
-                    <span className="bar-list__value">{pct(t.share)} · {int(t.videos)} videos</span>
+      <Section n="01" title="Audience network" lead="Each curve joins two channels that share commenters; thicker means more. Hollow points share none. Hover or focus a channel to isolate it.">
+        <div className="ed-network">
+          <div className="ed-network__ring">
+            {overlap.status === "loading" && <Loading />}
+            {overlap.status === "error" && <ErrorState error={overlap.error} />}
+            {overlap.status === "success" && (
+              <AudienceRing
+                nodes={overlap.data.nodes.map((n) => ({ id: n.channel_id, label: n.channel_name ?? n.channel_id, value: n.unique_commenters }))}
+                edges={overlap.data.edges.map((e) => ({ a: e.source_channel_id, b: e.destination_channel_id, weight: e.shared_commenters }))}
+                accentPair={lead ? [lead.source_channel_id, lead.destination_channel_id] : undefined}
+                centerValue={int(overlap.data.commenters_on_multiple_channels)} centerLabel="on 2+ channels" />
+            )}
+          </div>
+          <aside className="ed-bridges" aria-label="Potential audience bridges">
+            <p className="ed-kicker">Strongest potential bridge</p>
+            {bridges.status === "loading" && <Loading />}
+            {bridges.status === "error" && <ErrorState error={bridges.error} />}
+            {bridges.status === "success" && !lead && <p className="muted">No positive scores in this experiment.</p>}
+            {lead && (
+              <Link to={xplLink(lead.source_channel_id, lead.destination_channel_id)} className="ed-lead">
+                <span className="ed-lead__pair">{lead.source_channel_name} → {lead.destination_channel_name}</span>
+                <span className="ed-lead__score">{num(lead.audience_bridge_score, 3)}</span>
+                <span className="ed-lead__meta">Audience Bridge Score · {int(lead.shared_commenters)} shared commenters</span>
+              </Link>
+            )}
+            {rest.length > 0 && (
+              <ol className="ed-list" start={2}>
+                {rest.map((b, i) => (
+                  <li key={`${b.source_channel_id}-${b.destination_channel_id}`}>
+                    <Link to={xplLink(b.source_channel_id, b.destination_channel_id)}>
+                      <span className="ed-list__n">{String(i + 2).padStart(2, "0")}</span>
+                      <span className="ed-list__pair">{b.source_channel_name} → {b.destination_channel_name}</span>
+                      <span className="ed-list__score">{num(b.audience_bridge_score, 3)}</span>
+                    </Link>
                   </li>
                 ))}
               </ol>
-              <p className="muted small">{topics.data.note}</p>
-            </>
-          )}
-        </Card>
-        <Card title="Top potential audience bridges" actions={<Link to="/bridges" className="card-link">Explore →</Link>}>
-          {bridges.status === "loading" && <Loading />}
-          {bridges.status === "error" && <ErrorState error={bridges.error} />}
-          {bridges.status === "success" && (bridges.data.items.length === 0 ? <EmptyState title="No positive scores" /> : (
-            <ol className="bridge-list">
-              {bridges.data.items.map((b) => (
-                <li key={`${b.source_channel_id}-${b.destination_channel_id}`}>
-                  <Link to={`/explainability?source=${encodeURIComponent(b.source_channel_id)}&destination=${encodeURIComponent(b.destination_channel_id)}`}>
-                    <ChannelAvatar id={b.source_channel_id} name={b.source_channel_name} order={order} size={24} />
-                    <span className="bridge-list__arrow">→</span>
-                    <ChannelAvatar id={b.destination_channel_id} name={b.destination_channel_name} order={order} size={24} />
-                    <span className="bridge-list__names">{b.source_channel_name} → {b.destination_channel_name}<small>{int(b.shared_commenters)} shared commenters · confidence {num(b.confidence, 2)}</small></span>
-                    <span className="bridge-list__score">{num(b.audience_bridge_score, 3)}</span>
-                  </Link>
+            )}
+            <Link to="/bridges" className="ed-more">All bridges →</Link>
+            <p className="ed-note">Provisional scores: an audience-affinity ranking signal, not observed movement.</p>
+          </aside>
+        </div>
+      </Section>
+
+      <Section n="02" title="Views over time" lead={timeline.status === "success" ? timeline.data.note : "Views of collected videos by publish period."}
+        aside={<Toggle label="Granularity" value={granularity} options={[["month", "Monthly"], ["week", "Weekly"]]} onChange={setGranularity} />}>
+        {timeline.status === "loading" && <Loading />}
+        {timeline.status === "error" && <ErrorState error={timeline.error} />}
+        {timeline.status === "success" && (timeline.data.series.length === 0 ? <EmptyState title="No videos in this period" /> : (
+          <>
+            <div className="ed-multiples">
+              {timeline.data.series.slice(0, 8).map((x) => (
+                <div key={x.channel_id} className="ed-multiple">
+                  <span className="ed-multiple__name">{x.channel_name ?? x.channel_id}</span>
+                  <span className="ed-multiple__value">{compact(x.views.reduce<number>((a, v) => a + (v ?? 0), 0))}</span>
+                  <MiniArea values={x.views} label={`Views of ${x.channel_name} by publish ${granularity}`} />
+                  <span className="ed-multiple__axis"><span>{timeline.data.periods[0]?.slice(0, 7)}</span><span>{timeline.data.periods.at(-1)?.slice(0, 7)}</span></span>
+                </div>
+              ))}
+            </div>
+            <p className="ed-note">Each panel uses its own vertical scale, starting at zero.</p>
+          </>
+        ))}
+      </Section>
+
+      <Section n="03" title="Channels" lead="Views cover collected videos only (up to 50 per channel); subscribers are public counts at collection."
+        aside={<Link to="/channels" className="ed-more">All channels →</Link>}>
+        {channels.status === "loading" && <Loading />}
+        {channels.status === "error" && <ErrorState error={channels.error} />}
+        {channels.status === "success" && (
+          <TableWrap label="Channel performance">
+            <table className="ed-table">
+              <thead><tr><th scope="col">Channel</th><th scope="col" className="num">Subscribers</th><th scope="col" className="num">Views</th><th scope="col" className="num col-optional">Videos</th><th scope="col">Commenters</th></tr></thead>
+              <tbody>
+                {channels.data.items.slice(0, 10).map((x) => (
+                  <tr key={x.channel_id}>
+                    <td><Link to={`/channels?channel=${encodeURIComponent(x.channel_id)}`}>{x.channel_name ?? x.channel_id}</Link></td>
+                    <td className="num">{compact(x.subscriber_count)}</td>
+                    <td className="num">{compact(x.views)}</td>
+                    <td className="num col-optional">{int(x.videos)}</td>
+                    <td><span className="ed-bar"><span className="ed-bar__track"><span style={{ width: `${(x.unique_commenters / maxCommenters) * 100}%` }} /></span><span className="ed-bar__value">{int(x.unique_commenters)}</span></span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </TableWrap>
+        )}
+      </Section>
+
+      <Section n="04" title="Most watched" lead="Collected videos ranked by public counts observed at collection."
+        aside={<Toggle label="Rank videos by" value={sort} options={[["views", "Views"], ["likes", "Likes"], ["comments", "Comments"]]} onChange={setSort} />}>
+        {videos.status === "loading" && <Loading />}
+        {videos.status === "error" && <ErrorState error={videos.error} />}
+        {videos.status === "success" && (videos.data.items.length === 0 ? <EmptyState title="No public counts available" /> : (
+          <ol className="ed-videos">
+            {videos.data.items.map((v, i) => (
+              <li key={v.video_id}>
+                <a href={v.video_url} target="_blank" rel="noreferrer">
+                  <span className="ed-videos__thumb"><img src={v.thumbnail_url} alt="" loading="lazy" width={320} height={180} /><span className="ed-videos__n">{String(i + 1).padStart(2, "0")}</span></span>
+                  <span className="ed-videos__title">{v.title ?? v.video_id}</span>
+                  <span className="ed-videos__meta">{v.channel_name} · {date(v.published_at).slice(0, 10)}</span>
+                  <span className="ed-videos__stats">
+                    <span className={sort === "views" ? "is-key" : ""}>{compact(v.views)} views</span>
+                    <span className={sort === "likes" ? "is-key" : ""}>{compact(v.likes)} likes</span>
+                    <span className={sort === "comments" ? "is-key" : ""}>{compact(v.comments)} comments</span>
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ol>
+        ))}
+      </Section>
+
+      <Section n="05" title="Content topics" lead={topics.status === "success" ? topics.data.note : "Unlabelled topic clusters of video text."}>
+        {topics.status === "loading" && <Loading />}
+        {topics.status === "error" && <ErrorState error={topics.error} />}
+        {topics.status === "success" && (
+          <div className="ed-topics">
+            <div className="ed-strip" role="img" aria-label={`Topic shares: ${topics.data.items.map((t) => `${t.label} ${pct(t.share)}`).join(", ")}`}>
+              {topics.data.items.map((t, i) => (
+                <span key={t.topic_id} style={{ flexGrow: t.share ?? 0, opacity: 1 - Math.min(0.8, i * 0.09) }} className={i === 0 ? "is-first" : ""} title={`${t.label}: ${pct(t.share)}`} />
+              ))}
+            </div>
+            <ol className="ed-topic-list">
+              {topics.data.items.slice(0, 8).map((t) => (
+                <li key={t.topic_id}>
+                  <span className="ed-topic-list__share">{pct(t.share)}</span>
+                  <span className="ed-topic-list__label">{t.label}</span>
+                  <span className="ed-topic-list__meta">{t.top_channel_name ? `mostly ${t.top_channel_name}` : ""}</span>
                 </li>
               ))}
             </ol>
-          ))}
-        </Card>
-      </div>
-      <p className="notice small">{LIMITATIONS}</p>
-      <Provenance snapshotId={s?.snapshot_id ?? null} experimentId={bridges.status === "success" ? bridges.data.experiment_id : null} />
-    </>
+          </div>
+        )}
+      </Section>
+
+      <footer className="ed-foot">
+        <p>{LIMITATIONS}</p>
+        <Provenance snapshotId={s?.snapshot_id ?? null} experimentId={bridges.status === "success" ? bridges.data.experiment_id : null} />
+      </footer>
+    </div>
   );
 }

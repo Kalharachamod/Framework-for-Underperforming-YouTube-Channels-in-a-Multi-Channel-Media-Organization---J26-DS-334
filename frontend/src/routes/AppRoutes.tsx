@@ -9,7 +9,7 @@ import { ExplainabilityPage } from "../features/component_3/pages/Explainability
 import { OverviewPage } from "../features/component_3/pages/OverviewPage";
 import { StatusPage } from "../features/component_3/pages/StatusPage";
 import { ResearchProvider } from "../features/component_3/ResearchContext";
-import { ChannelSearch, TrackedChannels } from "../features/component_3/TrackedChannels";
+import { ChannelSearch, SnapshotCard, TrackedChannels } from "../features/component_3/TrackedChannels";
 
 export const NAV: NavItem[] = [
   { to: "/", label: "Dashboard", group: "Insights", icon: "dashboard" },
@@ -24,7 +24,7 @@ export const NAV: NavItem[] = [
 export function AppRoutes() {
   return (
     <ResearchProvider>
-      <AppShell nav={NAV} sidebarExtra={<TrackedChannels />}
+      <AppShell nav={NAV} sidebarExtra={<><TrackedChannels limit={6} /><SnapshotCard /></>}
         header={<div className="topbar__row"><ChannelSearch /><ContextBar /></div>}>
         <Routes>
           <Route path="/" element={<DashboardPage />} />

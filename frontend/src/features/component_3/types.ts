@@ -333,6 +333,7 @@ export interface TopVideo {
 
 export interface TopVideosResponse {
   snapshot_id: string;
+  sort: "views" | "likes" | "comments";
   items: TopVideo[];
   note: string;
 }

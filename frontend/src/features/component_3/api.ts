@@ -111,8 +111,8 @@ export const component3Api = {
   dashboardChannels: (c: Context, signal?: AbortSignal) =>
     getJson<ChannelPerformanceResponse>(`${BASE}/dashboard/channels`, snap(c), shape(["items"], ["items"]), signal),
 
-  topVideos: (c: Context, limit: number, signal?: AbortSignal) =>
-    getJson<TopVideosResponse>(`${BASE}/dashboard/top-videos`, { ...snap(c), limit }, shape(["items"], ["items"]), signal),
+  topVideos: (c: Context, limit: number, signal?: AbortSignal, sort: "views" | "likes" | "comments" = "views") =>
+    getJson<TopVideosResponse>(`${BASE}/dashboard/top-videos`, { ...snap(c), limit, sort }, shape(["items"], ["items"]), signal),
 
   viewsTimeline: (c: Context, granularity: "week" | "month", periods: number, signal?: AbortSignal) =>
     getJson<ViewsTimelineResponse>(`${BASE}/dashboard/views-timeline`, { ...snap(c), granularity, periods },
