@@ -280,6 +280,13 @@ cd frontend && npm install && npm run dev                    # dashboard at http
 ```
 Details: [backend/README.md](backend/README.md) and [frontend/README.md](frontend/README.md). `API_CORS_ORIGINS`, `API_MAX_PAGE_SIZE` and `API_REQUEST_TIMEOUT_SECONDS` in `.env` configure the API.
 
+**8. Explore the data with SQL** (DuckDB workspace)
+```bash
+python -m research.component_3.duckdb_workspace          # views over the latest snapshot and its results
+python -m research.component_3.duckdb_workspace --ui     # same, then open the DuckDB UI in the browser
+```
+Fills `data/research.duckdb` (or `DUCKDB_PATH`) with read-only views: `snapshot.*` (channels, videos, comments), `prepared.*`, and one schema per result type (`bridge`, `topics`, `embeddings`, `baselines`, `evaluation`, `explanations`, …) for the newest complete run. `workspace.sources` lists the file behind each view and `workspace.channel_lookup` maps result node ids (`channel:<id>`) to channel names. Views copy no data, so rerun the command after new runs. The `--ui` option downloads DuckDB's `ui` extension once.
+
 </details>
 
 ---
