@@ -150,7 +150,7 @@ export const dashChannels = {
 };
 
 export const topVideos = {
-  snapshot_id: SID, note: "test",
+  snapshot_id: SID, note: "test", sort: "views",
   items: [{ video_id: "vid_test_1", title: "Test video title one", channel_id: A, channel_name: "Test Channel A", published_at: "2025-12-01T00:00:00Z", views: 8000, likes: 150, comments: 20, duration_seconds: 300, thumbnail_url: "https://i.ytimg.com/vi/vid_test_1/mqdefault.jpg", video_url: "https://www.youtube.com/watch?v=vid_test_1" }],
 };
 

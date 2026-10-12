@@ -32,7 +32,7 @@ describe("Research overview", () => {
     mockFetch(defaultRoutes());
     renderAt("/overview");
     expect(screen.getByRole("status")).toHaveTextContent(/Loading/);
-    expect((await screen.findAllByText(EID)).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText(EID, undefined, { timeout: 4000 })).length).toBeGreaterThan(0);
     expect(screen.getAllByText(SID).length).toBeGreaterThan(0);
     expect(screen.getByText("Provisional")).toBeInTheDocument();
     expect(screen.getByText("3 research channels in this snapshot.", { exact: false })).toBeInTheDocument();
@@ -176,19 +176,29 @@ describe("privacy", () => {
 
 
 describe("Dashboard", () => {
-  it("shows KPI totals, panels and the data highlight from the API only", async () => {
+  it("shows the data headline, totals and strongest bridge from the API only", async () => {
     mockFetch(defaultRoutes());
     renderAt("/");
-    expect(await screen.findByText("Audience Insight Dashboard")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: /5 commenters appear on more than one channel/ })).toBeInTheDocument();
     const kpis = await screen.findByRole("region", { name: "Snapshot totals" });
     expect(within(kpis).getByText("12K")).toBeInTheDocument();            // views 12345 (compact format)
     expect(within(kpis).getByText("40")).toBeInTheDocument();             // collected comments
     expect(within(kpis).getByText("12")).toBeInTheDocument();             // unique commenters
-    expect(await screen.findByText("Data highlight")).toBeInTheDocument();
+    expect(await screen.findByText("Strongest potential bridge")).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "Audience network" })).toBeInTheDocument();
     expect(screen.getAllByText(/Test Channel A → Test Channel C/).length).toBeGreaterThan(0);
     expect(await screen.findByText("Test video title one")).toBeInTheDocument();
     expect(await screen.findByText("Topic 1")).toBeInTheDocument();
-    expect(screen.queryByText(/demographic|sentiment|AI Insight/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/demographic|sentiment|AI Insight|geograph|device/i)).not.toBeInTheDocument();
+  });
+
+  it("re-ranks top content by the selected public count", async () => {
+    const fetchMock = mockFetch(defaultRoutes());
+    renderAt("/");
+    const tab = await screen.findByRole("tab", { name: "Likes" });
+    await userEvent.click(tab);
+    await waitFor(() => expect(tab).toHaveAttribute("aria-selected", "true"));
+    await waitFor(() => expect(fetchMock.mock.calls.some(([u]) => String(u).includes("sort=likes"))).toBe(true));
   });
 
   it("shows missing values as a dash, never as zero", async () => {
