@@ -371,6 +371,8 @@ def test_dashboard_top_videos_timeline_overlap(client):
     assert tv["items"] == []                                            # no public view counts in synthetic data
     assert get(client, f"{API}/dashboard/top-videos", 404, channel_id="UC_unknown")["error"]["code"] == "not_found"
     assert get(client, f"{API}/dashboard/top-videos", 422, limit=500)["error"]["code"] == "invalid_parameter"
+    assert get(client, f"{API}/dashboard/top-videos", 422, sort="shares")["error"]["code"] == "invalid_parameter"
+    assert get(client, f"{API}/dashboard/top-videos", sort="likes")["sort"] == "likes"
     tl = get(client, f"{API}/dashboard/views-timeline", granularity="week", periods=4)
     sc.ViewsTimelineResponse.model_validate(tl)
     assert all(len(sr["videos"]) == len(tl["periods"]) for sr in tl["series"])

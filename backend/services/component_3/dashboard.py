@@ -17,6 +17,7 @@ from backend.services.component_3.service import (ArtifactUnavailable, Component
 COUNTS_NOTE = ("View, like and comment counts are the public counts observed when each collected video was "
                "collected; totals cover the collected videos only (collection limits apply), not whole channels.")
 GRANULARITIES = {"week": "week", "month": "month"}
+SORTS = {"views": "view_count", "likes": "like_count", "comments": "comment_count"}   # code-defined columns only
 
 
 class DashboardService:
@@ -76,9 +77,13 @@ class DashboardService:
 
     # --- top videos ---------------------------------------------------------------------------------
 
-    def top_videos(self, snapshot_id: str | None, limit: int, channel_id: str | None) -> dict[str, Any]:
+    def top_videos(self, snapshot_id: str | None, limit: int, channel_id: str | None,
+                   sort: str = "views") -> dict[str, Any]:
+        if sort not in SORTS:
+            raise InvalidParameter(f"sort must be one of {sorted(SORTS)}")
+        col = SORTS[sort]
         snap = self.base._snapshot(snapshot_id)
-        where, params = "WHERE v.view_count IS NOT NULL", []
+        where, params = f"WHERE v.{col} IS NOT NULL", []
         if channel_id:
             node = self.base.channel_node(channel_id)
             self.base._require_channel(snap, node)
@@ -88,12 +93,12 @@ class DashboardService:
             SELECT v.video_id, v.title, v.channel_id, ch.channel_name, v.published_at, v.view_count AS views,
                    v.like_count AS likes, v.comment_count AS comments, v.duration_seconds
             FROM videos v LEFT JOIN channels ch USING (channel_id) {where}
-            ORDER BY v.view_count DESC, v.video_id LIMIT {int(limit)}
+            ORDER BY v.{col} DESC, v.video_id LIMIT {int(limit)}
         """, self._files(snap.snapshot_id, "videos", "channels"), params)
         items = [{**{k: _v(v) for k, v in rec.items()},
                   "thumbnail_url": f"https://i.ytimg.com/vi/{rec['video_id']}/mqdefault.jpg",
                   "video_url": f"https://www.youtube.com/watch?v={rec['video_id']}"} for rec in df.to_dict("records")]
-        return _clean({"snapshot_id": snap.snapshot_id, "items": items, "note": COUNTS_NOTE})
+        return _clean({"snapshot_id": snap.snapshot_id, "sort": sort, "items": items, "note": COUNTS_NOTE})
 
     # --- views over time --------------------------------------------------------------------------------
 

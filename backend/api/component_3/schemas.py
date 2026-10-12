@@ -371,6 +371,7 @@ class TopVideo(_Model):
 
 class TopVideosResponse(_Model):
     snapshot_id: str
+    sort: Literal["views", "likes", "comments"]
     items: list[TopVideo]
     note: str
 

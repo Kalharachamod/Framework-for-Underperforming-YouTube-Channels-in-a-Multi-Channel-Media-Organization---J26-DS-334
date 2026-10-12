@@ -169,8 +169,9 @@ def dashboard_channels(dash: Dashboard, snapshot_id: SnapshotQ = None):
             summary="Most-viewed collected videos")
 def dashboard_top_videos(dash: Dashboard, request: Request,
                          limit: Annotated[int, Query(ge=1, le=50)] = 5, snapshot_id: SnapshotQ = None,
-                         channel_id: Annotated[str | None, Query(description="Only this channel (UC...).")] = None):
-    return dash.top_videos(snapshot_id, limit, channel_id)
+                         channel_id: Annotated[str | None, Query(description="Only this channel (UC...).")] = None,
+                         sort: Annotated[str, Query(description="views, likes or comments")] = "views"):
+    return dash.top_videos(snapshot_id, limit, channel_id, sort)
 
 
 @router.get("/dashboard/views-timeline", response_model=sc.ViewsTimelineResponse, tags=[DASH], responses=ERRORS,
