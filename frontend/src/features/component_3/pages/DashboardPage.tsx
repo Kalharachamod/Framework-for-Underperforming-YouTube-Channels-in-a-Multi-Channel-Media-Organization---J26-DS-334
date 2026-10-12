@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { AudienceRing, MiniArea } from "../../../components/charts/AudienceRing";
+import { colorFor } from "../../../components/common/ChannelAvatar";
 import { CountUp } from "../../../components/common/CountUp";
 import { EmptyState, ErrorState, Loading } from "../../../components/common/States";
 import { TableWrap } from "../../../components/common/ui";
@@ -12,10 +13,13 @@ import { useResearch } from "../ResearchContext";
 
 type Sort = "views" | "likes" | "comments";
 
-/** Editorial section: number and title on the left, content on the right. */
-function Section({ n, title, lead, children, aside }: { n: string; title: string; lead?: ReactNode; children: ReactNode; aside?: ReactNode }) {
+/** Shades of one blue, darkest for the largest topic cluster (topics are unlabelled; shade only orders them). */
+const TOPIC_COLORS = ["#172554", "#1e3a8a", "#1e40af", "#1d4ed8", "#2563eb", "#3b82f6", "#60a5fa", "#93c5fd", "#bfdbfe", "#dbeafe"];
+
+/** Editorial section: number and title on the left, content on the right (``center``: stacked and centred). */
+function Section({ n, title, lead, children, aside, center = false }: { n: string; title: string; lead?: ReactNode; children: ReactNode; aside?: ReactNode; center?: boolean }) {
   return (
-    <section className="ed-section" aria-label={title}>
+    <section className={center ? "ed-section ed-section--center" : "ed-section"} aria-label={title}>
       <header className="ed-section__head">
         <span className="ed-section__n">{n}</span>
         <h2>{title}</h2>
@@ -48,7 +52,9 @@ function Figure({ label, value, format, hint }: { label: string; value: number |
 }
 
 export function DashboardPage() {
-  const { snapshotId, experimentId, status } = useResearch();
+  const { snapshotId, experimentId, status, channels: research } = useResearch();
+  // same channel order as the sidebar, so a channel keeps its colour everywhere
+  const order = useMemo(() => (research.status === "success" ? research.data.items.map((x) => x.channel_id) : []), [research]);
   const c = { snapshotId, experimentId };
   const [granularity, setGranularity] = useState<"month" | "week">("month");
   const [sort, setSort] = useState<Sort>("views");
@@ -98,20 +104,21 @@ export function DashboardPage() {
         </section>
       )}
 
-      <Section n="01" title="Audience network" lead="Each curve joins two channels that share commenters; thicker means more. Hollow points share none. Hover or focus a channel to isolate it.">
+      <Section center n="01" title="Audience network" lead="Each curve joins two channels that share commenters; thicker means more. Hollow points share none. Hover or focus a channel to isolate it.">
         <div className="ed-network">
           <div className="ed-network__ring">
             {overlap.status === "loading" && <Loading />}
             {overlap.status === "error" && <ErrorState error={overlap.error} />}
             {overlap.status === "success" && (
               <AudienceRing
-                nodes={overlap.data.nodes.map((n) => ({ id: n.channel_id, label: n.channel_name ?? n.channel_id, value: n.unique_commenters }))}
+                nodes={overlap.data.nodes.map((n) => ({ id: n.channel_id, label: n.channel_name ?? n.channel_id, value: n.unique_commenters, color: colorFor(n.channel_id, order) }))}
                 edges={overlap.data.edges.map((e) => ({ a: e.source_channel_id, b: e.destination_channel_id, weight: e.shared_commenters }))}
                 accentPair={lead ? [lead.source_channel_id, lead.destination_channel_id] : undefined}
                 centerValue={int(overlap.data.commenters_on_multiple_channels)} centerLabel="on 2+ channels" />
             )}
           </div>
           <aside className="ed-bridges" aria-label="Potential audience bridges">
+            <div className="ed-bridges__lead">
             <p className="ed-kicker">Strongest potential bridge</p>
             {bridges.status === "loading" && <Loading />}
             {bridges.status === "error" && <ErrorState error={bridges.error} />}
@@ -123,6 +130,8 @@ export function DashboardPage() {
                 <span className="ed-lead__meta">Audience Bridge Score · {int(lead.shared_commenters)} shared commenters</span>
               </Link>
             )}
+            </div>
+            <div className="ed-bridges__rest">
             {rest.length > 0 && (
               <ol className="ed-list" start={2}>
                 {rest.map((b, i) => (
@@ -138,6 +147,7 @@ export function DashboardPage() {
             )}
             <Link to="/bridges" className="ed-more">All bridges →</Link>
             <p className="ed-note">Provisional scores: an audience-affinity ranking signal, not observed movement.</p>
+            </div>
           </aside>
         </div>
       </Section>
@@ -151,9 +161,9 @@ export function DashboardPage() {
             <div className="ed-multiples">
               {timeline.data.series.slice(0, 8).map((x) => (
                 <div key={x.channel_id} className="ed-multiple">
-                  <span className="ed-multiple__name">{x.channel_name ?? x.channel_id}</span>
+                  <span className="ed-multiple__name"><i className="ed-dot" style={{ background: colorFor(x.channel_id, order) }} />{x.channel_name ?? x.channel_id}</span>
                   <span className="ed-multiple__value">{compact(x.views.reduce<number>((a, v) => a + (v ?? 0), 0))}</span>
-                  <MiniArea values={x.views} label={`Views of ${x.channel_name} by publish ${granularity}`} />
+                  <MiniArea values={x.views} color={colorFor(x.channel_id, order)} label={`Views of ${x.channel_name} by publish ${granularity}`} />
                   <span className="ed-multiple__axis"><span>{timeline.data.periods[0]?.slice(0, 7)}</span><span>{timeline.data.periods.at(-1)?.slice(0, 7)}</span></span>
                 </div>
               ))}
@@ -174,11 +184,11 @@ export function DashboardPage() {
               <tbody>
                 {channels.data.items.slice(0, 10).map((x) => (
                   <tr key={x.channel_id}>
-                    <td><Link to={`/channels?channel=${encodeURIComponent(x.channel_id)}`}>{x.channel_name ?? x.channel_id}</Link></td>
+                    <td><i className="ed-dot" style={{ background: colorFor(x.channel_id, order) }} /><Link to={`/channels?channel=${encodeURIComponent(x.channel_id)}`}>{x.channel_name ?? x.channel_id}</Link></td>
                     <td className="num">{compact(x.subscriber_count)}</td>
                     <td className="num">{compact(x.views)}</td>
                     <td className="num col-optional">{int(x.videos)}</td>
-                    <td><span className="ed-bar"><span className="ed-bar__track"><span style={{ width: `${(x.unique_commenters / maxCommenters) * 100}%` }} /></span><span className="ed-bar__value">{int(x.unique_commenters)}</span></span></td>
+                    <td><span className="ed-bar"><span className="ed-bar__track"><span style={{ width: `${(x.unique_commenters / maxCommenters) * 100}%`, background: colorFor(x.channel_id, order) }} /></span><span className="ed-bar__value">{int(x.unique_commenters)}</span></span></td>
                   </tr>
                 ))}
               </tbody>
@@ -218,12 +228,12 @@ export function DashboardPage() {
           <div className="ed-topics">
             <div className="ed-strip" role="img" aria-label={`Topic shares: ${topics.data.items.map((t) => `${t.label} ${pct(t.share)}`).join(", ")}`}>
               {topics.data.items.map((t, i) => (
-                <span key={t.topic_id} style={{ flexGrow: t.share ?? 0, opacity: 1 - Math.min(0.8, i * 0.09) }} className={i === 0 ? "is-first" : ""} title={`${t.label}: ${pct(t.share)}`} />
+                <span key={t.topic_id} style={{ flexGrow: t.share ?? 0, background: TOPIC_COLORS[i % TOPIC_COLORS.length] }} title={`${t.label}: ${pct(t.share)}`} />
               ))}
             </div>
             <ol className="ed-topic-list">
-              {topics.data.items.slice(0, 8).map((t) => (
-                <li key={t.topic_id}>
+              {topics.data.items.slice(0, 8).map((t, i) => (
+                <li key={t.topic_id} style={{ borderTopColor: TOPIC_COLORS[i % TOPIC_COLORS.length] }}>
                   <span className="ed-topic-list__share">{pct(t.share)}</span>
                   <span className="ed-topic-list__label">{t.label}</span>
                   <span className="ed-topic-list__meta">{t.top_channel_name ? `mostly ${t.top_channel_name}` : ""}</span>

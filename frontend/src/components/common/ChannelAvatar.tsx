@@ -1,6 +1,6 @@
 /** Channel badge: initials on a colour derived from the channel id (no external logos are loaded). */
-export const PALETTE = ["#e5484d", "#f2a33a", "#2f6fd0", "#8e4ec6", "#1f9d74", "#d6409f", "#0b8ea0", "#7c6f2a",
-  "#c2410c", "#4f46e5", "#15803d", "#be123c", "#0369a1", "#a16207", "#6d28d9", "#0f766e", "#b45309", "#1d4ed8"];
+/** Six muted channel tones, assigned in the snapshot's channel order (names always accompany them). */
+export const PALETTE = ["#1d4ed8", "#0f766e", "#b45309", "#be123c", "#6d28d9", "#475569"];
 
 export function colorFor(id: string, order?: string[]): string {
   const i = order ? order.indexOf(id) : -1;

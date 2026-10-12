@@ -6,7 +6,7 @@
  */
 import { useMemo, useState } from "react";
 
-export interface RingNode { id: string; label: string; value: number }
+export interface RingNode { id: string; label: string; value: number; color?: string }
 export interface RingEdge { a: string; b: string; weight: number }
 
 const S = 860, C = S / 2, R = 262;
@@ -37,6 +37,7 @@ export function AudienceRing({ nodes, edges, accentPair, centerValue, centerLabe
   const touches = (e: RingEdge) => active !== null && (e.a === active || e.b === active);
   const neighbours = new Set(active ? edges.filter(touches).flatMap((e) => [e.a, e.b]) : []);
   const activeNode = active ? nodes.find((n) => n.id === active) : undefined;
+  const colorOf = (id: string) => nodes.find((n) => n.id === id)?.color ?? "var(--ink)";
   const activeDeg = active ? layout.degree.get(active) : undefined;
   const summary = `Audience network of ${nodes.length} channels: ${edges.length} channel pairs share commenters. `
     + [...edges].sort((p, q) => q.weight - p.weight).slice(0, 5)
@@ -52,9 +53,12 @@ export function AudienceRing({ nodes, edges, accentPair, centerValue, centerLabe
           const t = e.weight / layout.maxW;
           const on = touches(e), accent = isAccent(e);
           const cls = active ? (on ? "ring__edge ring__edge--on" : "ring__edge ring__edge--off") : accent ? "ring__edge ring__edge--accent" : "ring__edge";
+          // curves take the colour of the larger channel; the strongest bridge stays red
+          const big = layout.ordered.findIndex((n) => n.id === e.a) <= layout.ordered.findIndex((n) => n.id === e.b) ? e.a : e.b;
+          const stroke = accent && !active ? "var(--accent)" : active && on ? colorOf(active) : colorOf(big);
           return (
-            <path key={`${e.a}-${e.b}`} d={`M${p.x},${p.y} Q${C},${C} ${q.x},${q.y}`} className={cls}
-              strokeWidth={0.8 + 7 * t} strokeOpacity={active ? undefined : accent ? 0.95 : 0.1 + 0.45 * t} />
+            <path key={`${e.a}-${e.b}`} d={`M${p.x},${p.y} Q${C},${C} ${q.x},${q.y}`} className={cls} style={{ stroke }}
+              strokeWidth={0.8 + 7 * t} strokeOpacity={active ? undefined : accent ? 0.95 : 0.18 + 0.5 * t} />
           );
         })}
         {layout.ordered.map((n) => {
@@ -71,7 +75,8 @@ export function AudienceRing({ nodes, edges, accentPair, centerValue, centerLabe
               tabIndex={0} role="button" aria-label={`${n.label}: ${n.value} unique commenters`}
               onMouseEnter={() => setActive(n.id)} onMouseLeave={() => setActive(null)} onFocus={() => setActive(n.id)} onBlur={() => setActive(null)}>
               <circle cx={p.x} cy={p.y} r={r + 10} className="ring__hit" />
-              <circle cx={p.x} cy={p.y} r={r} className={isolated ? "ring__dot ring__dot--hollow" : "ring__dot"} />
+              <circle cx={p.x} cy={p.y} r={r} className={isolated ? "ring__dot ring__dot--hollow" : "ring__dot"}
+                style={isolated ? { stroke: n.color } : { fill: n.color }} />
               <text x={lx} y={ly} dy="0.35em" textAnchor={left ? "end" : "start"} transform={`rotate(${deg} ${lx} ${ly})`} className="ring__label">
                 {short(n.label)}
               </text>
@@ -100,12 +105,13 @@ export function AudienceRing({ nodes, edges, accentPair, centerValue, centerLabe
 }
 
 /** Minimal area sparkline for small multiples (own scale per panel, zero baseline). */
-export function MiniArea({ values, label }: { values: (number | null)[]; label: string }) {
+export function MiniArea({ values, label, color }: { values: (number | null)[]; label: string; color?: string }) {
   const W = 200, H = 52, max = Math.max(1, ...values.map((v) => v ?? 0));
   if (values.length < 2) return null;
   const pts = values.map((v, i) => `${(i * W) / (values.length - 1)},${H - 2 - ((v ?? 0) / max) * (H - 6)}`);
   return (
-    <svg className="mini-area" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={label}>
+    <svg className="mini-area" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={label}
+      style={color ? ({ "--mini": color } as React.CSSProperties) : undefined}>
       <path d={`M0,${H} L${pts.join(" L")} L${W},${H} Z`} className="mini-area__fill" />
       <polyline points={pts.join(" ")} className="mini-area__line" vectorEffect="non-scaling-stroke" />
     </svg>

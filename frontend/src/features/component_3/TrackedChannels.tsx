@@ -18,7 +18,7 @@ export function TrackedChannels({ limit = 8 }: { limit?: number }) {
         {shown.map((c) => (
           <li key={c.channel_id}>
             <Link className="nav__link nav__link--channel" to={`/channels?channel=${encodeURIComponent(c.channel_id)}`}>
-              <ChannelAvatar id={c.channel_id} name={c.channel_name} size={22} />
+              <ChannelAvatar id={c.channel_id} name={c.channel_name} size={22} order={channels.data.items.map((x) => x.channel_id)} />
               <span>{c.channel_name ?? c.channel_id}</span>
             </Link>
           </li>
