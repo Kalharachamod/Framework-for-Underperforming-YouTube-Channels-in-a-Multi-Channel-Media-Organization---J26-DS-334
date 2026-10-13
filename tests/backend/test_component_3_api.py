@@ -277,7 +277,8 @@ def test_openapi_documents_every_endpoint(client):
             f"{API}/channels/{{channel_id}}/pairs", f"{API}/bridge/experiments",
             f"{API}/bridge/{{source_channel_id}}/destinations",
             f"{API}/bridge/{{source_channel_id}}/destinations/{{destination_channel_id}}", f"{API}/evaluation/runs",
-            f"{API}/evaluation/{{evaluation_id}}/metadata", f"{API}/evaluation/{{evaluation_id}}/{{table}}"} <= paths
+            f"{API}/evaluation/{{evaluation_id}}/metadata", f"{API}/evaluation/{{evaluation_id}}/{{table}}",
+            f"{API}/graph/summary", f"{API}/topics/similarity", f"{API}/bridge/pairs", f"{API}/experiments/runs"} <= paths
     text = json.dumps(spec)
     assert "SUPABASE" not in text and "postgresql://" not in text and "ErrorResponse" in text
 
@@ -398,3 +399,57 @@ def test_dashboard_responses_have_no_identifiers(client):
     blob = "".join(client.get(f"{API}/dashboard/{u}").text for u in
                    ("summary", "channels", "top-videos", "views-timeline", "overlap", "top-bridges"))
     assert "anon_" not in blob and not any(v in blob for v in RAW.values()) and "commenter:" not in blob
+
+
+# research views (graph intelligence, topic similarity, all pairs, run browser) ---------------------------
+
+def test_graph_summary_counts_are_consistent(client):
+    g = get(client, f"{API}/graph/summary")
+    sc.GraphSummaryResponse.model_validate(g)
+    assert g["total_nodes"] == sum(g["node_counts"].values())
+    for d in g["degree_distribution"]:                                   # every node falls in exactly one bin
+        assert sum(b["nodes"] for b in d["bins"]) == d["nodes"] == g["node_counts"][d["node_type"]]
+    assert sum(g["connected_components"]) == g["node_counts"]["channel"]
+    assert {r["method"] for r in g["representations"]} == {"metapath2vec", "HGT"}
+    if g["diffusion"]["status"] == "available":
+        assert g["diffusion"]["converged_sources"] <= g["diffusion"]["sources"]
+
+
+def test_topic_similarity_matrix_or_unavailable(client):
+    r = client.get(f"{API}/topics/similarity")
+    if r.status_code == 404:                                             # no topic run: reported, not invented
+        assert r.json()["error"]["code"] == "artifact_unavailable"
+        return
+    t = r.json()
+    sc.TopicSimilarityResponse.model_validate(t)
+    assert all(c["source_channel_id"] != c["destination_channel_id"] for c in t["cells"])
+    assert all(c["topic_similarity"] is None or -1 <= c["topic_similarity"] <= 1 for c in t["cells"])
+
+
+def test_bridge_pairs_are_stored_scores_in_order(client, full):
+    pairs = get(client, f"{API}/bridge/pairs")
+    sc.BridgePairsResponse.model_validate(pairs)
+    items = pairs["items"]
+    assert items and all(i["source_channel_id"] != i["destination_channel_id"] for i in items)
+    scores = [i["audience_bridge_score"] for i in items if i["audience_bridge_score"] is not None]
+    assert scores == sorted(scores, reverse=True)
+    top = get(client, f"{API}/dashboard/top-bridges", limit=1)["items"][0]   # same stored value as the top list
+    assert (items[0]["source_channel_id"], items[0]["audience_bridge_score"]) == (top["source_channel_id"], top["audience_bridge_score"])
+    assert get(client, f"{API}/bridge/pairs", 422, experiment_id="nope")["error"]["code"] == "invalid_parameter"
+
+
+def test_research_runs_list_every_stored_run(client, full):
+    runs = get(client, f"{API}/experiments/runs")
+    sc.ResearchRunsResponse.model_validate(runs)
+    ids = [r["run_id"] for r in runs["items"]]
+    assert len(ids) == len(set(ids))
+    assert full["evid"] in ids and full["xid"] in ids
+    stamps = [r["created_at"] for r in runs["items"] if r["created_at"]]
+    assert stamps == sorted(stamps, reverse=True)
+
+
+def test_research_views_have_no_identifiers(client):
+    urls = [f"{API}/graph/summary", f"{API}/topics/similarity", f"{API}/bridge/pairs", f"{API}/experiments/runs"]
+    blob = "".join(client.get(u).text for u in urls)
+    assert "anon_" not in blob and "commenter:" not in blob and "video:" not in blob
+    assert not any(v in blob for v in RAW.values()) and not any(v in blob for v in P.values())

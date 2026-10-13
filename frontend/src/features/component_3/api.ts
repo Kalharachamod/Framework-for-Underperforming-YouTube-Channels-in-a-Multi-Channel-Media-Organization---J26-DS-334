@@ -20,6 +20,10 @@ import type {
   EvaluationTable,
   HealthResponse,
   ResearchStatusResponse,
+  GraphSummaryResponse,
+  TopicSimilarityResponse,
+  BridgePairsResponse,
+  ResearchRunsResponse,
 } from "./types";
 
 const BASE = "/api/v1/component-3";
@@ -126,6 +130,20 @@ export const component3Api = {
 
   topBridges: (c: Context, limit: number, signal?: AbortSignal) =>
     getJson<TopBridgesResponse>(`${BASE}/dashboard/top-bridges`, { ...ctx(c), limit }, shape(["items", "experiment_id"], ["items"]), signal),
+
+  graphSummary: (c: Context, signal?: AbortSignal) =>
+    getJson<GraphSummaryResponse>(`${BASE}/graph/summary`, snap(c),
+      shape(["node_counts", "degree_distribution", "diffusion"], ["degree_distribution", "representations", "channel_connectivity"]), signal),
+
+  topicSimilarity: (c: Context, signal?: AbortSignal) =>
+    getJson<TopicSimilarityResponse>(`${BASE}/topics/similarity`, snap(c), shape(["channels", "cells"], ["channels", "cells"]), signal),
+
+  /** Every stored scored pair of the experiment, ordered by the backend (bounded by the channel pairs). */
+  bridgePairs: (c: Context, signal?: AbortSignal) =>
+    getJson<BridgePairsResponse>(`${BASE}/bridge/pairs`, ctx(c), shape(["items", "experiment_id"], ["items"]), signal),
+
+  researchRuns: (c: Context, signal?: AbortSignal) =>
+    getJson<ResearchRunsResponse>(`${BASE}/experiments/runs`, snap(c), shape(["items", "row_counts"], ["items"]), signal),
 
   /** All rows of an evaluation table, following pages (bounded to 20 pages). */
   async evaluationAllRows(

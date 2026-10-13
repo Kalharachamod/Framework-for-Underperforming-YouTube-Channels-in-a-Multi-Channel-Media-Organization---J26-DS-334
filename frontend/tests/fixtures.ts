@@ -124,6 +124,12 @@ export function defaultRoutes(overrides: Partial<Record<string, unknown>> = {}):
     if (p === "/dashboard/overlap") return pick("overlap", overlap);
     if (p === "/dashboard/topics") return pick("topics", topics);
     if (p === "/dashboard/top-bridges") return pick("topBridges", topBridges);
+    if (/^\/channels\/[^/]+\/pairs$/.test(p)) return pick("channelPairs", channelPairs(decodeURIComponent(p.split("/")[2])));
+    if (/^\/channels\/[^/]+$/.test(p)) return pick("channelDetail", channelDetail(decodeURIComponent(p.split("/")[2])));
+    if (p === "/bridge/pairs") return pick("bridgePairs", bridgePairs);
+    if (p === "/graph/summary") return pick("graphSummary", graphSummary);
+    if (p === "/topics/similarity") return pick("topicSimilarity", topicSimilarity);
+    if (p === "/experiments/runs") return pick("researchRuns", researchRuns);
     if (p === "/evaluation/runs") return pick("evaluationRuns", evaluationRuns);
     if (p.endsWith("/metadata")) return pick("evaluationMeta", evaluationMeta);
     const table = p.match(/^\/evaluation\/[^/]+\/([a-z_]+)$/)?.[1];
@@ -177,3 +183,93 @@ export const topBridges = {
   snapshot_id: SID, experiment_id: EID, note: "test",
   items: [{ source_channel_id: A, source_channel_name: "Test Channel A", destination_channel_id: C, destination_channel_name: "Test Channel C", audience_bridge_score: 0.4321, confidence: 0.54, shared_commenters: 4, rank: 1 }],
 };
+
+
+// --- research views (TEST DATA ONLY: synthetic values, not real research results) --------------------
+
+const pairRow = (src: string, dst: string, rank: number | null, score: number | null, conf: number | null, shared: number | null) => ({
+  source_channel_id: src, source_channel_name: `Test Channel ${src.slice(-1)}`,
+  destination_channel_id: dst, destination_channel_name: `Test Channel ${dst.slice(-1)}`,
+  rank, audience_bridge_score: score, base_score: score === null ? null : Math.min(1, score + 0.1),
+  diffusion_component: score === null ? null : 0.3, embedding_component: score === null ? null : 0.2,
+  topic_component: score === null ? null : 0.1, confidence_component: conf, evidence_confidence: conf,
+  topic_coverage_confidence: conf === null ? null : 1, shared_commenters: shared, score_status: score === null ? "incomplete" : "ok",
+});
+
+/** Ordered as the backend orders them: score descending, unscored last. */
+export const bridgePairs = {
+  snapshot_id: SID, experiment_id: EID,
+  items: [
+    pairRow(A, C, 1, 0.71, 0.9, 6), pairRow(B, A, 1, 0.55, 0.8, 5), pairRow(A, B, 2, 0.42, 0.6, 3),
+    pairRow(C, A, 1, 0.33, 0.5, 2), pairRow(B, C, 2, 0.2, 0.3, 1), pairRow(C, B, null, null, null, 0),
+  ],
+  note: "Stored scores (TEST DATA).",
+};
+
+export const graphSummary = {
+  snapshot_id: SID, built_at: "2026-01-01T00:00:00Z",
+  node_counts: { channel: 3, video: 6, commenter: 12, topic: 2 }, edge_counts: { comments: 20, belongs_to: 6, participates_in: 14, has_topic: 6 },
+  total_nodes: 23, total_edges: 46, total_edges_excluding_derived: 32, commenters_on_multiple_channels: 5, channel_pairs_with_shared_commenters: 3,
+  relations: [
+    { relation: "comments", source_type: "commenter", target_type: "video", derived: false, edges: 20, weight_definition: "comments" },
+    { relation: "participates_in", source_type: "commenter", target_type: "channel", derived: true, edges: 14, weight_definition: "derived" },
+  ],
+  degree_distribution: [
+    { node_type: "commenter", nodes: 12, mean_degree: 1.5, max_degree: 4, bins: [{ label: "1", nodes: 8 }, { label: "2", nodes: 2 }, { label: "4–5", nodes: 2 }] },
+  ],
+  channel_connectivity: [
+    { channel_id: A, channel_name: "Test Channel A", connected_channels: 2, shared_commenters_summed: 9 },
+    { channel_id: C, channel_name: "Test Channel C", connected_channels: 0, shared_commenters_summed: 0 },
+  ],
+  connected_components: [2, 1],
+  representations: [
+    { method: "metapath2vec", status: "available", experiment_id: "m2v-dddddddddddd", created_at: "2026-01-01T00:00:00Z", role: "primary", dimensions: 64, coverage_ratio: 1, validation_passed: true, config: { walk_length: 40 } },
+    { method: "HGT", status: "missing" },
+  ],
+  diffusion: { status: "available", experiment_id: "ppr-eeeeeeeeeeee", created_at: "2026-01-01T00:00:00Z", alpha: 0.85, tolerance: 1e-10, max_iterations: 1000,
+    directionality: "relation_aware_bidirectional", include_topic_edges: false, include_derived_participation: false, sources: 3, converged_sources: 3,
+    iterations_max: 42, residual_max: 9e-11, graph_nodes: 23, graph_edges: 40, validation_passed: true },
+  note: "Descriptive statistics (TEST DATA).",
+};
+
+export const topicSimilarity = {
+  snapshot_id: SID, experiment_id: "top-ffffffffffff", created_at: "2026-01-01T00:00:00Z", model: "test-encoder", n_topics: 2,
+  channels: [
+    { channel_id: A, channel_name: "Test Channel A", profile_available: true, usable_videos: 2, coverage_ratio: 1 },
+    { channel_id: B, channel_name: "Test Channel B", profile_available: true, usable_videos: 2, coverage_ratio: 1 },
+    { channel_id: C, channel_name: "Test Channel C", profile_available: false, usable_videos: 0, coverage_ratio: 0 },
+  ],
+  cells: [
+    { source_channel_id: A, destination_channel_id: B, topic_similarity: 0.81 },
+    { source_channel_id: B, destination_channel_id: A, topic_similarity: 0.81 },
+    { source_channel_id: A, destination_channel_id: C, topic_similarity: null },
+    { source_channel_id: C, destination_channel_id: A, topic_similarity: null },
+    { source_channel_id: B, destination_channel_id: C, topic_similarity: null },
+    { source_channel_id: C, destination_channel_id: B, topic_similarity: null },
+  ],
+  note: "Content similarity only (TEST DATA).",
+};
+
+export const researchRuns = {
+  snapshot_id: SID, snapshot_created_at: "2026-01-01T00:00:00Z", snapshot_extracted_at: "2026-01-01T00:00:00Z",
+  row_counts: { channels: 3, videos: 6, comments: 40 },
+  items: [
+    { run_id: EVID, kind: "evaluation", method: "Evaluation", step: "STEP 21", created_at: "2026-01-03T00:00:00Z", validation_passed: true, config: { ks: "1, 3" } },
+    { run_id: EID, kind: "bridge", method: "Audience Bridge Score", step: "STEP 19", created_at: "2026-01-02T00:00:00Z", validation_passed: true, config: { w_diffusion: 0.3333, w_topic: 0.3333 } },
+    { run_id: "ppr-eeeeeeeeeeee", kind: "diffusion", method: "Personalized PageRank", step: "STEP 17", created_at: "2026-01-01T00:00:00Z", validation_passed: null, config: { alpha: 0.85, tolerance: 1e-10 } },
+  ],
+  note: "Stored runs (TEST DATA).",
+};
+
+export const channelDetail = (id: string) => ({
+  snapshot_id: SID, features_status: "available", as_of: "2026-01-01T00:00:00Z", channel_id: id, channel_name: `Test Channel ${id.slice(-1)}`,
+  description: null, published_at: "2020-01-01T00:00:00Z", observed_subscriber_count: 100, observed_view_count: 1000, observed_api_video_count: 4,
+  stored_video_count: 2, unique_commenter_count: 5, comment_count: 9, reply_count: 1, avg_comments_per_video: 4.5, active_commenter_count: 2,
+  first_interaction_at: "2025-12-01T00:00:00Z", last_interaction_at: "2025-12-20T00:00:00Z", active_days: 3, collection_coverage: 0.5,
+});
+
+export const channelPairs = (id: string) => ({
+  snapshot_id: SID, source_channel_id: id, total: 1, limit: 10, offset: 0, note: "Aggregate overlap (TEST DATA).",
+  items: [{ source_channel_id: id, destination_channel_id: B, destination_channel_name: "Test Channel B", shared_commenters: 3,
+    jaccard_similarity: 0.2, directional_overlap_source_to_destination: 0.6 }],
+});

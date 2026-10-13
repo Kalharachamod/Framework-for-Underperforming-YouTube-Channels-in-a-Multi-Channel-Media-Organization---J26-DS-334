@@ -199,3 +199,46 @@ def dashboard_topics(dash: Dashboard, snapshot_id: SnapshotQ = None):
 def dashboard_top_bridges(dash: Dashboard, limit: Annotated[int, Query(ge=1, le=50)] = 6,
                           snapshot_id: SnapshotQ = None, experiment_id: ExperimentQ = None):
     return dash.top_bridges(snapshot_id, experiment_id, limit)
+
+
+# --- research views (graph intelligence, topic similarity, all pairs, run browser) ---------------------
+
+def views(request: Request):
+    from backend.services.component_3.research_views import ResearchViewsService
+
+    return ResearchViewsService(request.app.state.component3)
+
+
+Views = Annotated[object, Depends(views)]
+
+
+@router.get("/graph/summary", response_model=sc.GraphSummaryResponse, tags=["Component 3: graph"], responses=ERRORS,
+            summary="Heterogeneous graph, representation and diffusion summary")
+def graph_summary(v: Views, snapshot_id: SnapshotQ = None):
+    """Node and edge counts by type, degree histograms (counts of nodes per degree bin, observed edges only),
+    channel connectivity, connected components of the channel overlap graph, and the stored metapath2vec,
+    HGT and Personalized PageRank run settings. No node identifier of a commenter or video is returned."""
+    return v.graph_summary(snapshot_id)
+
+
+@router.get("/topics/similarity", response_model=sc.TopicSimilarityResponse, tags=["Component 3: topics"],
+            responses=ERRORS, summary="Channel topic-similarity matrix")
+def topic_similarity(v: Views, snapshot_id: SnapshotQ = None):
+    """Stored STEP 18 cosine similarity between channel content profiles, for every channel pair."""
+    return v.topic_similarity(snapshot_id)
+
+
+@router.get("/bridge/pairs", response_model=sc.BridgePairsResponse, tags=["Component 3: audience bridge"],
+            responses=ERRORS, summary="All scored channel pairs")
+def bridge_pairs(v: Views, snapshot_id: SnapshotQ = None, experiment_id: ExperimentQ = None):
+    """Every stored source → destination pair of a scoring run with its components, ordered by score.
+    Scores are read, not recalculated; the response is bounded by the number of channel pairs."""
+    return v.bridge_pairs(snapshot_id, experiment_id)
+
+
+@router.get("/experiments/runs", response_model=sc.ResearchRunsResponse, tags=["Component 3: status"],
+            responses=ERRORS, summary="Stored research runs and their configuration")
+def research_runs(v: Views, snapshot_id: SnapshotQ = None):
+    """Every stored run of the snapshot (graph, features, diffusion, topics, embeddings, baselines, scoring,
+    explanations, evaluations) with its id, creation time, validation result and recorded configuration."""
+    return v.runs(snapshot_id)

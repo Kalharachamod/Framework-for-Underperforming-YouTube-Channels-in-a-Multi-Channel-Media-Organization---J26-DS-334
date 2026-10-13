@@ -1,52 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { ChannelAvatar } from "../../components/common/ChannelAvatar";
+import { useNavigate } from "react-router-dom";
 import { Icon } from "../../components/common/Icon";
 import { useResearch } from "./ResearchContext";
-
-/** Sidebar list of the research channels of the selected snapshot (real configuration, no extras). */
-export function TrackedChannels({ limit = 8 }: { limit?: number }) {
-  const { channels } = useResearch();
-  const [all, setAll] = useState(false);
-  if (channels.status !== "success" || channels.data.items.length === 0) return null;
-  const items = [...channels.data.items].sort((a, b) => (b.observed_subscriber_count ?? -1) - (a.observed_subscriber_count ?? -1));
-  const shown = all ? items : items.slice(0, limit);
-  return (
-    <div className="nav__group tracked">
-      <p className="nav__heading">Tracked channels ({items.length})</p>
-      <ul className="nav">
-        {shown.map((c) => (
-          <li key={c.channel_id}>
-            <Link className="nav__link nav__link--channel" to={`/channels?channel=${encodeURIComponent(c.channel_id)}`}>
-              <ChannelAvatar id={c.channel_id} name={c.channel_name} size={22} order={channels.data.items.map((x) => x.channel_id)} />
-              <span>{c.channel_name ?? c.channel_id}</span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-      {items.length > limit && (
-        <button type="button" className="link-button" onClick={() => setAll((v) => !v)}>
-          {all ? "Show fewer" : `Show all ${items.length}`}
-        </button>
-      )}
-    </div>
-  );
-}
-
-/** Sidebar card naming the research snapshot in view (takes the place of a chat assistant: no generated answers). */
-export function SnapshotCard() {
-  const { channels } = useResearch();
-  const id = channels.status === "success" ? channels.data.snapshot_id : null;
-  return (
-    <div className="snapshot-card">
-      <span className="snapshot-card__icon" aria-hidden="true"><Icon name="status" size={18} /></span>
-      <strong>Research snapshot</strong>
-      <span className="snapshot-card__text">Read-only view of public YouTube data{id ? ":" : "."}</span>
-      {id && <code>{id}</code>}
-      <Link to="/status" className="snapshot-card__button">System status →</Link>
-    </div>
-  );
-}
 
 /** Top-bar search: jump to a research channel by name (searches the snapshot's channel list only). */
 export function ChannelSearch() {
