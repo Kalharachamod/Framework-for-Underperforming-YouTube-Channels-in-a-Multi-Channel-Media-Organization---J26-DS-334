@@ -408,3 +408,149 @@ export interface TopBridgesResponse {
   items: TopBridge[];
   note: string;
 }
+
+// --- research views (graph intelligence, topic similarity, all pairs, run browser) ---------------------
+
+
+export interface GraphRelation {
+  relation: string;
+  source_type: string | null;
+  target_type: string | null;
+  derived: boolean;
+  edges: number | null;
+  weight_definition: string | null;
+}
+
+export interface DegreeDistribution {
+  node_type: string;
+  nodes: number;
+  mean_degree: number | null;
+  max_degree: number;
+  bins: { label: string; nodes: number }[];
+}
+
+export interface ChannelConnectivity {
+  channel_id: string;
+  channel_name: string | null;
+  connected_channels: number;
+  shared_commenters_summed: number;
+}
+
+export interface Representation {
+  method: string;
+  status: "available" | "missing";
+  experiment_id?: string | null;
+  created_at?: string | null;
+  role?: string | null;
+  dimensions?: number | null;
+  coverage_ratio?: number | null;
+  validation_passed?: boolean | null;
+  config?: Record<string, Scalar>;
+}
+
+export interface DiffusionSummary {
+  status: "available" | "missing";
+  experiment_id?: string | null;
+  created_at?: string | null;
+  alpha?: number | null;
+  tolerance?: number | null;
+  max_iterations?: number | null;
+  directionality?: string | null;
+  include_topic_edges?: boolean | null;
+  include_derived_participation?: boolean | null;
+  sources?: number | null;
+  converged_sources?: number | null;
+  iterations_max?: number | null;
+  residual_max?: number | null;
+  graph_nodes?: number | null;
+  graph_edges?: number | null;
+  validation_passed?: boolean | null;
+}
+
+export interface GraphSummaryResponse {
+  snapshot_id: string;
+  built_at: string | null;
+  node_counts: Record<string, number>;
+  edge_counts: Record<string, number>;
+  total_nodes: number | null;
+  total_edges: number | null;
+  total_edges_excluding_derived: number | null;
+  commenters_on_multiple_channels: number | null;
+  channel_pairs_with_shared_commenters: number | null;
+  relations: GraphRelation[];
+  degree_distribution: DegreeDistribution[];
+  channel_connectivity: ChannelConnectivity[];
+  connected_components: number[];
+  representations: Representation[];
+  diffusion: DiffusionSummary;
+  note: string;
+}
+
+export interface TopicChannel {
+  channel_id: string;
+  channel_name: string | null;
+  profile_available: boolean;
+  usable_videos: number | null;
+  coverage_ratio: number | null;
+}
+
+export interface TopicCell {
+  source_channel_id: string;
+  destination_channel_id: string;
+  topic_similarity: number | null;
+}
+
+export interface TopicSimilarityResponse {
+  snapshot_id: string;
+  experiment_id: string | null;
+  created_at: string | null;
+  model: string | null;
+  n_topics: number | null;
+  channels: TopicChannel[];
+  cells: TopicCell[];
+  note: string;
+}
+
+export interface BridgePairRow {
+  source_channel_id: string;
+  source_channel_name: string | null;
+  destination_channel_id: string;
+  destination_channel_name: string | null;
+  rank: number | null;
+  audience_bridge_score: number | null;
+  base_score: number | null;
+  diffusion_component: number | null;
+  embedding_component: number | null;
+  topic_component: number | null;
+  confidence_component: number | null;
+  evidence_confidence: number | null;
+  topic_coverage_confidence: number | null;
+  shared_commenters: number | null;
+  score_status: string;
+}
+
+export interface BridgePairsResponse {
+  snapshot_id: string;
+  experiment_id: string;
+  items: BridgePairRow[];
+  note: string;
+}
+
+export interface ResearchRun {
+  run_id: string;
+  kind: string;
+  method: string;
+  step: string;
+  created_at: string | null;
+  validation_passed: boolean | null;
+  config: Record<string, Scalar>;
+}
+
+export interface ResearchRunsResponse {
+  snapshot_id: string;
+  snapshot_created_at: string | null;
+  snapshot_extracted_at: string | null;
+  row_counts: Record<string, number>;
+  items: ResearchRun[];
+  note: string;
+}
