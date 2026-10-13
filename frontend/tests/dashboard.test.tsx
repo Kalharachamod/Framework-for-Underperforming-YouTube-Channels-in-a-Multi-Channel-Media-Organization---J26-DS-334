@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AppRoutes, NAV } from "../src/routes/AppRoutes";
-import { A, B, C, EID, SID, XID, dashChannels, defaultRoutes, mockFetch, pair, ranking, status } from "./fixtures";
+import { A, B, C, EID, EVID, SID, XID, defaultRoutes, mockFetch, pair, status } from "./fixtures";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -54,43 +54,54 @@ describe("Research overview", () => {
 });
 
 describe("Audience Bridges", () => {
-  it("loads rankings for the selected source and shows the stored components", async () => {
+  it("shows the stored pairs in the backend order and analyses the selected bridge", async () => {
     const fetchMock = mockFetch(defaultRoutes());
     renderAt("/bridges");
-    const select = await screen.findByLabelText("Source channel");
-    await waitFor(() => expect(select).toBeEnabled());
-    await userEvent.selectOptions(select, A);
-    const table = await screen.findByRole("table");
+    const table = (await screen.findAllByRole("table")).at(-1)!;
     const rows = within(table).getAllByRole("row");
-    expect(rows[1]).toHaveTextContent("1Test Channel C0.43210.5000.1000.2000.540");
-    expect(rows[2]).toHaveTextContent("Test Channel B");
+    expect(rows[1]).toHaveTextContent("Test Channel A");
+    expect(rows[1]).toHaveTextContent("Test Channel C");
+    expect(rows[1]).toHaveTextContent("0.710");
+    const side = screen.getByRole("complementary", { name: "Selected bridge analysis" });
+    await waitFor(() => expect(fetchMock.mock.calls.some((c) => String(c[0]).includes(`/bridge/${A}/destinations/${C}`))).toBe(true));
+    expect(side).toBeInTheDocument();
     expect(screen.getByText(EID)).toBeInTheDocument();
-    const called = fetchMock.mock.calls.map((c) => String(c[0])).find((u) => u.includes("/destinations"));
-    expect(called).toContain(`/bridge/${A}/destinations`);
   });
 
-  it("never lists the source channel as its own destination", async () => {
-    const bad = ranking(A);
-    bad.items.push({ ...bad.items[0], rank: 3, destination_channel_id: A, destination_channel_name: "Test Channel A" });
-    mockFetch(defaultRoutes({ ranking: bad }));
-    renderAt(`/bridges?source=${A}`);
-    const table = await screen.findByRole("table");
-    expect(within(table).queryByText("Test Channel A")).not.toBeInTheDocument();
+  it("filters by source and score threshold without recalculating scores", async () => {
+    mockFetch(defaultRoutes());
+    renderAt("/bridges");
+    await screen.findByText("6 of 6 pairs");
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Source" }), B);
+    expect(await screen.findByText("2 of 6 pairs")).toBeInTheDocument();
+    const table = screen.getAllByRole("table").at(-1)!;
+    expect(within(table).getByText("0.550")).toBeInTheDocument();
   });
 
-  it("shows an empty state when the source has no ranked destinations", async () => {
-    mockFetch(defaultRoutes({ ranking: { ...ranking(A), items: [], total: 0 } }));
-    renderAt(`/bridges?source=${A}`);
-    expect(await screen.findByText("No ranked destinations")).toBeInTheDocument();
+  it("never shows an unscored pair as zero", async () => {
+    mockFetch(defaultRoutes());
+    renderAt("/bridges");
+    const table = (await screen.findAllByRole("table")).at(-1)!;
+    const rows = within(table).getAllByRole("row");
+    const unscored = rows[rows.length - 1];
+    expect(unscored).toHaveTextContent("Test Channel C");
+    expect(unscored).toHaveTextContent("—");
+    expect(unscored).not.toHaveTextContent("0.000");
+  });
+
+  it("shows an empty state when the scoring run has no pairs", async () => {
+    mockFetch(defaultRoutes({ bridgePairs: { snapshot_id: SID, experiment_id: EID, items: [], note: "" } }));
+    renderAt("/bridges");
+    expect(await screen.findByText("No research data available for this snapshot.")).toBeInTheDocument();
   });
 
   it("passes the selected experiment to the API", async () => {
     const fetchMock = mockFetch(defaultRoutes());
-    renderAt(`/bridges?source=${A}`);
+    renderAt("/bridges");
     const exp = await screen.findByLabelText("Scoring experiment");
     await waitFor(() => expect(exp).toBeEnabled());
     await userEvent.selectOptions(exp, EID);
-    await waitFor(() => expect(fetchMock.mock.calls.some((c) => String(c[0]).includes(`experiment_id=${EID}`))).toBe(true));
+    await waitFor(() => expect(fetchMock.mock.calls.some((c) => String(c[0]).includes("/bridge/pairs") && String(c[0]).includes(`experiment_id=${EID}`))).toBe(true));
   });
 });
 
@@ -131,7 +142,7 @@ describe("Evaluation", () => {
   it("shows backend metrics and labels unavailable ones", async () => {
     mockFetch(defaultRoutes());
     renderAt("/evaluation");
-    expect(await screen.findByText(/no explicit relevance labels were supplied/i)).toBeInTheDocument();
+    expect(await screen.findByText(/valid ground-truth labels are not present/i)).toBeInTheDocument();
     expect((await screen.findAllByText("0.314")).length).toBeGreaterThan(0);
     expect(screen.getAllByText("-0.272").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Insufficient temporal data").length).toBeGreaterThan(0);
@@ -157,17 +168,19 @@ describe("System Status", () => {
   it("reports an unreachable API instead of simulating success", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("Failed to fetch"); }));
     renderAt("/status");
-    expect(await screen.findByText("Unreachable")).toBeInTheDocument();
+    expect(await within(screen.getByRole("main")).findByText("Unreachable")).toBeInTheDocument();
     expect(screen.queryByText("Running")).not.toBeInTheDocument();
   });
 });
 
 describe("privacy", () => {
   it("never renders commenter identifiers", async () => {
-    const leaky = ranking(A);
-    leaky.items[0].destination_channel_name = "anon_" + "f".repeat(64);
-    mockFetch(defaultRoutes({ ranking: leaky }));
-    const { container } = renderAt(`/bridges?source=${A}`);
+    const leaky = { snapshot_id: SID, experiment_id: EID, note: "", items: [{ source_channel_id: A, source_channel_name: "Test Channel A",
+      destination_channel_id: B, destination_channel_name: "anon_" + "f".repeat(64), rank: 1, audience_bridge_score: 0.5, base_score: 0.5,
+      diffusion_component: 0.2, embedding_component: 0.2, topic_component: 0.1, confidence_component: 1, evidence_confidence: 1,
+      topic_coverage_confidence: 1, shared_commenters: 3, score_status: "ok" }] };
+    mockFetch(defaultRoutes({ bridgePairs: leaky }));
+    const { container } = renderAt("/bridges");
     expect(await screen.findByRole("alert")).toHaveTextContent(/commenter identifiers/);
     expect(container.innerHTML).not.toContain("anon_");
     expect(B).toBeTruthy();
@@ -175,55 +188,127 @@ describe("privacy", () => {
 });
 
 
-describe("Dashboard", () => {
-  it("shows the data headline, totals and strongest bridge from the API only", async () => {
+describe("Overview", () => {
+  it("shows research status from the API: snapshot, totals, graph size and experiment", async () => {
     mockFetch(defaultRoutes());
     renderAt("/");
-    expect(await screen.findByRole("heading", { level: 1, name: /5 commenters appear on more than one channel/ })).toBeInTheDocument();
-    const kpis = await screen.findByRole("region", { name: "Snapshot totals" });
-    expect(within(kpis).getByText("12K")).toBeInTheDocument();            // views 12345 (compact format)
-    expect(within(kpis).getByText("40")).toBeInTheDocument();             // collected comments
-    expect(within(kpis).getByText("12")).toBeInTheDocument();             // unique commenters
-    expect(await screen.findByText("Strongest potential bridge")).toBeInTheDocument();
-    expect(await screen.findByRole("region", { name: "Audience network" })).toBeInTheDocument();
-    expect(screen.getAllByText(/Test Channel A → Test Channel C/).length).toBeGreaterThan(0);
-    expect(await screen.findByText("Test video title one")).toBeInTheDocument();
-    expect(await screen.findByText("Topic 1")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "Cross-Channel Audience Intelligence" })).toBeInTheDocument();
+    const strip = await screen.findByRole("region", { name: "Research status" });
+    expect(await within(strip).findByText("23")).toBeInTheDocument();
+    expect(within(strip).getByText("46")).toBeInTheDocument();
+    expect(within(strip).getByText("40")).toBeInTheDocument();
+    expect(await within(strip).findByText(EID)).toBeInTheDocument();
     expect(screen.queryByText(/demographic|sentiment|AI Insight|geograph|device/i)).not.toBeInTheDocument();
   });
 
-  it("re-ranks top content by the selected public count", async () => {
-    const fetchMock = mockFetch(defaultRoutes());
-    renderAt("/");
-    const tab = await screen.findByRole("tab", { name: "Likes" });
-    await userEvent.click(tab);
-    await waitFor(() => expect(tab).toHaveAttribute("aria-selected", "true"));
-    await waitFor(() => expect(fetchMock.mock.calls.some(([u]) => String(u).includes("sort=likes"))).toBe(true));
-  });
-
-  it("shows missing values as a dash, never as zero", async () => {
+  it("shows each method step as stored or not run, as the API reports", async () => {
     mockFetch(defaultRoutes());
     renderAt("/");
-    const table = (await screen.findAllByRole("region", { name: "Channel performance" })).at(-1)!;
-    const rowC = within(table).getByText("Test Channel C").closest("tr")!;
-    expect(rowC).toHaveTextContent("—");                                   // views not observed
-    expect(dashChannels.items[2].views).toBeNull();
+    const method = await screen.findByRole("region", { name: "Method" });
+    const baseline = (await within(method).findByText("Baseline comparison")).closest("li")!;
+    expect(baseline).toHaveTextContent("not run");
+    expect(within(method).getByText("Audience Bridge Score").closest("li")).toHaveTextContent("stored");
   });
 
-  it("explains an unavailable topic run instead of inventing topics", async () => {
-    mockFetch((url) => (url.pathname.endsWith("/dashboard/topics")
-      ? { status: 404, body: { error: { code: "artifact_unavailable", message: "no topic run with topic clusters" } } }
-      : defaultRoutes()(url)));
+  it("explores a source's top destinations with the stored score and confidence", async () => {
+    mockFetch(defaultRoutes());
+    renderAt(`/?source=${A}`);
+    const readout = await screen.findByRole("complementary", { name: "Selected bridge" });
+    expect(within(readout).getAllByText("0.710").length).toBeGreaterThan(0);
+    expect(within(readout).getAllByText("0.900").length).toBeGreaterThan(0);
+    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Destination" }), B);
+    expect((await within(readout).findAllByText("0.420")).length).toBeGreaterThan(0);
+  });
+
+  it("states clearly when the snapshot has no research data", async () => {
+    mockFetch(defaultRoutes({ status: status({ research_data: "missing", snapshots: [], latest_snapshot_id: null, snapshot_id: null, artifacts: [] }) }));
     renderAt("/");
-    expect(await screen.findByText("no topic run with topic clusters")).toBeInTheDocument();
+    expect(await screen.findByText("No research data available for this snapshot.")).toBeInTheDocument();
   });
 
-  it("lists the tracked research channels and searches them", async () => {
+  it("shows the page title and live API status in the top bar", async () => {
     mockFetch(defaultRoutes());
     renderAt("/");
-    const nav = screen.getByRole("navigation", { name: "Primary" });
-    expect(await within(nav).findByText("Tracked channels (3)")).toBeInTheDocument();
-    expect(within(nav).getByRole("link", { name: /Test Channel A/ })).toHaveAttribute("href", `/channels?channel=${A}`);
+    const live = screen.getByRole("group", { name: "Live status" });
+    expect(await within(live).findByText("Connected")).toBeInTheDocument();
+    expect(await within(live).findByText("Available")).toBeInTheDocument();
+    expect(screen.getByText("Overview", { selector: ".topbar__title" })).toBeInTheDocument();
     expect(screen.getByLabelText("Search channels")).toHaveAttribute("list", "channel-search-options");
+  });
+});
+
+describe("Graph Intelligence", () => {
+  it("shows graph counts, degree bins, representations and diffusion settings from the API", async () => {
+    mockFetch(defaultRoutes());
+    renderAt("/graph");
+    const summary = await screen.findByRole("region", { name: "Graph summary" });
+    expect(within(summary).getByText("12")).toBeInTheDocument();
+    expect(screen.getByText("3 / 3 sources converged")).toBeInTheDocument();
+    expect(screen.getByText("1e-10")).toBeInTheDocument();
+    expect(screen.getByText("Not run")).toBeInTheDocument();
+    expect(screen.getByLabelText(/Commenter degree distribution/)).toHaveAttribute("aria-label", expect.stringContaining("degree 1: 8"));
+    expect(screen.getAllByText("isolated").length).toBeGreaterThan(0);
+  });
+
+  it("explains a missing graph instead of inventing one", async () => {
+    mockFetch((url) => (url.pathname.endsWith("/graph/summary")
+      ? { status: 404, body: { error: { code: "artifact_unavailable", message: "the heterogeneous graph (STEP 13) has not been built" } } }
+      : defaultRoutes()(url)));
+    renderAt("/graph");
+    expect(await screen.findByText(/has not been built/)).toBeInTheDocument();
+  });
+});
+
+describe("Topic Intelligence", () => {
+  it("renders the similarity matrix with stored values and dashes where a profile is missing", async () => {
+    mockFetch(defaultRoutes());
+    renderAt(`/topics?channel=${A}`);
+    const matrix = await screen.findByRole("table", { name: "Topic similarity between research channels" });
+    expect(within(matrix).getAllByText("0.81").length).toBe(2);
+    expect(within(matrix).getAllByText("—").length).toBeGreaterThan(2);
+    expect(screen.getByRole("region", { name: "Most similar to Test Channel A" })).toBeInTheDocument();
+  });
+
+  it("explains an unavailable topic run", async () => {
+    mockFetch((url) => (url.pathname.endsWith("/topics/similarity")
+      ? { status: 404, body: { error: { code: "artifact_unavailable", message: "no topic similarity run (STEP 18) exists" } } }
+      : defaultRoutes()(url)));
+    renderAt("/topics");
+    expect(await screen.findByText(/no topic similarity run/)).toBeInTheDocument();
+  });
+});
+
+describe("Experiments", () => {
+  it("lists stored runs and shows the recorded configuration of the selected run", async () => {
+    mockFetch(defaultRoutes());
+    renderAt("/experiments?run=ppr-eeeeeeeeeeee");
+    const runs = await screen.findByRole("region", { name: "Research runs (3)" });
+    expect(within(runs).getByText(EVID)).toBeInTheDocument();
+    expect(await screen.findByText("1.00e-10")).toBeInTheDocument();
+    expect(screen.getByText("not recorded by this step")).toBeInTheDocument();
+    expect(screen.getAllByRole("region", { name: "Snapshots" })[0]).toHaveTextContent(SID);
+  });
+});
+
+describe("Channel Explorer", () => {
+  it("adds bridge, topic and connectivity context for the selected channel", async () => {
+    mockFetch(defaultRoutes());
+    renderAt(`/channels?channel=${A}`);
+    const profile = await screen.findByRole("region", { name: "Research profile" });
+    expect(await within(profile).findByText("0.565")).toBeInTheDocument();
+    expect(await within(profile).findByText("2")).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "Top potential destinations" })).toHaveTextContent("Test Channel C");
+  });
+});
+
+describe("Pipeline Graph", () => {
+  it("shows each pipeline step with the status reported by the API and opens its recorded configuration", async () => {
+    mockFetch(defaultRoutes());
+    renderAt("/pipeline?step=ppr");
+    const graph = await screen.findByRole("group", { name: "Component 3 research pipeline" });
+    expect(within(graph).getByRole("button", { name: /Louvain baseline, STEP 20: Not run/ })).toBeInTheDocument();
+    expect(within(graph).getByRole("button", { name: /Audience Bridge Score, STEP 19 · confidence weighted: Stored · validated/ })).toBeInTheDocument();
+    expect(await within(graph).findByRole("button", { name: /Personalized PageRank, STEP 17: Stored · validated/ })).toHaveAttribute("aria-pressed", "true");
+    expect(await screen.findByText("1.00e-10")).toBeInTheDocument();
   });
 });
