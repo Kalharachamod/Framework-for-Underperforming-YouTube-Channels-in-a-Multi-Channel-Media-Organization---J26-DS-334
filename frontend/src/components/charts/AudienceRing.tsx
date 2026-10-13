@@ -86,10 +86,14 @@ export function AudienceRing({ nodes, edges, accentPair, centerValue, centerLabe
         <g className="ring__center" aria-hidden="true">
           {activeNode ? (
             <>
-              <text x={C} y={C - 24} textAnchor="middle" className="ring__center-name">{short(activeNode.label, 26)}</text>
+              <text x={C} y={C - 60} textAnchor="middle" className="ring__center-name">{short(activeNode.label, 26)}</text>
               <text x={C} y={C + 18} textAnchor="middle" className="ring__center-value">{k(activeDeg?.total ?? 0)}</text>
-              <text x={C} y={C + 44} textAnchor="middle" className="ring__center-label">
-                {activeDeg ? `shared with ${activeDeg.n} channel${activeDeg.n > 1 ? "s" : ""}` : "no shared commenters"}
+              {/* a sum over channel pairs: one person active on several channels counts once per pair */}
+              <text x={C} y={C + 46} textAnchor="middle" className="ring__center-label">
+                {activeDeg ? "shared commenters, summed" : "no shared commenters"}
+              </text>
+              <text x={C} y={C + 66} textAnchor="middle" className="ring__center-label">
+                {activeDeg ? `over ${activeDeg.n} channel pair${activeDeg.n > 1 ? "s" : ""}` : ""}
               </text>
             </>
           ) : (
