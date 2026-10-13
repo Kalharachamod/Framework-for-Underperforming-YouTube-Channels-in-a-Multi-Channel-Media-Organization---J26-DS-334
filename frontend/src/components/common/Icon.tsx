@@ -15,6 +15,8 @@ const PATHS: Record<string, string> = {
   thumb: "M7 10v10H4V10zM7 10l4-6a2 2 0 0 1 2 2v3h5a2 2 0 0 1 2 2.3l-1.2 6.5A2 2 0 0 1 16.8 20H7",
   link: "M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1",
   topic: "M4 7h10M4 12h16M4 17h7",
+  flow: "M9 3h6v5H9zM3 16h6v5H3zM15 16h6v5h-6zM12 8v4M6 16v-4h12v4",
+  graph: "M6 6a2 2 0 1 0 0 .01M18 6a2 2 0 1 0 0 .01M12 18a2 2 0 1 0 0 .01M7.5 7.5 11 16.5M16.5 7.5 13 16.5M8 6h8",
 };
 
 export function Icon({ name, size = 18 }: { name: keyof typeof PATHS | string; size?: number }) {
