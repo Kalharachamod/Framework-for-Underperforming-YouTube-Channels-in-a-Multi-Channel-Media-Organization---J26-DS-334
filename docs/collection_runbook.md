@@ -41,7 +41,7 @@ The run goes through these stages in order:
 - **Run logs** are written to `data/raw/collection_runs/<time>.json`.
 - **Exit codes:** `0` means OK; `1` means some items failed (see the stage output); a stage that can't run at all (configuration or connection) stops the run.
 
-**Unstable network:** a dropped connection fails only the affected videos; everything else is stored. Run `python -m shared.data_collection.comment_collector --new-only` afterwards to fill in videos that are still missing comments.
+**Unstable network:** a dropped connection fails only the affected videos; everything else is stored. Run `python -m shared.data_collection.youtube_comment_collector --new-only` afterwards to fill in videos that are still missing comments.
 
 ## 3. Repeat automatically (Windows Task Scheduler)
 

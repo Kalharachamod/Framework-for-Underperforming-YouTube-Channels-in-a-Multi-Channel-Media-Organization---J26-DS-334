@@ -234,15 +234,15 @@ One channel's failure never affects another's results.
 
 ## Comment collector
 
-`python -m shared.data_collection.comment_collector` collects comments of the **videos already stored** in `research.videos`. It never discovers videos itself.
+`python -m shared.data_collection.youtube_comment_collector` collects comments of the **videos already stored** in `research.videos`. It never discovers videos itself.
 
 ```powershell
-python -m shared.data_collection.comment_collector --dry-run          # fetch + validate, store nothing
-python -m shared.data_collection.comment_collector                    # videos of all configured groups
-python -m shared.data_collection.comment_collector --group owned --max-threads 50
-python -m shared.data_collection.comment_collector --video VIDEO_ID   # selected videos (repeatable)
-python -m shared.data_collection.comment_collector --new-only         # only videos without stored comments
-python -m shared.data_collection.comment_collector --incremental      # stop at threads already stored
+python -m shared.data_collection.youtube_comment_collector --dry-run          # fetch + validate, store nothing
+python -m shared.data_collection.youtube_comment_collector                    # videos of all configured groups
+python -m shared.data_collection.youtube_comment_collector --group owned --max-threads 50
+python -m shared.data_collection.youtube_comment_collector --video VIDEO_ID   # selected videos (repeatable)
+python -m shared.data_collection.youtube_comment_collector --new-only         # only videos without stored comments
+python -m shared.data_collection.youtube_comment_collector --incremental      # stop at threads already stored
 ```
 
 **Run order:** channel collector → video collector → comment collector.

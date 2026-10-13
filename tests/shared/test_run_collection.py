@@ -2,7 +2,7 @@
 
 import json
 
-from shared.data_collection import channel_collector, comment_collector, run_collection, video_collector
+from shared.data_collection import channel_collector, youtube_comment_collector, run_collection, video_collector
 from research.component_3.preprocessing import research_dataset
 
 
@@ -17,7 +17,7 @@ def stub(monkeypatch, codes):
 
     monkeypatch.setattr(channel_collector, "main", make("channels"))
     monkeypatch.setattr(video_collector, "main", make("videos"))
-    monkeypatch.setattr(comment_collector, "main", make("comments"))
+    monkeypatch.setattr(youtube_comment_collector, "main", make("comments"))
     monkeypatch.setattr(research_dataset, "main", make("research_snapshot"))
     return calls
 

@@ -10,7 +10,7 @@ import pytest
 
 from shared.data_collection import discover as cli
 from shared.data_collection import org_discovery as od
-from shared.data_collection.youtube_client import (
+from shared.data_collection.youtube_api_client import (
     HttpResult,
     MissingAPIKeyError,
     QuotaExceededError,

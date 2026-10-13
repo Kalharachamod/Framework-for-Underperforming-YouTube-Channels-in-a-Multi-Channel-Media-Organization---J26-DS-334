@@ -12,9 +12,9 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from shared.data_collection import comment_collector as cc
-from shared.data_collection.comment_collector import VideoRef
-from shared.data_collection.youtube_client import HttpResult, RetryPolicy, YouTubeClient
+from shared.data_collection import youtube_comment_collector as cc
+from shared.data_collection.youtube_comment_collector import VideoRef
+from shared.data_collection.youtube_api_client import HttpResult, RetryPolicy, YouTubeClient
 from shared.database import repository as repo
 from shared.schemas import Channel, Video
 from shared.utils import privacy

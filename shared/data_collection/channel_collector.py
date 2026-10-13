@@ -5,7 +5,7 @@
     python -m shared.data_collection.channel_collector --dry-run       # fetch + validate, store nothing
 
 Uses ``channels.list`` only (1 quota unit per 50 channels; never ``search.list``).
-Low-level retries and API errors stay in ``youtube_client``; this module decides
+Low-level retries and API errors stay in ``youtube_api_client``; this module decides
 what a failure means for the collection run and reports per channel.
 
 Channel data is the foundation only: it says nothing about audience movement,
@@ -22,7 +22,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from shared.data_collection import youtube_client as yc
+from shared.data_collection import youtube_api_client as yc
 from shared.schemas import Channel
 
 BATCH_SIZE = 50  # channels.list accepts up to 50 ids per request

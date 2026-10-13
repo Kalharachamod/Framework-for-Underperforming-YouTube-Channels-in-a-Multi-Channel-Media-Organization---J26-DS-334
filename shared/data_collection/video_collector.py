@@ -25,7 +25,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from shared.data_collection import youtube_client as yc
+from shared.data_collection import youtube_api_client as yc
 from shared.schemas import Video
 
 BATCH_SIZE = 50

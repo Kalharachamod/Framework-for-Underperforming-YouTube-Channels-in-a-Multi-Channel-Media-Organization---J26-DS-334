@@ -12,8 +12,8 @@ import pytest
 
 from shared.data_collection import channel_collector as cc
 from shared.data_collection import channel_config as cfg
-from shared.data_collection import youtube_client as yc
-from shared.data_collection.youtube_client import HttpResult, RetryPolicy, YouTubeClient
+from shared.data_collection import youtube_api_client as yc
+from shared.data_collection.youtube_api_client import HttpResult, RetryPolicy, YouTubeClient
 from shared.database import repository as repo
 
 NOW = datetime(2026, 10, 8, 6, 0, tzinfo=timezone.utc)

@@ -27,7 +27,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from shared.data_collection.channel_collector import to_channel_record
-from shared.data_collection.comment_collector import VideoRef, to_comment_record
+from shared.data_collection.youtube_comment_collector import VideoRef, to_comment_record
 from shared.data_collection.video_collector import to_video_record
 from shared.database import repository as repo
 from shared.database.snapshot_export import export_research_snapshot

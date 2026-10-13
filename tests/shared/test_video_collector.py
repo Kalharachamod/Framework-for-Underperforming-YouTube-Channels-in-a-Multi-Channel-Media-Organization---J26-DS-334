@@ -11,7 +11,7 @@ from datetime import date, datetime, timedelta, timezone
 import pytest
 
 from shared.data_collection import video_collector as vc
-from shared.data_collection.youtube_client import HttpResult, RetryPolicy, YouTubeClient
+from shared.data_collection.youtube_api_client import HttpResult, RetryPolicy, YouTubeClient
 from shared.database import repository as repo
 from shared.schemas import Channel
 

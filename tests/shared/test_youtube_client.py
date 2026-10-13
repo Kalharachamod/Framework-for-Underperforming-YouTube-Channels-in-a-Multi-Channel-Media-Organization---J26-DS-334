@@ -11,8 +11,8 @@ import urllib.error
 
 import pytest
 
-from shared.data_collection import youtube_client as yc
-from shared.data_collection.youtube_client import HttpResult, RetryPolicy, YouTubeClient
+from shared.data_collection import youtube_api_client as yc
+from shared.data_collection.youtube_api_client import HttpResult, RetryPolicy, YouTubeClient
 
 KEY = "TEST_KEY_abc123"
 

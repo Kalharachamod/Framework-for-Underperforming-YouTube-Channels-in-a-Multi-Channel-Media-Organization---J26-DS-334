@@ -6,7 +6,7 @@ Schema → Parquet dataset storage implemented in STEP 04 (`shared/utils/dataset
 DuckDB analytical query layer implemented in STEP 05 (`shared/utils/analytics.py`, see [analytics.md](analytics.md)).
 Research snapshot management implemented in STEP 06 (`shared/utils/snapshots.py`, see [snapshots.md](snapshots.md)).
 Data validation and quality checks implemented in STEP 07 (`shared/utils/quality.py`, see [data_quality.md](data_quality.md)).
-YouTube Data API v3 client implemented in STEP 08 (`shared/data_collection/youtube_client.py`, see [youtube_api.md](youtube_api.md)).
+YouTube Data API v3 client implemented in STEP 08 (`shared/data_collection/youtube_api_client.py`, see [youtube_api.md](youtube_api.md)).
 Commenter pseudonymization implemented (`shared/utils/privacy.py`, see [privacy.md](privacy.md)).
 Component 3 research-data preparation implemented in STEP 12 (research snapshots + `research/component_3/preprocessing/`, see [research_dataset.md](research_dataset.md)).
 Component 3 heterogeneous graph construction implemented in STEP 13 (see [hetero_graph.md](hetero_graph.md)).

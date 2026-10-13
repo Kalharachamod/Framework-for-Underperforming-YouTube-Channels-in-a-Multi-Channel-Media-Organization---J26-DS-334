@@ -1,6 +1,6 @@
 # YouTube Data API v3 Client
 
-Code: [`shared/data_collection/youtube_client.py`](../../shared/data_collection/youtube_client.py) · Tests: [`tests/shared/test_youtube_client.py`](../../tests/shared/test_youtube_client.py) (mocked HTTP, no real calls)
+Code: [`shared/data_collection/youtube_api_client.py`](../../shared/data_collection/youtube_api_client.py) · Tests: [`tests/shared/test_youtube_client.py`](../../tests/shared/test_youtube_client.py) (mocked HTTP, no real calls)
 
 ## External data source
 
@@ -32,7 +32,7 @@ The client refuses to start if the key is missing or still the placeholder (`Mis
 ## Basic usage
 
 ```python
-from shared.data_collection.youtube_client import YouTubeClient
+from shared.data_collection.youtube_api_client import YouTubeClient
 
 client = YouTubeClient()                       # reads YOUTUBE_API_KEY from .env
 

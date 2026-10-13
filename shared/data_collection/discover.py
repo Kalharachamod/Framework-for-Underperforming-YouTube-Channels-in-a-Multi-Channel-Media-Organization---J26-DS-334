@@ -20,7 +20,7 @@ from shared.data_collection.org_discovery import (
     load_review,
     save_review,
 )
-from shared.data_collection.youtube_client import DAILY_QUOTA, YouTubeAPIError, YouTubeClient
+from shared.data_collection.youtube_api_client import DAILY_QUOTA, YouTubeAPIError, YouTubeClient
 
 
 def print_candidates(result: DiscoveryResult) -> None:

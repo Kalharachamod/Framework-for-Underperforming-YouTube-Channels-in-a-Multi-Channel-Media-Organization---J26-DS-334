@@ -1,11 +1,11 @@
 """YouTube comment collector: stored videos -> comment threads + replies -> pseudonymize -> Supabase.
 
-    python -m shared.data_collection.comment_collector                        # videos of all configured groups
-    python -m shared.data_collection.comment_collector --group owned
-    python -m shared.data_collection.comment_collector --video VIDEO_ID       # selected videos (repeatable)
-    python -m shared.data_collection.comment_collector --new-only             # videos without stored comments
-    python -m shared.data_collection.comment_collector --incremental          # stop at already-stored threads
-    python -m shared.data_collection.comment_collector --max-threads 100 --dry-run
+    python -m shared.data_collection.youtube_comment_collector                        # videos of all configured groups
+    python -m shared.data_collection.youtube_comment_collector --group owned
+    python -m shared.data_collection.youtube_comment_collector --video VIDEO_ID       # selected videos (repeatable)
+    python -m shared.data_collection.youtube_comment_collector --new-only             # videos without stored comments
+    python -m shared.data_collection.youtube_comment_collector --incremental          # stop at already-stored threads
+    python -m shared.data_collection.youtube_comment_collector --max-threads 100 --dry-run
 
 Videos come from the database (the video collector's output); this collector
 never discovers videos. API (never search.list):
@@ -30,7 +30,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from shared.data_collection import youtube_client as yc
+from shared.data_collection import youtube_api_client as yc
 from shared.schemas import Comment
 from shared.utils import privacy
 
@@ -394,7 +394,7 @@ def main(argv: Iterable[str] | None = None) -> int:
     from shared.data_collection.channel_config import ChannelConfigError, load_channels
     from shared.database.connection import DatabaseConfigError, DatabaseConnectionError, connect
 
-    parser = argparse.ArgumentParser(prog="comment_collector", description="Collect comments of stored videos.")
+    parser = argparse.ArgumentParser(prog="youtube_comment_collector", description="Collect comments of stored videos.")
     parser.add_argument("--group", action="append", help="configured channel group (repeatable)")
     parser.add_argument("--video", action="append", help="only this stored video id (repeatable)")
     parser.add_argument("--new-only", action="store_true", help="only videos without stored comments")

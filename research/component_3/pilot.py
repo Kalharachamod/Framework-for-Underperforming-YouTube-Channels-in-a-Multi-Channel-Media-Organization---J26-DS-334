@@ -141,7 +141,7 @@ def resolve_registry(config: PilotConfig) -> tuple[dict[str, str], dict[str, str
     from collections import Counter
 
     from shared.data_collection.channel_config import load_channels
-    from shared.data_collection.youtube_client import is_valid_id
+    from shared.data_collection.youtube_api_client import is_valid_id
 
     configured = load_channels()
     group_of = {c.channel_id: c.group for c in configured}
@@ -227,7 +227,7 @@ def preflight(config: PilotConfig, *, connect: Callable | None = None) -> dict[s
     checks.append(_check("environment variables", all(present.values()),
                          ", ".join(f"{n}: {'set' if ok else 'MISSING'}" for n, ok in present.items())))
     try:
-        from shared.data_collection.youtube_client import YouTubeClient
+        from shared.data_collection.youtube_api_client import YouTubeClient
 
         YouTubeClient(timeout=config.request_timeout_seconds)
         checks.append(_check("YouTube Data API v3 client", True, "client configured (key present, not a placeholder)"))
@@ -322,9 +322,9 @@ def collect(config: PilotConfig, channels: dict[str, str], *, client=None, datab
     """Collect with the existing collectors into the shared database, then export a pilot snapshot
     containing exactly the channels, videos and comments observed in this run."""
     from shared.data_collection import channel_collector as chc
-    from shared.data_collection import comment_collector as cmc
+    from shared.data_collection import youtube_comment_collector as cmc
     from shared.data_collection import video_collector as vc
-    from shared.data_collection import youtube_client as yc
+    from shared.data_collection import youtube_api_client as yc
     from shared.database.connection import database as default_database
     from shared.database.snapshot_export import export_research_snapshot
 

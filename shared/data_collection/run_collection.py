@@ -24,7 +24,7 @@ def main(argv: list[str] | None = None) -> int:
     import argparse
 
     from research.component_3.preprocessing import research_dataset
-    from shared.data_collection import channel_collector, comment_collector, video_collector
+    from shared.data_collection import channel_collector, youtube_comment_collector, video_collector
 
     ap = argparse.ArgumentParser(prog="run_collection", description="Run the full YouTube collection pipeline.")
     ap.add_argument("--group", action="append", help="configured channel group (repeatable; default: all)")
@@ -39,7 +39,7 @@ def main(argv: list[str] | None = None) -> int:
     stages = [
         ("channels", channel_collector.main, groups),
         ("videos", video_collector.main, groups + ["--max-videos", str(args.max_videos)]),
-        ("comments", comment_collector.main,
+        ("comments", youtube_comment_collector.main,
          groups + ["--max-threads", str(args.max_threads)] + ([] if args.all_comments else ["--incremental"])),
     ]
     if args.snapshot:

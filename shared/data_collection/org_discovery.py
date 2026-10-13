@@ -28,7 +28,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
 
-from shared.data_collection.youtube_client import YouTubeClient
+from shared.data_collection.youtube_api_client import YouTubeClient
 from shared.utils import paths
 
 Confidence = Literal["high", "medium", "low"]

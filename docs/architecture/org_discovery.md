@@ -1,6 +1,6 @@
 # Organization Channel Discovery
 
-Code: [`shared/data_collection/org_discovery.py`](../../shared/data_collection/org_discovery.py), CLI [`discover.py`](../../shared/data_collection/discover.py), API client [`youtube_client.py`](../../shared/data_collection/youtube_client.py)
+Code: [`shared/data_collection/org_discovery.py`](../../shared/data_collection/org_discovery.py), CLI [`discover.py`](../../shared/data_collection/discover.py), API client [`youtube_api_client.py`](../../shared/data_collection/youtube_api_client.py)
 Tests: [`tests/shared/test_org_discovery.py`](../../tests/shared/test_org_discovery.py) (fake API, no real calls)
 
 ## Purpose
