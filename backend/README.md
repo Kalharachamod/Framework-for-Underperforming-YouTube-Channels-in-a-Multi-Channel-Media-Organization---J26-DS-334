@@ -72,6 +72,13 @@ How selection works:
 | `GET /evaluation/runs` | STEP 21 runs of a snapshot |
 | `GET /evaluation/{evaluation_id}/metadata` | Run settings, method statuses, labels and temporal status (no local paths) |
 | `GET /evaluation/{evaluation_id}/{table}` | Rows of `ranking`, `top_k`, `temporal_stability`, `sparse_robustness` or `performance`, filtered by `method` and `metric`, paged |
+| `GET /bridge/pairs` | Every stored scored pair of a scoring run with its components, ordered by score (bounded by the number of channel pairs; nothing recalculated) |
+| `GET /graph/summary` | Node and edge counts by type, degree histograms (node counts per degree bin, observed edges only), channel connectivity, connected components, stored metapath2vec / HGT / Personalized PageRank run settings |
+| `GET /topics/similarity` | Channel × channel topic-similarity matrix of the latest STEP 18 run, with profile coverage |
+| `GET /experiments/runs` | Every stored run of a snapshot (graph, features, diffusion, topics, embeddings, baselines, scoring, explanations, evaluations) with id, time, validation result and recorded configuration |
+| `GET /dashboard/summary`, `/dashboard/channels`, `/dashboard/top-videos`, `/dashboard/views-timeline`, `/dashboard/overlap`, `/dashboard/topics`, `/dashboard/top-bridges` | Snapshot totals and channel-level aggregates for the dashboard (public counts of collected videos; aggregate commenter counts only) |
+
+The research-view endpoints (`/bridge/pairs`, `/graph/summary`, `/topics/similarity`, `/experiments/runs`) read stored run metadata and Parquet results only. They return counts, channel-level values and run settings, never a commenter or video node identifier; a missing run is reported (`artifact_unavailable`, or `status: missing` inside the graph summary), never filled in.
 
 ### Example
 
