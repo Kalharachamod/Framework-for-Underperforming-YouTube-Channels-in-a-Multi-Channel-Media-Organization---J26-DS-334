@@ -445,3 +445,156 @@ class TopBridgesResponse(_Model):
     experiment_id: str
     items: list[TopBridge]
     note: str
+
+
+# --- research views (graph, topics, all pairs, runs) ------------------------------------------------
+
+Scalar = str | float | int | bool | None
+
+
+class GraphRelation(_Model):
+    relation: str
+    source_type: str | None
+    target_type: str | None
+    derived: bool
+    edges: int | None
+    weight_definition: str | None
+
+
+class DegreeBin(_Model):
+    label: str
+    nodes: int
+
+
+class DegreeDistribution(_Model):
+    node_type: str
+    nodes: int
+    mean_degree: float | None
+    max_degree: int
+    bins: list[DegreeBin]
+
+
+class ChannelConnectivity(_Model):
+    channel_id: str
+    channel_name: str | None
+    connected_channels: int
+    shared_commenters_summed: int
+
+
+class Representation(_Model):
+    method: str
+    status: Literal["available", "missing"]
+    experiment_id: str | None = None
+    created_at: datetime | None = None
+    role: str | None = None
+    dimensions: int | None = None
+    coverage_ratio: float | None = None
+    validation_passed: bool | None = None
+    config: dict[str, Scalar] = Field(default_factory=dict)
+
+
+class DiffusionSummary(_Model):
+    status: Literal["available", "missing"]
+    experiment_id: str | None = None
+    created_at: datetime | None = None
+    alpha: float | None = None
+    tolerance: float | None = None
+    max_iterations: int | None = None
+    directionality: str | None = None
+    include_topic_edges: bool | None = None
+    include_derived_participation: bool | None = None
+    sources: int | None = None
+    converged_sources: int | None = None
+    iterations_max: int | None = None
+    residual_max: float | None = None
+    graph_nodes: int | None = None
+    graph_edges: int | None = None
+    validation_passed: bool | None = None
+
+
+class GraphSummaryResponse(_Model):
+    snapshot_id: str
+    built_at: datetime | None
+    node_counts: dict[str, int]
+    edge_counts: dict[str, int]
+    total_nodes: int | None
+    total_edges: int | None
+    total_edges_excluding_derived: int | None
+    commenters_on_multiple_channels: int | None
+    channel_pairs_with_shared_commenters: int | None
+    relations: list[GraphRelation]
+    degree_distribution: list[DegreeDistribution]
+    channel_connectivity: list[ChannelConnectivity]
+    connected_components: list[int]
+    representations: list[Representation]
+    diffusion: DiffusionSummary
+    note: str
+
+
+class TopicChannel(_Model):
+    channel_id: str
+    channel_name: str | None
+    profile_available: bool
+    usable_videos: int | None
+    coverage_ratio: float | None
+
+
+class TopicCell(_Model):
+    source_channel_id: str
+    destination_channel_id: str
+    topic_similarity: float | None
+
+
+class TopicSimilarityResponse(_Model):
+    snapshot_id: str
+    experiment_id: str | None
+    created_at: datetime | None
+    model: str | None
+    n_topics: int | None
+    channels: list[TopicChannel]
+    cells: list[TopicCell]
+    note: str
+
+
+class BridgePairRow(_Model):
+    source_channel_id: str
+    source_channel_name: str | None
+    destination_channel_id: str
+    destination_channel_name: str | None
+    rank: int | None
+    audience_bridge_score: float | None
+    base_score: float | None
+    diffusion_component: float | None
+    embedding_component: float | None
+    topic_component: float | None
+    confidence_component: float | None
+    evidence_confidence: float | None
+    topic_coverage_confidence: float | None
+    shared_commenters: int | None
+    score_status: str
+
+
+class BridgePairsResponse(_Model):
+    snapshot_id: str
+    experiment_id: str
+    items: list[BridgePairRow]
+    note: str
+
+
+class ResearchRun(_Model):
+    run_id: str
+    kind: str
+    method: str
+    step: str
+    created_at: datetime | None
+    validation_passed: bool | None
+    config: dict[str, Scalar]
+
+
+class ResearchRunsResponse(_Model):
+    snapshot_id: str
+    snapshot_created_at: datetime | None
+    snapshot_extracted_at: datetime | None
+    row_counts: dict[str, int]
+    items: list[ResearchRun]
+    note: str
