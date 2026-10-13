@@ -95,7 +95,7 @@ export function EvaluationPage() {
 
   return (
     <>
-      <PageHeader title="Evaluation" description="Stored STEP 21 results comparing the proposed Audience Bridge Score with its components and the Louvain and node2vec baselines." />
+      <PageHeader title="Baselines & Evaluation" description="Stored STEP 21 results comparing the proposed Audience Bridge Score with its components and the Louvain and node2vec baselines." />
       <Notice>
         Without relevance labels, these results measure <strong>consistency</strong> between methods (agreement, stability, robustness), not correctness. Agreement with a baseline does not prove either method is right.
       </Notice>
@@ -155,7 +155,7 @@ export function EvaluationPage() {
             {ranking.status === "loading" && <Loading />}
             {ranking.status === "error" && <ErrorState error={ranking.error} />}
             {ranking.status === "success" && (relevance.every((r) => r.status === "not_computed") ? (
-              <p><Badge tone="neutral">Not computed</Badge> No explicit relevance labels were supplied, so Precision@k, Recall@k, NDCG@k and MRR are not available.</p>
+              <p><Badge tone="neutral">Not available</Badge> Not available — valid ground-truth labels are not present. Precision@k, Recall@k, NDCG@k and MRR need explicit relevance labels.</p>
             ) : (
               <RowsTable caption="Relevance metrics" rows={relevance} columns={["method", "metric", "k", "value", "n_sources", "status"]} />
             ))}

@@ -7,7 +7,7 @@ import { date, int, label, num, pct } from "../../../utils/format";
 import { component3Api } from "../api";
 import { LIMITATIONS, Provenance } from "../ContextBar";
 import { channelName, useResearch } from "../ResearchContext";
-import type { EvidenceState } from "../types";
+import type { BridgePairResponse, EvidenceState } from "../types";
 
 const STATE_TEXT: Record<string, [Tone, string, string]> = {
   observed: ["ok", "Observed", "Evidence exists for this pair."],
@@ -16,6 +16,34 @@ const STATE_TEXT: Record<string, [Tone, string, string]> = {
   missing: ["bad", "Missing", "The input needed for this evidence is not available."],
   not_used: ["neutral", "Not used", "This scoring experiment has no embedding component."],
 };
+
+/** Plain-language reading of the stored values. Wording stays descriptive: no migration, growth or causal claims. */
+function interpretation(p: BridgePairResponse): string[] {
+  const b = p.score_breakdown;
+  const src = p.source_channel_name ?? p.source_channel_id, dst = p.destination_channel_name ?? p.destination_channel_id;
+  const out: string[] = [];
+  if (p.rank !== null && p.ranking_context) {
+    out.push(`Within the observed public interaction data, ${dst} ranks ${p.rank} of ${p.ranking_context.scored_destinations} scored destinations for ${src}.`);
+  }
+  const parts = ([["structural connectivity (diffusion)", b.diffusion_component], ["learned graph similarity (embedding)", b.embedding_component],
+    ["semantic content similarity (topic)", b.topic_component]] as [string, number | null][]).filter(([, v]) => v !== null) as [string, number][];
+  if (parts.length) {
+    const top = Math.max(...parts.map(([, v]) => v));
+    const leaders = parts.filter(([, v]) => Math.abs(v - top) < 1e-9).map(([n]) => n);
+    out.push(leaders.length === 1
+      ? `The largest contribution to the base score comes from ${leaders[0]} (${top.toFixed(3)} of ${num(b.base_score)}).`
+      : `${leaders.join(" and ")} contribute equally and most to the base score (${top.toFixed(3)} each, of ${num(b.base_score)}).`);
+  }
+  if (b.confidence_component !== null) {
+    out.push(b.confidence_component >= 0.8
+      ? `Shared-commenter evidence and topic coverage support the score (confidence ${num(b.confidence_component)}).`
+      : b.confidence_component < 0.5
+        ? `Limited shared-commenter evidence or topic coverage lowers the score (confidence ${num(b.confidence_component)}).`
+        : `The evidence moderately supports the score (confidence ${num(b.confidence_component)}).`);
+  }
+  out.push("This pair shows observed audience affinity within public comment data. It is a research signal: it does not show audience migration, subscriber transfer or future growth.");
+  return out;
+}
 
 function StateBadge({ state }: { state: EvidenceState }) {
   const [tone, text, help] = STATE_TEXT[state] ?? ["neutral", label(state), ""];
@@ -78,7 +106,8 @@ export function ExplainabilityPage() {
               <StatCard label="Shared commenters" value={int(b.shared_commenters)} hint="aggregate count" />
             </StatGrid>
             <div className="grid grid--2">
-              <Card title={`Score decomposition: ${p.source_channel_name ?? p.source_channel_id} → ${p.destination_channel_name ?? p.destination_channel_id}`}>
+              <Card title={`Score decomposition: ${p.source_channel_name ?? p.source_channel_id} → ${p.destination_channel_name ?? p.destination_channel_id}`}
+                info="AudienceBridgeScore = BaseScore × Confidence. BaseScore = diffusion + embedding + topic components (weight × normalised signal). Confidence = shared-commenter evidence × topic coverage.">
                 {p.score_status !== "ok" && <p><Badge tone="warn">{p.score_status}</Badge></p>}
                 <ComponentBar diffusion={b.diffusion_component} embedding={b.embedding_component} topic={b.topic_component} />
                 <KeyValues
@@ -111,6 +140,10 @@ export function ExplainabilityPage() {
                 )}
               </Card>
             </div>
+
+            <Card title="Interpretation" info="Generated only from the stored values above; wording is descriptive, not causal.">
+              <ul className="interp">{interpretation(p).map((t) => <li key={t}>{t}</li>)}</ul>
+            </Card>
 
             {p.explanation_status === "unavailable" ? (
               <EmptyState title="Explanation not available">
