@@ -1,1 +1,1 @@
-"""Shared YouTube data collection utilities."""
+"""YouTube data collection: API client and organization channel discovery."""

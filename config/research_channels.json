@@ -1,0 +1,13 @@
+{
+  "description": "Channels collected for the research. Each group lists confirmed organizations (config/organizations/<slug>.json) and/or individual channel ids. A channel may belong to only one group.",
+  "groups": {
+    "owned": {
+      "organizations": ["derana"],
+      "channel_ids": []
+    },
+    "competitor": {
+      "organizations": [],
+      "channel_ids": []
+    }
+  }
+}
