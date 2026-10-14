@@ -66,6 +66,34 @@ Leave `demand_subtype` blank for `NON_DEMAND` and `UNCLEAR`.
 7. If a comment contains both reaction and a request, label `DEMAND` and choose the closest subtype.
 8. If a complaint identifies a content improvement, label `DEMAND`. If it is only abuse or unrelated criticism, label `NON_DEMAND`.
 
+## Using Video Context
+
+The annotation CSV includes read-only video context fields to help annotators understand what each comment refers to. Use this context carefully:
+
+1. Read `original_text` first.
+2. Read `video_title` to understand the video's subject.
+3. Use `video_description` or `video_url` only if more context is needed.
+4. For replies, consult `parent_comment_text` only when it is available.
+5. Assign demand and spam labels independently.
+6. Do not label a comment as `DEMAND` simply because it discusses the video's subject.
+7. If intent remains ambiguous after using context, use `UNCLEAR` and explain the reason in `annotation_notes`.
+
+Video context is for human interpretation. It is not a rule that automatically converts opinions, reactions, political discussion, news discussion, or emotional responses into audience demand.
+
+Illustrative examples:
+
+| Comment pattern | Video context | Primary label | Rationale |
+|---|---|---|---|
+| "මේක ගැන තව explain කරන්න" | video is about the same issue | DEMAND | asks for more explanation |
+| "මේ news එක ඇත්තද?" | video reports breaking news | DEMAND or UNCLEAR | may request verification if clear; otherwise ambiguous |
+| "Good speech" | political speech video | NON_DEMAND | reaction to content, no request |
+| "Part 2 ekak one" | interview or episode video | DEMAND | Singlish request for a follow-up |
+| "Ado meka patta" | entertainment video | NON_DEMAND | positive reaction, no content need |
+| "English subtitles please" | Sinhala-language video | DEMAND | language/accessibility request |
+| "මේක වැරදියි" | news video | NON_DEMAND or DEMAND | demand only if it asks for correction, evidence, or better explanation |
+
+These context examples are illustrative decision patterns. They are not verified samples from the project dataset.
+
 ## Multilingual and Script Guidance
 
 ### Sinhala Comments

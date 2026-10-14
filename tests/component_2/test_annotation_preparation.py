@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -14,13 +15,16 @@ from annotation import (
     DEMAND_ANNOTATION_COLUMNS,
     SPAM_ANNOTATION_COLUMNS,
     SPAM_STATUS_VALUES,
+    VIDEO_CONTEXT_COLUMNS,
     AnnotationSamplingConfig,
     add_spam_annotation_fields,
+    add_video_context_fields,
     create_annotation_sample,
     create_annotation_template,
     ensure_no_human_annotations,
     nonblank_annotation_counts,
     prepare_annotation_source,
+    spreadsheet_safe_text,
     validate_existing_annotation_template,
 )
 
@@ -72,6 +76,30 @@ def synthetic_source() -> pd.DataFrame:
                 }
             )
     return pd.DataFrame(rows)
+
+
+def synthetic_videos() -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {
+                "video_id": f"v_{channel_idx}_{video_idx}",
+                "title": f"Video {channel_idx}-{video_idx}",
+                "description": f"Description {channel_idx}-{video_idx}",
+            }
+            for channel_idx in range(5)
+            for video_idx in range(4)
+        ]
+    )
+
+
+def synthetic_comments() -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {"comment_id": "parent_1", "comment_text": "Parent context", "parent_comment_id": pd.NA},
+            {"comment_id": "c_0_0", "comment_text": "Reply text", "parent_comment_id": "parent_1"},
+            {"comment_id": "c_0_1", "comment_text": "Top level", "parent_comment_id": pd.NA},
+        ]
+    )
 
 
 class AnnotationPreparationTests(unittest.TestCase):
@@ -208,6 +236,84 @@ class AnnotationPreparationTests(unittest.TestCase):
         template = create_annotation_template(sample)
         self.assertEqual(template.columns.tolist(), ANNOTATION_COLUMNS)
 
+    def test_video_context_fields_are_blank_by_default(self):
+        sample = create_annotation_sample(
+            synthetic_source(),
+            AnnotationSamplingConfig(sample_size=50, random_seed=123, minority_target_per_channel=2),
+        )
+        template = create_annotation_template(sample)
+        for column in VIDEO_CONTEXT_COLUMNS:
+            self.assertIn(column, template.columns)
+            self.assertTrue(template[column].fillna("").astype(str).str.strip().eq("").all())
+
+    def test_video_context_enrichment_preserves_rows_and_labels(self):
+        sample = create_annotation_sample(
+            synthetic_source(),
+            AnnotationSamplingConfig(sample_size=50, random_seed=123, minority_target_per_channel=2),
+        )
+        template = create_annotation_template(sample)
+        template.loc[0, "primary_label"] = "DEMAND"
+        template.loc[0, "annotator_1_spam_status"] = "NOT_SPAM"
+
+        enriched = add_video_context_fields(template, synthetic_videos(), synthetic_comments())
+
+        self.assertEqual(enriched["comment_id"].tolist(), template["comment_id"].tolist())
+        self.assertEqual(enriched["original_text"].tolist(), template["original_text"].tolist())
+        self.assertEqual(enriched["cleaned_text"].tolist(), template["cleaned_text"].tolist())
+        self.assertEqual(enriched.loc[0, "primary_label"], "DEMAND")
+        self.assertEqual(enriched.loc[0, "annotator_1_spam_status"], "NOT_SPAM")
+
+    def test_video_titles_match_correct_video_id_and_urls_are_constructed(self):
+        sample = create_annotation_sample(
+            synthetic_source(),
+            AnnotationSamplingConfig(sample_size=50, random_seed=123, minority_target_per_channel=2),
+        )
+        enriched = add_video_context_fields(create_annotation_template(sample), synthetic_videos())
+
+        matched = enriched[enriched["video_title"].astype(str).str.len() > 0]
+        for _, row in matched.iterrows():
+            expected_title = synthetic_videos().set_index("video_id").loc[row["video_id"], "title"]
+            self.assertEqual(row["video_title"], expected_title)
+            self.assertEqual(row["video_url"], f"https://www.youtube.com/watch?v={row['video_id']}")
+
+    def test_missing_video_metadata_does_not_remove_comment(self):
+        sample = create_annotation_sample(
+            synthetic_source(),
+            AnnotationSamplingConfig(sample_size=50, random_seed=123, minority_target_per_channel=2),
+        )
+        template = create_annotation_template(sample)
+        videos = synthetic_videos().iloc[0:0].copy()
+        enriched = add_video_context_fields(template, videos)
+        self.assertEqual(len(enriched), len(template))
+        self.assertTrue(enriched["video_title"].fillna("").eq("").all())
+        self.assertTrue(enriched["video_description"].fillna("").eq("").all())
+
+    def test_parent_comment_text_resolved_when_available(self):
+        template = create_annotation_template(synthetic_source().head(2))
+        enriched = add_video_context_fields(template, synthetic_videos(), synthetic_comments())
+        parent_text = enriched.loc[enriched["comment_id"] == "c_0_0", "parent_comment_text"].iloc[0]
+        self.assertEqual(parent_text, "Parent context")
+
+    def test_context_enrichment_does_not_duplicate_columns_on_rerun(self):
+        template = create_annotation_template(synthetic_source().head(2))
+        first = add_video_context_fields(template, synthetic_videos(), synthetic_comments())
+        second = add_video_context_fields(first, synthetic_videos(), synthetic_comments())
+        self.assertEqual(second.columns.tolist().count("video_title"), 1)
+        self.assertEqual(second.columns.tolist().count("parent_comment_text"), 1)
+        self.assertEqual(second["comment_id"].tolist(), first["comment_id"].tolist())
+
+    def test_spreadsheet_safe_context_does_not_change_canonical_comment_text(self):
+        self.assertEqual(spreadsheet_safe_text("=IMPORTDATA(\"http://example.com\")"), "'=IMPORTDATA(\"http://example.com\")")
+        template = create_annotation_template(synthetic_source().head(1))
+        template.loc[0, "original_text"] = "=not a formula in canonical comment text"
+        videos = pd.DataFrame(
+            [{"video_id": template.loc[0, "video_id"], "title": "=unsafe title", "description": "+unsafe description"}]
+        )
+        enriched = add_video_context_fields(template, videos)
+        self.assertEqual(enriched.loc[0, "original_text"], "=not a formula in canonical comment text")
+        self.assertEqual(enriched.loc[0, "video_title"], "'=unsafe title")
+        self.assertEqual(enriched.loc[0, "video_description"], "'+unsafe description")
+
     def test_prepare_annotation_source_references_validated_data(self):
         preprocessed = synthetic_source().drop(columns=["channel_name", "parent_comment_id", "published_at"])
         validated = synthetic_source()[["comment_id", "channel_name", "parent_comment_id", "published_at"]]
@@ -243,6 +349,8 @@ class AnnotationPreparationTests(unittest.TestCase):
         self.assertEqual(len(current), 300)
         self.assertEqual(current["comment_id"].nunique(), 300)
         self.assertEqual(set(current.groupby("channel_id")["comment_id"].count()), {60})
+        for column in VIDEO_CONTEXT_COLUMNS:
+            self.assertIn(column, current.columns)
         for column in DEMAND_ANNOTATION_COLUMNS + SPAM_ANNOTATION_COLUMNS:
             self.assertIn(column, current.columns)
             self.assertTrue(current[column].fillna("").astype(str).str.strip().eq("").all())
@@ -262,6 +370,20 @@ class AnnotationPreparationTests(unittest.TestCase):
             "<th>comment_text</th>",
         ]:
             self.assertNotIn(raw_column_header, text)
+
+    def test_generated_annotation_files_remain_git_ignored(self):
+        root = Path(__file__).resolve().parents[2]
+        result = subprocess.run(
+            [
+                "git",
+                "check-ignore",
+                "-q",
+                "data/processed/component_2/annotation/component2_demand_annotation_sample.csv",
+            ],
+            cwd=root,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0)
 
 
 if __name__ == "__main__":

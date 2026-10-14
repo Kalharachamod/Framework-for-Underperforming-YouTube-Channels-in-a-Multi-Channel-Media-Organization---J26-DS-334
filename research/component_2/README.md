@@ -5,7 +5,7 @@ Owner: Kahandawa K A N N (IT23307094)
 
 ## Research Purpose
 
-Component 2 analyses public YouTube audience comments to identify audience demand signals, prepare multilingual text for modelling, and later compare demand topics against video content supply. Phase 1 focuses on reproducible dataset validation, exploratory analysis, and conservative multilingual preprocessing. Phase 2A prepares a deterministic manual annotation sample and annotation guide for demand-intent and spam-status labelling.
+Component 2 analyses public YouTube audience comments to identify audience demand signals, prepare multilingual text for modelling, and later compare demand topics against video content supply. Phase 1 focuses on reproducible dataset validation, exploratory analysis, and conservative multilingual preprocessing. Phase 2A prepares a deterministic manual annotation sample and annotation guide for demand-intent and spam-status labelling, enriched with read-only video context for human annotators.
 
 These phases do **not** implement demand classification, spam filtering, BERTopic, or Jensen-Shannon Divergence yet.
 
@@ -86,7 +86,7 @@ Important outputs:
 - EDA summary tables
 - preprocessing audit tables
 - research charts
-- manual demand and spam-status annotation sample and aggregate distribution summaries
+- manual demand and spam-status annotation sample, video context fields, and aggregate distribution summaries
 
 These outputs are not intended for Git commits.
 
@@ -100,6 +100,7 @@ data/processed/component_2/annotation/component2_demand_annotation_sample.csv
 
 The annotation template includes:
 
+- video title, description, URL, and parent-comment context where locally available
 - original and cleaned comment text for human labelling
 - channel and video identifiers for traceability
 - reply status and publication timestamp
@@ -107,7 +108,7 @@ The annotation template includes:
 - blank fields for primary demand label, demand subtype, demand annotator labels, notes, and final adjudication
 - blank fields for independent spam-status annotation, spam notes, and final spam adjudication
 
-Use `annotation_guidelines.md` when filling the labels. Demand classification and spam classification are separate annotation decisions. Do not generate artificial labels, train classifiers, or automatically exclude comments at this stage. If an existing annotation CSV contains human labels, the notebook stops before rewriting it. The annotation output is a local research artifact and should not be committed to Git.
+Use `annotation_guidelines.md` when filling the labels. Demand classification and spam classification are separate annotation decisions. Video context is for interpretation, not an automatic reason to label comments as demand. Do not generate artificial labels, train classifiers, or automatically exclude comments at this stage. If an existing annotation CSV contains human labels, the notebook preserves them while refreshing read-only context fields. The annotation output is a local research artifact and should not be committed to Git.
 
 ## Methodology Choices
 
