@@ -72,11 +72,20 @@ COMPONENT2_PORTAL_SECRET=<long-random-server-secret>
 SUPABASE_DB_URL=<server-side-postgres-connection-string>
 ```
 
-`SUPABASE_DB_URL` is the server-side PostgreSQL connection string from the existing J26-DS-334 Supabase project. Do not put it in browser code, Git, or a public Streamlit value. The portal does not use `SUPABASE_ANON_KEY` for writes. When Supabase mode is selected, a missing database URL is an error; the app does not fall back to SQLite.
+`SUPABASE_DB_URL` is the participant-only PostgreSQL connection string from the existing J26-DS-334 Supabase project. Do not put it in browser code, Git, or a public Streamlit value. The portal does not use `SUPABASE_ANON_KEY` for writes. When Supabase mode is selected, a missing database URL or weak portal secret is an error; the app does not fall back to SQLite.
 
 The adapter stores only a hash of each return code. It verifies the return code server-side, checks the participant's active session and assigned section on every read/write, and uses `(run_id, participant_id, comment_id)` as the response key. Updating a response cannot create a duplicate or overwrite another participant's response.
 
-The prepared RLS migration creates a least-privilege `annotation_app` role, keeps `anon` and `authenticated` without access, and uses transaction-local operation context as an additional database boundary. The application checks ownership first; do not claim that RLS protects a session if a privileged role is used instead. Configure the app role with a private password out of band and do not give it `BYPASSRLS` or ownership of the annotation tables.
+The prepared RLS migration creates separate least-privilege `annotation_app`, `annotation_admin`, and `annotation_importer` roles. The public app receives only `SUPABASE_DB_URL`; admin export and snapshot import use separate protected connections. All roles are created without `BYPASSRLS` or ownership. Configure their private passwords out of band.
+
+The admin and importer connections are intentionally not Streamlit app secrets:
+
+```text
+SUPABASE_ADMIN_DB_URL=<protected-admin-postgres-connection-string>
+SUPABASE_IMPORT_DB_URL=<protected-import-postgres-connection-string>
+```
+
+The application checks ownership first, while RLS adds a database boundary. Never give the public app process the admin or importer connection strings.
 
 The existing `research` schema remains untouched and must remain unexposed through the public REST API.
 
@@ -91,7 +100,7 @@ sql/0002_annotation_rls.sql
 
 They create isolated `annotation` tables for runs, sections, comments, section assignments, participants, responses, researcher admins, and adjudications. They do not alter `research.channels`, `research.videos`, `research.comments`, or statistics tables. Do not execute them from the browser or before approval.
 
-After approval, apply them with a server-side database connection, then create the `annotation_app` login password out of band and grant it only the prepared permissions. Do not expose the `annotation` schema through REST merely to make this server-side portal work.
+After approval, apply them with a database owner/admin connection, then configure separate LOGIN passwords for `annotation_app`, `annotation_admin`, and `annotation_importer` out of band. Do not expose the `annotation` schema through REST merely to make this server-side portal work.
 
 ## Snapshot Validation And Import
 
@@ -110,6 +119,7 @@ After migrations and database credentials are approved:
 ```bash
 COMPONENT2_ANNOTATION_MODE=supabase \
 COMPONENT2_ANNOTATION_RUN_ID=component2_phase2a_20261014 \
+SUPABASE_IMPORT_DB_URL=<protected-import-postgres-connection-string> \
 .venv/bin/python -m research.component_2.annotation_portal.snapshot_import \
   --csv data/processed/component_2/annotation/component2_demand_annotation_sample.csv
 ```
@@ -132,17 +142,19 @@ Supabase export:
 
 ```bash
 COMPONENT2_ANNOTATION_MODE=supabase \
+SUPABASE_ADMIN_DB_URL=<protected-admin-postgres-connection-string> \
 .venv/bin/python -m research.component_2.annotation_portal.admin_cli \
   --mode supabase --admin-id <approved-admin-id> \
   --output /secure/researcher/path/component2_annotation_export.csv
 ```
 
-The Supabase export requires the server-side database URL and an active row in `annotation.researcher_admins`. Choosing Primary researcher mode never grants export access.
+The Supabase export requires `SUPABASE_ADMIN_DB_URL` and an active row in `annotation.researcher_admins`. Choosing Primary researcher mode never grants export access.
 
 To revoke a Supabase participant session from the protected admin environment:
 
 ```bash
 COMPONENT2_ANNOTATION_MODE=supabase \
+SUPABASE_ADMIN_DB_URL=<protected-admin-postgres-connection-string> \
 .venv/bin/python -m research.component_2.annotation_portal.admin_cli \
   --mode supabase --admin-id <approved-admin-id> \
   --revoke-participant-id <participant-id>
@@ -159,22 +171,22 @@ research/component_2/annotation_portal/app.py
 The root `requirements.txt` contains the Streamlit and PostgreSQL adapter dependencies. The cloud app must run in Supabase mode and must not depend on the Git-ignored CSV. Therefore the approved sequence is:
 
 1. Review and apply the two SQL migrations to the existing Supabase project.
-2. Configure the dedicated server-side database role and permissions.
+2. Configure separate participant, admin, and importer database roles and permissions.
 3. Run the validation-only import check.
 4. Import the snapshot once using the server-side database URL.
 5. Create and verify at least one researcher-admin row.
-6. Configure Streamlit secrets for `COMPONENT2_ANNOTATION_MODE`, `COMPONENT2_ANNOTATION_RUN_ID`, `COMPONENT2_PORTAL_SECRET`, and `SUPABASE_DB_URL`.
+6. Configure Streamlit secrets only for `COMPONENT2_ANNOTATION_MODE`, `COMPONENT2_ANNOTATION_RUN_ID`, `COMPONENT2_PORTAL_SECRET`, and participant-only `SUPABASE_DB_URL`.
 7. Deploy the existing `component-2` branch with the entry point above.
 8. Start one volunteer session, save its return code, submit a test response, restart the app, and resume it.
 9. Confirm the response is present in `annotation.responses` and cannot be read by another participant session.
-10. Run the admin CLI from a protected environment to export annotations.
+10. Run the admin CLI from a protected environment using `SUPABASE_ADMIN_DB_URL` to export annotations.
 
-Do not put a service-role key, database password, return code, or `.env` file in the repository. Do not expose the existing `research` schema.
+Do not put a service-role key, database password, return code, or `.env` file in the repository. Do not place admin/import connection strings in Streamlit Cloud. Do not expose the existing `research` schema.
 
 ## Current Limitations
 
 - Live migrations, snapshot import, Supabase security tests, and deployment have not been performed.
-- The production adapter is implemented but requires the approved schema, role, and server-side `SUPABASE_DB_URL`.
+- The production adapter is implemented but requires the approved schema, separated roles, and server-side connection strings.
 - Name-only participant identification is intentionally lightweight and is not verified authentication.
 - Streamlit Community Cloud deployment should be treated as private/restricted until the return-code threat model and admin operations are approved.
 - The portal does not train classifiers, filter comments automatically, adjudicate labels, or calculate agreement metrics.

@@ -23,7 +23,7 @@ class DatabaseConnectionError(RuntimeError):
 @dataclass(frozen=True)
 class SupabaseDeploymentPlan:
     schema: str = "annotation"
-    required_secret: str = "SUPABASE_DB_URL"
+    required_secret: str = "SUPABASE_DB_URL (app), SUPABASE_ADMIN_DB_URL (admin), SUPABASE_IMPORT_DB_URL (import)"
     exposed_rest_schema: str = "annotation"
 
     def safety_summary(self) -> str:

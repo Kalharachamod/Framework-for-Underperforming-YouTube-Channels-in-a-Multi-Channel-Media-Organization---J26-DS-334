@@ -21,7 +21,7 @@ from .supabase_store import SupabaseAnnotationStore
 
 
 def main(argv: list[str] | None = None) -> int:
-    config = load_config()
+    config = load_config(require_app_db_url=False)
     parser = argparse.ArgumentParser(description="Export Component 2 annotation responses for the researcher")
     parser.add_argument("--mode", choices=("local", "supabase"), default=config.mode)
     parser.add_argument("--output", type=Path, help="Output CSV path outside Git-tracked data")
@@ -36,12 +36,12 @@ def main(argv: list[str] | None = None) -> int:
             parser.error("Participant revocation requires --mode supabase")
         frame = _local_export(config)
     else:
-        if not config.supabase_db_url:
-            parser.error("SUPABASE_DB_URL is required for --mode supabase")
+        if not config.supabase_admin_db_url:
+            parser.error("SUPABASE_ADMIN_DB_URL is required for protected Supabase admin operations")
         if not args.admin_id:
             parser.error("--admin-id is required for --mode supabase")
         store = SupabaseAnnotationStore(
-            config.supabase_db_url,
+            config.supabase_admin_db_url,
             run_id=config.annotation_run_id,
             connect_timeout=config.db_connect_timeout,
         )

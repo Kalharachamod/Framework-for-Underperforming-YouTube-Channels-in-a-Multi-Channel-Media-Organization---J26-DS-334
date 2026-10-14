@@ -290,17 +290,54 @@ class AnnotationPortalTests(unittest.TestCase):
             {
                 "COMPONENT2_ANNOTATION_MODE": "supabase",
                 "COMPONENT2_ANNOTATION_RUN_ID": "approved-run",
-                "COMPONENT2_PORTAL_SECRET": "server-secret",
+                "COMPONENT2_PORTAL_SECRET": "s" * 32,
                 "SUPABASE_DB_URL": "postgresql://server-side-only",
+                "SUPABASE_ADMIN_DB_URL": "postgresql://admin-only",
+                "SUPABASE_IMPORT_DB_URL": "postgresql://import-only",
             }
         )
         self.assertEqual(config.mode, "supabase")
         self.assertEqual(config.annotation_run_id, "approved-run")
-        self.assertNotIn("server-secret", repr(config))
+        self.assertEqual(config.supabase_admin_db_url, "postgresql://admin-only")
+        self.assertEqual(config.supabase_import_db_url, "postgresql://import-only")
+        self.assertNotIn("s" * 32, repr(config))
+
+    def test_supabase_mode_rejects_default_or_short_portal_secret(self):
+        for secret in ("local-development-secret", "short"):
+            with self.subTest(secret=secret):
+                with self.assertRaises(ValueError):
+                    load_config(
+                        {
+                            "COMPONENT2_ANNOTATION_MODE": "supabase",
+                            "COMPONENT2_PORTAL_SECRET": secret,
+                            "SUPABASE_DB_URL": "postgresql://server-side-only",
+                        }
+                    )
 
     def test_supabase_store_does_not_accept_empty_database_url(self):
         with self.assertRaises(ValueError):
             SupabaseAnnotationStore("", run_id="run")
+
+    def test_admin_and_importer_config_can_use_separate_urls(self):
+        admin_config = load_config(
+            {
+                "COMPONENT2_ANNOTATION_MODE": "supabase",
+                "COMPONENT2_PORTAL_SECRET": "s" * 32,
+                "SUPABASE_ADMIN_DB_URL": "postgresql://admin-only",
+            },
+            require_app_db_url=False,
+        )
+        import_config = load_config(
+            {
+                "COMPONENT2_ANNOTATION_MODE": "supabase",
+                "COMPONENT2_PORTAL_SECRET": "s" * 32,
+                "SUPABASE_IMPORT_DB_URL": "postgresql://import-only",
+            },
+            require_app_db_url=False,
+        )
+        self.assertIsNone(admin_config.supabase_db_url)
+        self.assertEqual(admin_config.supabase_admin_db_url, "postgresql://admin-only")
+        self.assertEqual(import_config.supabase_import_db_url, "postgresql://import-only")
 
     def test_database_connection_failure_is_explicit(self):
         store = SupabaseAnnotationStore("postgresql://not-used", run_id="run")
@@ -337,6 +374,20 @@ class AnnotationPortalTests(unittest.TestCase):
         self.assertNotIn("research.", combined)
         self.assertIn("annotation.responses", combined)
         self.assertIn("annotation.participants", combined)
+
+    def test_prepared_sql_separates_runtime_admin_and_import_roles(self):
+        root = Path(__file__).resolve().parents[2]
+        sql_path = root / "research" / "component_2" / "annotation_portal" / "sql" / "0002_annotation_rls.sql"
+        sql = sql_path.read_text(encoding="utf-8")
+        self.assertIn("CREATE ROLE annotation_app", sql)
+        self.assertIn("CREATE ROLE annotation_admin", sql)
+        self.assertIn("CREATE ROLE annotation_importer", sql)
+        self.assertIn("NOBYPASSRLS", sql)
+        self.assertIn("FOR SELECT TO annotation_admin", sql)
+        self.assertIn("FOR ALL TO annotation_importer", sql)
+        self.assertIn("section_id = 'primary_researcher' AND participant_role = 'primary_researcher'", sql)
+        self.assertIn("REVOKE ALL ON ALL TABLES IN SCHEMA annotation FROM annotation_app, annotation_admin, annotation_importer", sql)
+        self.assertNotIn("GRANT SELECT ON annotation.researcher_admins, annotation.adjudications TO annotation_app", sql)
 
     def test_unicode_and_missing_optional_context_are_preserved(self):
         comments = synthetic_comments()

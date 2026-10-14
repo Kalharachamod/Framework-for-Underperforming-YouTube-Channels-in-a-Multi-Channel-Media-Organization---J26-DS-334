@@ -170,11 +170,11 @@ def main(argv: list[str] | None = None) -> int:
     from .config import load_config
     from .supabase_store import SupabaseAnnotationStore
 
-    config = load_config()
-    if config.mode != "supabase" or not config.supabase_db_url:
-        parser.error("Set COMPONENT2_ANNOTATION_MODE=supabase and SUPABASE_DB_URL before importing")
+    config = load_config(require_app_db_url=False)
+    if config.mode != "supabase" or not config.supabase_import_db_url:
+        parser.error("Set COMPONENT2_ANNOTATION_MODE=supabase and SUPABASE_IMPORT_DB_URL before importing")
     store = SupabaseAnnotationStore(
-        config.supabase_db_url,
+        config.supabase_import_db_url,
         run_id=config.annotation_run_id,
         connect_timeout=config.db_connect_timeout,
     )

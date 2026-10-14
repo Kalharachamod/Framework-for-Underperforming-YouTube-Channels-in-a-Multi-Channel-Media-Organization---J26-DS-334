@@ -75,7 +75,11 @@ CREATE TABLE annotation.participants (
     updated_at          timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (run_id, participant_id),
     UNIQUE (run_id, participant_id, section_id),
-    FOREIGN KEY (run_id, section_id) REFERENCES annotation.sections (run_id, section_id) ON DELETE RESTRICT
+    FOREIGN KEY (run_id, section_id) REFERENCES annotation.sections (run_id, section_id) ON DELETE RESTRICT,
+    CHECK (
+        (section_id = 'primary_researcher' AND participant_role = 'primary_researcher')
+        OR (section_id <> 'primary_researcher' AND participant_role = 'section_annotator')
+    )
 );
 
 CREATE TABLE annotation.responses (
