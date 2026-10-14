@@ -1,0 +1,216 @@
+{
+  "organization": "Derana",
+  "confirmed_at": "2026-10-07T10:41:00Z",
+  "discovered_at": "2026-10-07T10:09:55Z",
+  "method": "youtube_data_api: channel search + linked channels + description evidence; reviewer-confirmed",
+  "channels": [
+    {
+      "channel_id": "UCRDDfbYPHX_GUJ4lcQYTc8A",
+      "title": "TV Derana",
+      "handle": "@tvderanaofficial",
+      "confidence": "high",
+      "evidence": [
+        "organization name in channel title",
+        "linked by Ada Derana, FM Derana",
+        "links back to a matching channel",
+        "same country (LK)"
+      ]
+    },
+    {
+      "channel_id": "UCCK3OZi788Ok44K97WAhLKQ",
+      "title": "Ada Derana",
+      "handle": "@adaderananews",
+      "confidence": "high",
+      "evidence": [
+        "organization name in channel title",
+        "linked by TV Derana",
+        "links back to a matching channel",
+        "same country (LK)"
+      ]
+    },
+    {
+      "channel_id": "UCOPPH1_whpThgY6e7r3qg-w",
+      "title": "FM Derana",
+      "handle": "@fmderanaofficial",
+      "confidence": "high",
+      "evidence": [
+        "organization name in channel title",
+        "linked by TV Derana",
+        "links back to a matching channel",
+        "same country (LK)"
+      ]
+    },
+    {
+      "channel_id": "UC_m6TcsKwid_mmOScbuYltg",
+      "title": "Derana Shorts",
+      "handle": "@deranashorts",
+      "confidence": "high",
+      "evidence": [
+        "organization name in channel title",
+        "linked by TV Derana",
+        "links back to a matching channel",
+        "same country (LK)"
+      ]
+    },
+    {
+      "channel_id": "UCW_rA_jb-_vbZtU4cTpnT5Q",
+      "title": "Ada Derana News Channel",
+      "handle": "@adaderana_24",
+      "confidence": "high",
+      "evidence": [
+        "organization name in channel title",
+        "linked by Ada Derana",
+        "links back to a matching channel",
+        "same country (LK)"
+      ]
+    },
+    {
+      "channel_id": "UCV1NPkc2O0YZBtx_rhDkicw",
+      "title": "Ada Derana Education",
+      "handle": "@adaderanaeducation",
+      "confidence": "high",
+      "evidence": [
+        "organization name in channel title",
+        "linked by Ada Derana, TV Derana",
+        "links back to a matching channel",
+        "same country (LK)"
+      ]
+    },
+    {
+      "channel_id": "UCrZs77rjxjbn_BMaSccMXnQ",
+      "title": "Derana City Of Music",
+      "handle": "@deranacityofmusic5748",
+      "confidence": "high",
+      "evidence": [
+        "organization name in channel title",
+        "linked by TV Derana",
+        "links back to a matching channel",
+        "same country (LK)"
+      ]
+    },
+    {
+      "channel_id": "UCZ418aLcVbJDo0fc01aQDQQ",
+      "title": "Derana 60 Plus",
+      "handle": "@derana60plus",
+      "confidence": "high",
+      "evidence": [
+        "organization name in channel title",
+        "linked by TV Derana",
+        "links back to a matching channel",
+        "same country (LK)"
+      ]
+    },
+    {
+      "channel_id": "UCHKtXGbqRIM0hA4Manb9DNg",
+      "title": "Ada Derana Sports",
+      "handle": "@adaderanasports",
+      "confidence": "high",
+      "evidence": [
+        "organization name in channel title",
+        "linked by Ada Derana",
+        "links back to a matching channel",
+        "same country (LK)"
+      ]
+    },
+    {
+      "channel_id": "UCSTl549eJYdeUAY0NmZLU6A",
+      "title": "Ada Derana Biz",
+      "handle": "@adaderanabiz",
+      "confidence": "high",
+      "evidence": [
+        "organization name in channel title",
+        "linked by Ada Derana",
+        "links back to a matching channel",
+        "same country (LK)"
+      ]
+    },
+    {
+      "channel_id": "UCir6eRv6gShvpiWR2TehHzg",
+      "title": "Ada Derana World News",
+      "handle": "@adaderanaworldnews",
+      "confidence": "high",
+      "evidence": [
+        "organization name in channel title",
+        "linked by Ada Derana",
+        "links back to a matching channel"
+      ]
+    },
+    {
+      "channel_id": "UCbkMFGQ_RWIf0OiYeOpf6Ng",
+      "title": "TV Derana LIVE",
+      "handle": "@tvderanalive",
+      "confidence": "high",
+      "evidence": [
+        "organization name in channel title",
+        "linked by Ada Derana, TV Derana",
+        "same country (LK)"
+      ]
+    },
+    {
+      "channel_id": "UCJr5vlnK6HEBVISUtxnq_sg",
+      "title": "Derana Little Star",
+      "handle": "@deranalittlestar",
+      "confidence": "high",
+      "evidence": [
+        "organization name in channel title",
+        "linked by TV Derana",
+        "same country (LK)"
+      ]
+    },
+    {
+      "channel_id": "UC11bd3xGXwzf_naIePO1n4g",
+      "title": "Ada Derana Tamil",
+      "handle": "@adaderana_tamil",
+      "confidence": "high",
+      "evidence": [
+        "organization name in channel title",
+        "linked by Ada Derana",
+        "same country (LK)"
+      ]
+    },
+    {
+      "channel_id": "UCuOtdpOPjHeoEAT4i44mVOg",
+      "title": "Ada Derana News Channel | English",
+      "handle": "@adncenglish",
+      "confidence": "high",
+      "evidence": [
+        "organization name in channel title",
+        "linked by Ada Derana",
+        "same country (LK)"
+      ]
+    },
+    {
+      "channel_id": "UCs8gVM6lPhRZk3L_zZmedpw",
+      "title": "Dream Star",
+      "handle": "@dreamstaroffcial",
+      "confidence": "high",
+      "evidence": [
+        "linked by TV Derana",
+        "links back to a matching channel",
+        "organization named in description",
+        "same country (LK)"
+      ]
+    },
+    {
+      "channel_id": "UCYPchfdlyZHi2gt2_FrLL3Q",
+      "title": "Lokaya Saha Lokayo",
+      "handle": "@lokayasahalokayo",
+      "confidence": "high",
+      "evidence": [
+        "linked by Ada Derana",
+        "links back to a matching channel",
+        "organization named in description"
+      ]
+    },
+    {
+      "channel_id": "UCVsi4vIpAcKl825aPQV4IjA",
+      "title": "Pulse.lk",
+      "handle": "@pulselk",
+      "confidence": "medium",
+      "evidence": [
+        "linked by TV Derana",
+        "same country (LK)"
+      ]
+    }
+  ]
+}

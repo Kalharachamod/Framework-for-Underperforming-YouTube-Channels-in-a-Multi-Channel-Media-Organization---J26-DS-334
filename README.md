@@ -14,6 +14,8 @@ Project ID: **J26-DS-334**
 ![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)
 ![React](https://img.shields.io/badge/React-Dashboard-61DAFB?style=flat-square&logo=react&logoColor=black)
 ![YouTube API](https://img.shields.io/badge/YouTube-Data%20API%20v3-FF0000?style=flat-square&logo=youtube&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3FCF8E?style=flat-square&logo=supabase&logoColor=white)
+![DuckDB](https://img.shields.io/badge/DuckDB-Parquet-FFF000?style=flat-square&logo=duckdb&logoColor=black)
 
 [Overview](#overview) &nbsp;·&nbsp;
 [Architecture](#system-architecture) &nbsp;·&nbsp;
@@ -72,11 +74,13 @@ The results are combined into **explainable recommendations** on a decision-supp
 
 ```mermaid
 flowchart LR
-    A[(YouTube Data API v3)] --> B[Shared Data Collection<br/>weekly snapshots · hashed IDs]
-    B --> C1[C1 · Growth Opportunity<br/>Prediction]
-    B --> C2[C2 · Audience Demand<br/>and Content Gap]
-    B --> C3[C3 · Audience Bridge<br/>Scoring]
-    B --> C4[C4 · Emerging Topic<br/>Detection]
+    A[(YouTube Data API v3)] --> B[Shared Data Collection<br/>pseudonymized commenter IDs]
+    B --> SB[(Supabase PostgreSQL<br/>shared current data)]
+    SB --> P[Parquet snapshots<br/>+ DuckDB analysis]
+    P --> C1[C1 · Growth Opportunity<br/>Prediction]
+    P --> C2[C2 · Audience Demand<br/>and Content Gap]
+    P --> C3[C3 · Audience Bridge<br/>Scoring]
+    P --> C4[C4 · Emerging Topic<br/>Detection]
     C2 --> C3
     C1 & C2 & C3 & C4 --> E{{Growth Intelligence Engine<br/>fusion · confidence · explainability}}
     E --> API[Backend API]
@@ -235,7 +239,9 @@ cd Framework-for-Underperforming-YouTube-Channels-in-a-Multi-Channel-Media-Organ
 python -m venv .venv
 # Windows:      .venv\Scripts\activate
 # macOS/Linux:  source .venv/bin/activate
+pip install torch --index-url https://download.pytorch.org/whl/cpu   # CPU PyTorch (~200 MB) first
 pip install -r requirements.txt
+pip install -e .
 ```
 
 **3. Configure environment variables**
@@ -245,11 +251,41 @@ cp .env.example .env          # Windows PowerShell: Copy-Item .env.example .env
 
 | Variable | Purpose |
 |---|---|
-| `YOUTUBE_API_KEY` | YouTube Data API v3 key |
+| `YOUTUBE_API_KEY` | YouTube Data API v3 key (setup: [docs/architecture/youtube_api.md](docs/architecture/youtube_api.md)) |
 | `COMMENTER_HASH_SALT` | Secret salt for hashing commenter IDs (shared within the team, never committed) |
+| `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_DB_URL` | Shared Supabase database (setup: [docs/architecture/supabase.md](docs/architecture/supabase.md)); `SUPABASE_DB_URL` is secret |
 | `VITE_API_URL` | Backend URL for the dashboard (default `http://localhost:8000`) |
 
-> **Note:** Backend and frontend run instructions will be added when implementation begins.
+**4. Create the shared database tables** (once Supabase is configured)
+```bash
+python -m shared.database.migrate
+```
+
+**5. Run the tests**
+```bash
+python -m pytest
+```
+Database tests need a local PostgreSQL installation (otherwise they're skipped). The first topic-similarity run downloads the `multilingual-e5-small` model (~470 MB) once.
+
+**6. Collect data** (repeatedly, e.g. daily)
+```bash
+python -m shared.data_collection.run_collection --max-videos 50 --snapshot
+```
+See the [collection runbook](docs/collection_runbook.md) for scheduling and the analysis pipeline.
+
+**7. Run the API and dashboard** (read-only views of the stored research results)
+```bash
+python -m uvicorn backend.main:app --reload --port 8000     # API, docs at http://localhost:8000/docs
+cd frontend && npm install && npm run dev                    # dashboard at http://localhost:5173
+```
+Details: [backend/README.md](backend/README.md) and [frontend/README.md](frontend/README.md). `API_CORS_ORIGINS`, `API_MAX_PAGE_SIZE` and `API_REQUEST_TIMEOUT_SECONDS` in `.env` configure the API.
+
+**8. Explore the data with SQL** (DuckDB workspace)
+```bash
+python -m research.component_3.duckdb_workspace          # views over the latest snapshot and its results
+python -m research.component_3.duckdb_workspace --ui     # same, then open the DuckDB UI in the browser
+```
+Fills `data/research.duckdb` (or `DUCKDB_PATH`) with read-only views: `snapshot.*` (channels, videos, comments), `prepared.*`, and one schema per result type (`bridge`, `topics`, `embeddings`, `baselines`, `evaluation`, `explanations`, …) for the newest complete run. `workspace.sources` lists the file behind each view and `workspace.channel_lookup` maps result node ids (`channel:<id>`) to channel names. Views copy no data, so rerun the command after new runs. The `--ui` option downloads DuckDB's `ui` extension once.
 
 </details>
 
