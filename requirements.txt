@@ -1,1 +1,5 @@
-# Runtime and tests currently use only the Python standard library.
+pandas>=2.2,<3
+matplotlib>=3.8,<4
+nbformat>=5.10,<6
+nbconvert>=7.16,<8
+ipykernel>=6.29,<7
