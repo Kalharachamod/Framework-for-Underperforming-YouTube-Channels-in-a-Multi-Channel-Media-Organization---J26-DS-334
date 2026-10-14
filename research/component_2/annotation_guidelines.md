@@ -109,11 +109,80 @@ Negative sentiment alone is not demand. Label `DEMAND` only if the complaint imp
 | "What nonsense" | NON_DEMAND |  | negative reaction without actionable content need |
 | "More details?" | DEMAND or UNCLEAR | follow_up_or_additional_explanation if context is clear | short but may request more detail |
 
+These examples are illustrative decision patterns. They are not verified samples from the project dataset.
+
+## Spam Status Labels
+
+Spam annotation is a separate decision from demand annotation. A comment can be spam or not spam regardless of whether it contains a demand-like phrase. Do not automatically exclude any comment during manual annotation; record the spam status only.
+
+### SPAM
+
+Use `SPAM` when the comment is clearly promotional, deceptive, automated, or unrelated solicitation.
+
+Examples of spam signals:
+
+- promotional advertisements unrelated to the video or channel
+- scams, phishing attempts, suspicious investment offers, or credential requests
+- repeated unrelated promotional messages
+- obvious bot-like solicitations
+- links used mainly for promotion, scams, or unrelated traffic
+
+### NOT_SPAM
+
+Use `NOT_SPAM` when the comment appears to be a genuine viewer reaction, criticism, discussion, or content request, even if it is short, emotional, noisy, or low-information.
+
+Do not label a comment as spam solely because it contains:
+
+- a link
+- capital letters
+- repeated punctuation
+- emojis
+- unusual Unicode
+- Sinhala, English, romanized Sinhala, Tanglish, or code-mixed text
+- praise, criticism, insults, or low-information reactions
+
+### UNCLEAR
+
+Use `UNCLEAR` when there is not enough evidence to decide whether the comment is spam.
+
+Examples:
+
+- a bare link without enough surrounding context
+- a repeated phrase that might be a meme, chant, or bot pattern
+- ambiguous romanized or code-mixed text that could be promotional but is not clear
+- a reply that may depend on unavailable parent context
+
+## Spam Boundary Cases
+
+| Comment pattern | Spam status | Rationale |
+|---|---|---|
+| "Buy followers fast, contact this number" | SPAM | promotional solicitation |
+| "Click this link to earn money now" | SPAM | likely scam or unrelated promotion |
+| "මේ ගැන තව වීඩියෝ කරන්න" | NOT_SPAM | Sinhala content request, not spam |
+| "Me gana update ekak denna" | NOT_SPAM | romanized Sinhala/Singlish content request |
+| "English subtitles please" | NOT_SPAM | language-access request |
+| "Super video!!!" | NOT_SPAM | praise with repeated punctuation |
+| "😂😂😂" | NOT_SPAM | low-information reaction, not automatically spam |
+| "Visit my page" | UNCLEAR or SPAM | use SPAM if clearly promotional; use UNCLEAR if context is insufficient |
+| "Free gift link" | UNCLEAR or SPAM | use SPAM when deceptive or promotional intent is clear |
+
+These spam examples are illustrative decision patterns. They are not verified samples from the project dataset.
+
+## Spam Annotation Instructions
+
+1. Fill `annotator_1_spam_status` and `annotator_2_spam_status` independently using `SPAM`, `NOT_SPAM`, or `UNCLEAR`.
+2. Use `spam_notes` for short explanations, especially for `SPAM` and `UNCLEAR`.
+3. After independent annotation, resolve disagreements in `final_spam_status`.
+4. Preserve legitimate demand comments. A genuine content request should remain available for demand analysis unless the team later approves an automated filtering rule.
+5. Do not infer spam from language, script, emojis, repeated punctuation, or short length alone.
+6. Do not train or apply automated spam filtering until human labels have been reviewed and adjudicated.
+
 ## Annotation Quality Plan
 
 1. One annotator labels all sampled comments.
 2. A second annotator independently labels a subset, preferably 20-30%.
-3. Disagreements are discussed and adjudicated into `final_adjudicated_label`.
-4. Cohen's Kappa is calculated only after real labels exist.
-5. Class imbalance is reviewed before training any classifier.
-6. Train/test splits should avoid leakage by grouping related comments from the same video where practical.
+3. Demand-label disagreements are discussed and adjudicated into `final_adjudicated_label`.
+4. Spam-status disagreements are discussed and adjudicated into `final_spam_status`.
+5. Cohen's Kappa is calculated only after real labels exist.
+6. Class imbalance is reviewed before training any classifier.
+7. Train/test splits should avoid leakage by grouping related comments from the same video where practical.

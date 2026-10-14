@@ -5,9 +5,9 @@ Owner: Kahandawa K A N N (IT23307094)
 
 ## Research Purpose
 
-Component 2 analyses public YouTube audience comments to identify audience demand signals, prepare multilingual text for modelling, and later compare demand topics against video content supply. Phase 1 focuses on reproducible dataset validation, exploratory analysis, and conservative multilingual preprocessing. Phase 2A prepares a deterministic manual annotation sample and annotation guide for demand-intent labelling.
+Component 2 analyses public YouTube audience comments to identify audience demand signals, prepare multilingual text for modelling, and later compare demand topics against video content supply. Phase 1 focuses on reproducible dataset validation, exploratory analysis, and conservative multilingual preprocessing. Phase 2A prepares a deterministic manual annotation sample and annotation guide for demand-intent and spam-status labelling.
 
-These phases do **not** implement demand classification, BERTopic, or Jensen-Shannon Divergence yet.
+These phases do **not** implement demand classification, spam filtering, BERTopic, or Jensen-Shannon Divergence yet.
 
 ## Required Local Datasets
 
@@ -86,13 +86,13 @@ Important outputs:
 - EDA summary tables
 - preprocessing audit tables
 - research charts
-- manual demand annotation sample and aggregate distribution summaries
+- manual demand and spam-status annotation sample and aggregate distribution summaries
 
 These outputs are not intended for Git commits.
 
 ## Phase 2A Annotation Preparation
 
-Phase 2A creates a deterministic 300-comment manual annotation template at:
+Phase 2A creates or safely extends a deterministic 300-comment manual annotation template at:
 
 ```text
 data/processed/component_2/annotation/component2_demand_annotation_sample.csv
@@ -104,9 +104,10 @@ The annotation template includes:
 - channel and video identifiers for traceability
 - reply status and publication timestamp
 - script category and preprocessing flags
-- blank fields for primary demand label, demand subtype, annotator labels, notes, and final adjudication
+- blank fields for primary demand label, demand subtype, demand annotator labels, notes, and final adjudication
+- blank fields for independent spam-status annotation, spam notes, and final spam adjudication
 
-Use `annotation_guidelines.md` when filling the labels. Do not generate artificial labels. The annotation output is a local research artifact and should not be committed to Git.
+Use `annotation_guidelines.md` when filling the labels. Demand classification and spam classification are separate annotation decisions. Do not generate artificial labels, train classifiers, or automatically exclude comments at this stage. If an existing annotation CSV contains human labels, the notebook stops before rewriting it. The annotation output is a local research artifact and should not be committed to Git.
 
 ## Methodology Choices
 
@@ -128,10 +129,11 @@ Use `annotation_guidelines.md` when filling the labels. Do not generate artifici
 
 ## Next Planned Research Stages
 
-1. Pilot demand-intent labelling.
+1. Pilot demand-intent and spam-status labelling.
 2. Inter-annotator agreement and adjudication.
-3. Baseline demand classifier experiments.
-4. BERTopic demand-topic modelling.
-5. Video supply topic modelling.
-6. Demand-supply topic distribution comparison.
-7. Jensen-Shannon Divergence and underserved-topic ranking.
+3. Human-reviewed spam filtering design.
+4. Baseline demand classifier experiments.
+5. BERTopic demand-topic modelling.
+6. Video supply topic modelling.
+7. Demand-supply topic distribution comparison.
+8. Jensen-Shannon Divergence and underserved-topic ranking.
