@@ -31,6 +31,7 @@ The pilot extraction is documented as up to 400 non-empty comments per selected 
 ```text
 research/component_2/
 ├── annotation_guidelines.md
+├── annotation_portal/
 ├── notebooks/
 │   ├── 01_dataset_validation.ipynb
 │   ├── 02_exploratory_analysis.ipynb
@@ -109,6 +110,24 @@ The annotation template includes:
 - blank fields for independent spam-status annotation, spam notes, and final spam adjudication
 
 Use `annotation_guidelines.md` when filling the labels. Demand classification and spam classification are separate annotation decisions. Video context is for interpretation, not an automatic reason to label comments as demand. Do not generate artificial labels, train classifiers, or automatically exclude comments at this stage. If an existing annotation CSV contains human labels, the notebook preserves them while refreshing read-only context fields. The annotation output is a local research artifact and should not be committed to Git.
+
+## Annotation Portal
+
+The optional online annotation portal lives at:
+
+```text
+research/component_2/annotation_portal/
+```
+
+It provides a Streamlit interface, deterministic Section A-E and primary-researcher assignment generation, local SQLite development storage for testing, prepared Supabase migration SQL, and documentation for secure deployment. The portal preserves the 300-comment annotation snapshot and does not modify the shared `research` database schema.
+
+Regular annotators enter a display name, choose Section A through E, and save a private return code for resume. Name-only identification is not verified authentication. A separate researcher-admin mechanism protects exports; selecting primary-researcher mode does not grant export access.
+
+Local startup:
+
+```bash
+.venv/bin/python -m streamlit run research/component_2/annotation_portal/app.py
+```
 
 ## Methodology Choices
 

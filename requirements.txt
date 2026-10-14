@@ -13,6 +13,9 @@ nbformat>=5.10,<6
 nbconvert>=7.16,<8
 ipykernel>=6.29,<7
 
+# Component 2 human annotation portal
+streamlit>=1.38,<2
+
 # Component 3 heterogeneous graph (in-memory adapter; graph artifacts are Parquet)
 networkx>=3.3
 # Component 3 Personalized PageRank: sparse transition matrices
