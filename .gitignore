@@ -30,6 +30,7 @@ data/raw/*
 data/processed/*
 !data/processed/component_*/
 data/processed/component_*/*
+data/analysis/*
 data/snapshots/*
 data/features/*
 !data/**/.gitkeep
