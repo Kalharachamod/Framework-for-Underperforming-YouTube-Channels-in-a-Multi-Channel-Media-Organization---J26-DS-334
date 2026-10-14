@@ -11,27 +11,50 @@
 -- band after review. Never give any role SUPERUSER, ownership, or BYPASSRLS.
 
 DO $$
+DECLARE
+    target_role text;
+    role_record record;
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'annotation_app') THEN
-        CREATE ROLE annotation_app NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'annotation_admin') THEN
-        CREATE ROLE annotation_admin NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS;
-    END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'annotation_importer') THEN
-        CREATE ROLE annotation_importer NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS;
-    END IF;
+    FOREACH target_role IN ARRAY ARRAY[
+        'annotation_app'::text,
+        'annotation_admin'::text,
+        'annotation_importer'::text
+    ] LOOP
+        IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = target_role) THEN
+            EXECUTE format(
+                'CREATE ROLE %I NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS',
+                target_role
+            );
+        END IF;
+
+        -- Managed Supabase SQL Editor roles may create these safe roles but
+        -- cannot ALTER ROLE security attributes. Fail closed for unsafe roles.
+        SELECT rolsuper, rolcreaterole, rolcreatedb, rolbypassrls,
+               rolinherit, rolreplication
+        INTO role_record
+        FROM pg_roles
+        WHERE rolname = target_role;
+
+        IF NOT FOUND THEN
+            RAISE EXCEPTION
+                'Role % could not be verified; repair it with an authorized role before rerunning this migration',
+                target_role;
+        END IF;
+
+        IF role_record.rolsuper
+           OR role_record.rolcreaterole
+           OR role_record.rolcreatedb
+           OR role_record.rolbypassrls
+           OR role_record.rolinherit
+           OR role_record.rolreplication
+        THEN
+            RAISE EXCEPTION
+                'Role % has unsafe privileges; repair it with an authorized role before rerunning this migration',
+                target_role;
+        END IF;
+    END LOOP;
 END
 $$;
-
--- Harden existing roles without changing their LOGIN state. LOGIN/password
--- setup is an explicit out-of-band deployment step and can be rotated safely.
-ALTER ROLE annotation_app
-    NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS;
-ALTER ROLE annotation_admin
-    NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS;
-ALTER ROLE annotation_importer
-    NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS;
 
 ALTER TABLE annotation.annotation_runs     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE annotation.sections            ENABLE ROW LEVEL SECURITY;
