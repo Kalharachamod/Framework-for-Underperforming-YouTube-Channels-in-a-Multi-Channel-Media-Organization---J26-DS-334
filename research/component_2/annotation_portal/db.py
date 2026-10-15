@@ -1,10 +1,8 @@
-"""PostgreSQL/Supabase database access notes and guardrails.
+"""PostgreSQL/Supabase deployment guardrails.
 
-The live Supabase implementation is intentionally thin in this phase: SQL
-migrations are prepared under ``sql/`` but are not executed automatically. Local
-development and tests use ``LocalAnnotationStore``. Production wiring should be
-enabled only after the section/participant schema and server-side write path are
-reviewed and approved.
+The production implementation is ``supabase_store.SupabaseAnnotationStore``.
+This module keeps the deployment plan and safety wording separate from the
+database adapter; local development and tests continue to use SQLite.
 """
 
 from __future__ import annotations

@@ -147,7 +147,14 @@ def _assignment_errors(comments: pd.DataFrame, assignments: pd.DataFrame) -> lis
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Validate or import the Component 2 annotation snapshot")
+    parser = argparse.ArgumentParser(
+        description="Validate or import the Component 2 annotation snapshot",
+        epilog=(
+            "This command intentionally accepts snapshot arguments only. The run ID and database "
+            "connection are read from environment configuration; --host and --password-prompt "
+            "belong to connection-audit tools, not this importer."
+        ),
+    )
     parser.add_argument("--csv", type=Path, required=True, help="Reviewed 300-comment CSV snapshot")
     parser.add_argument("--seed", type=int, default=20261014)
     parser.add_argument("--source-name", default=None)

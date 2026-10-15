@@ -11,6 +11,7 @@ from __future__ import annotations
 import uuid
 from contextlib import contextmanager
 from typing import Iterator
+from urllib.parse import parse_qs, urlsplit
 
 import pandas as pd
 
@@ -34,6 +35,15 @@ class SupabaseAnnotationStore:
             raise ValueError("A server-side SUPABASE_DB_URL is required")
         if not run_id:
             raise ValueError("An annotation run ID is required")
+        try:
+            parsed = urlsplit(db_url)
+            sslmodes = parse_qs(parsed.query).get("sslmode", [])
+        except ValueError:
+            raise ValueError("SUPABASE_DB_URL must be a valid PostgreSQL URL") from None
+        if parsed.scheme not in {"postgresql", "postgres"} or not parsed.hostname:
+            raise ValueError("SUPABASE_DB_URL must be a PostgreSQL URL")
+        if sslmodes and sslmodes[0].lower() not in {"require", "verify-ca", "verify-full"}:
+            raise ValueError("SUPABASE_DB_URL must require SSL")
         self.db_url = db_url
         self.run_id = run_id
         self.connect_timeout = connect_timeout
@@ -64,11 +74,14 @@ class SupabaseAnnotationStore:
             import psycopg
             from psycopg.rows import dict_row
 
-            return psycopg.connect(
-                self.db_url,
-                connect_timeout=self.connect_timeout,
-                row_factory=dict_row,
-            )
+            kwargs = {
+                "connect_timeout": self.connect_timeout,
+                "prepare_threshold": None,
+                "row_factory": dict_row,
+            }
+            if not parse_qs(urlsplit(self.db_url).query).get("sslmode"):
+                kwargs["sslmode"] = "require"
+            return psycopg.connect(self.db_url, **kwargs)
         except ImportError as exc:  # pragma: no cover - dependency installation issue
             raise DatabaseConnectionError("psycopg is required for Supabase mode") from exc
         except Exception as exc:

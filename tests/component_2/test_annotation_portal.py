@@ -3,7 +3,8 @@ from __future__ import annotations
 import subprocess
 import tempfile
 import unittest
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 from pathlib import Path
 import os
 
@@ -289,7 +290,8 @@ class AnnotationPortalTests(unittest.TestCase):
         config = load_config(
             {
                 "COMPONENT2_ANNOTATION_MODE": "supabase",
-                "COMPONENT2_ANNOTATION_RUN_ID": "approved-run",
+                "COMPONENT2_ANNOTATION_RUN_ID": "component2_phase2a_20261014",
+                "COMPONENT2_ASSIGNMENT_SEED": "20261014",
                 "COMPONENT2_PORTAL_SECRET": "s" * 32,
                 "SUPABASE_DB_URL": "postgresql://server-side-only",
                 "SUPABASE_ADMIN_DB_URL": "postgresql://admin-only",
@@ -297,10 +299,28 @@ class AnnotationPortalTests(unittest.TestCase):
             }
         )
         self.assertEqual(config.mode, "supabase")
-        self.assertEqual(config.annotation_run_id, "approved-run")
+        self.assertEqual(config.annotation_run_id, "component2_phase2a_20261014")
+        self.assertEqual(config.assignment_seed, 20261014)
         self.assertEqual(config.supabase_admin_db_url, "postgresql://admin-only")
         self.assertEqual(config.supabase_import_db_url, "postgresql://import-only")
         self.assertNotIn("s" * 32, repr(config))
+
+    def test_supabase_mode_rejects_a_different_imported_snapshot(self):
+        for key, value in (
+            ("COMPONENT2_ANNOTATION_RUN_ID", "another-run"),
+            ("COMPONENT2_ASSIGNMENT_SEED", "123"),
+        ):
+            settings = {
+                "COMPONENT2_ANNOTATION_MODE": "supabase",
+                "COMPONENT2_ANNOTATION_RUN_ID": "component2_phase2a_20261014",
+                "COMPONENT2_ASSIGNMENT_SEED": "20261014",
+                "COMPONENT2_PORTAL_SECRET": "s" * 32,
+                "SUPABASE_DB_URL": "postgresql://server-side-only",
+                key: value,
+            }
+            with self.subTest(key=key):
+                with self.assertRaises(ValueError):
+                    load_config(settings)
 
     def test_supabase_mode_rejects_default_or_short_portal_secret(self):
         for secret in ("local-development-secret", "short"):
@@ -317,6 +337,42 @@ class AnnotationPortalTests(unittest.TestCase):
     def test_supabase_store_does_not_accept_empty_database_url(self):
         with self.assertRaises(ValueError):
             SupabaseAnnotationStore("", run_id="run")
+
+    def test_supabase_store_rejects_non_postgres_or_non_ssl_url(self):
+        with self.assertRaises(ValueError):
+            SupabaseAnnotationStore("sb_publishable_not_a_database_url", run_id="run")
+        with self.assertRaises(ValueError):
+            SupabaseAnnotationStore("postgresql://server-side-only/postgres?sslmode=disable", run_id="run")
+
+    def test_supabase_store_requires_ssl_for_session_pooler_connection(self):
+        import psycopg
+
+        fake_connection = Mock()
+        store = SupabaseAnnotationStore("postgresql://server-side-only/postgres", run_id="run")
+        with patch.object(psycopg, "connect", return_value=fake_connection) as connect:
+            result = store._connect()
+        self.assertIs(result, fake_connection)
+        self.assertEqual(connect.call_args.kwargs["sslmode"], "require")
+        self.assertIsNone(connect.call_args.kwargs["prepare_threshold"])
+
+    def test_public_app_allowlist_excludes_admin_and_importer_urls(self):
+        from research.component_2.annotation_portal.app import _read_streamlit_secrets
+
+        secrets = SimpleNamespace(
+            secrets={
+                "COMPONENT2_ANNOTATION_MODE": "supabase",
+                "COMPONENT2_ANNOTATION_RUN_ID": "component2_phase2a_20261014",
+                "COMPONENT2_ASSIGNMENT_SEED": "20261014",
+                "COMPONENT2_PORTAL_SECRET": "s" * 32,
+                "SUPABASE_DB_URL": "postgresql://annotation-app-only",
+                "SUPABASE_ADMIN_DB_URL": "postgresql://admin-only",
+                "SUPABASE_IMPORT_DB_URL": "postgresql://import-only",
+            }
+        )
+        selected = _read_streamlit_secrets(secrets)
+        self.assertIn("SUPABASE_DB_URL", selected)
+        self.assertNotIn("SUPABASE_ADMIN_DB_URL", selected)
+        self.assertNotIn("SUPABASE_IMPORT_DB_URL", selected)
 
     def test_admin_and_importer_config_can_use_separate_urls(self):
         admin_config = load_config(

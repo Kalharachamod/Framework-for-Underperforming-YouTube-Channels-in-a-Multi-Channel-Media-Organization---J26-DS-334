@@ -68,6 +68,7 @@ Production mode must be explicit:
 ```text
 COMPONENT2_ANNOTATION_MODE=supabase
 COMPONENT2_ANNOTATION_RUN_ID=component2_phase2a_20261014
+COMPONENT2_ASSIGNMENT_SEED=20261014
 COMPONENT2_PORTAL_SECRET=<long-random-server-secret>
 SUPABASE_DB_URL=<server-side-postgres-connection-string>
 ```
@@ -113,6 +114,15 @@ The import CLI validates the existing CSV before any database connection:
 ```
 
 It checks exactly 300 unique comment IDs, five channels, deterministic section assignments, six comments per channel per section, Unicode-preserving fields, and the 300-comment primary assignment. The command reports counts without printing comment text.
+
+The snapshot importer is a separate CLI from the PostgreSQL connection-audit
+helpers. Its accepted options are `--csv`, `--seed`, `--source-name`, and
+`--validate-only`. It intentionally does not accept `--run-id`, `--host`, or
+`--password-prompt`; those options belong to connection-testing tools. The
+importer reads the run ID from `COMPONENT2_ANNOTATION_RUN_ID` and the protected
+importer URL from `SUPABASE_IMPORT_DB_URL`. A rejected invocation using those
+connection-audit options is therefore a local command/source mismatch, not an
+indication that the imported snapshot is missing or damaged.
 
 After migrations and database credentials are approved:
 
@@ -168,18 +178,65 @@ The application entry point is:
 research/component_2/annotation_portal/app.py
 ```
 
-The root `requirements.txt` contains the Streamlit and PostgreSQL adapter dependencies. The cloud app must run in Supabase mode and must not depend on the Git-ignored CSV. Therefore the approved sequence is:
+The portal has a dedicated dependency file beside the entry point:
 
-1. Review and apply the two SQL migrations to the existing Supabase project.
-2. Configure separate participant, admin, and importer database roles and permissions.
-3. Run the validation-only import check.
-4. Import the snapshot once using the server-side database URL.
-5. Create and verify at least one researcher-admin row.
-6. Configure Streamlit secrets only for `COMPONENT2_ANNOTATION_MODE`, `COMPONENT2_ANNOTATION_RUN_ID`, `COMPONENT2_PORTAL_SECRET`, and participant-only `SUPABASE_DB_URL`.
-7. Deploy the existing `component-2` branch with the entry point above.
-8. Start one volunteer session, save its return code, submit a test response, restart the app, and resume it.
-9. Confirm the response is present in `annotation.responses` and cannot be read by another participant session.
-10. Run the admin CLI from a protected environment using `SUPABASE_ADMIN_DB_URL` to export annotations.
+```text
+research/component_2/annotation_portal/requirements.txt
+```
+
+Community Cloud uses this app-local file before the repository-wide
+`requirements.txt`, so unrelated model dependencies and the repository-wide
+`httpx2` entry are not installed for this app. The app-local file contains only
+Streamlit, pandas, and psycopg. Run Streamlit from the repository root so the
+absolute package imports and deployment paths are identical locally and in the
+cloud environment.
+
+The cloud app must run in Supabase mode and must not depend on the Git-ignored
+CSV. Configure only these five Streamlit secrets:
+
+```toml
+COMPONENT2_ANNOTATION_MODE = "supabase"
+COMPONENT2_ANNOTATION_RUN_ID = "component2_phase2a_20261014"
+COMPONENT2_ASSIGNMENT_SEED = "20261014"
+COMPONENT2_PORTAL_SECRET = "<long-random-secret>"
+SUPABASE_DB_URL = "<annotation_app-session-pooler-postgres-url>"
+```
+
+`SUPABASE_DB_URL` must be the server-side Session Pooler URL for the existing
+`annotation_app` role, with SSL required. Do not add
+`SUPABASE_ADMIN_DB_URL`, `SUPABASE_IMPORT_DB_URL`, `SUPABASE_ANON_KEY`, or a
+publishable key to the Cloud app. The public app code allowlists only the five
+secrets above, and the admin/export and importer CLIs remain separate protected
+operations.
+
+The application verifies the imported run ID and seed in Supabase mode, uses
+only the database adapter for comment/context reads, and never opens the local
+CSV in that mode. Participant creation, resume, assignment reads, and response
+upserts all run through the `annotation_app` connection. RLS and the adapter's
+participant checks keep one participant from reading another participant's
+responses. The public Streamlit page contains no researcher export or revoke
+controls.
+
+The approved sequence is:
+
+1. Confirm the existing annotation schema, roles, RLS state, and imported run. Do not rerun migrations or import the snapshot again.
+2. Confirm separate participant, admin, and importer database roles and permissions.
+3. Configure the five Streamlit secrets listed above.
+4. Deploy the existing `component-2` branch with the entry point above.
+5. Start one clearly identified test session, for example display name `DEPLOYMENT_TEST_ONLY_20261015`, and use Section A.
+6. Record that participant's generated participant ID and private return code outside Git. Submit one synthetic test response, reload the app, and resume with the return code.
+7. Exclude that participant ID from research analysis and remove or deactivate it only through the protected admin process after testing.
+8. Run the admin CLI from a protected environment using `SUPABASE_ADMIN_DB_URL` to export annotations.
+
+### Beginner deployment steps
+
+1. Push the reviewed `component-2` commit to GitHub. Do not commit `.env`, Streamlit `secrets.toml`, CSV files, SQLite files, or any database URL.
+2. Open `share.streamlit.io`, choose **Create app**, select the repository and branch `component-2`, and enter `research/component_2/annotation_portal/app.py` as the main file.
+3. In **Advanced settings**, select Python 3.12 (or the same supported Python version used for local verification).
+4. Paste only the five-key TOML block above into the **Secrets** field and save/deploy.
+5. Wait for the build and open the generated `https://<chosen-name>.streamlit.app` URL. The exact URL is shown by Community Cloud after deployment and can be changed in app settings.
+6. Confirm the first page loads without the local CSV. Start the clearly identified deployment test participant, verify one save and one resume, then stop using that account.
+7. Keep the app private/restricted until the test and the return-code threat model are accepted. Making the app public does not turn name-only identification into verified authentication.
 
 Do not put a service-role key, database password, return code, or `.env` file in the repository. Do not place admin/import connection strings in Streamlit Cloud. Do not expose the existing `research` schema.
 

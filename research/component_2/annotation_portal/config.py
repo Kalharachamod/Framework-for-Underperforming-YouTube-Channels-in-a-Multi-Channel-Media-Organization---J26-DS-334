@@ -71,6 +71,14 @@ def load_config(
     run_id = get_value("COMPONENT2_ANNOTATION_RUN_ID", DEFAULT_ANNOTATION_RUN_ID).strip()
     if not run_id:
         raise ValueError("COMPONENT2_ANNOTATION_RUN_ID must not be empty")
+    if mode == "supabase" and run_id != DEFAULT_ANNOTATION_RUN_ID:
+        raise ValueError(
+            f"Supabase mode must use the imported run ID {DEFAULT_ANNOTATION_RUN_ID}"
+        )
+    if mode == "supabase" and seed != DEFAULT_ASSIGNMENT_SEED:
+        raise ValueError(
+            f"Supabase mode must use the imported assignment seed {DEFAULT_ASSIGNMENT_SEED}"
+        )
     timeout = int(get_value("COMPONENT2_DB_CONNECT_TIMEOUT", "10"))
     if timeout <= 0:
         raise ValueError("COMPONENT2_DB_CONNECT_TIMEOUT must be positive")
