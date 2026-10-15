@@ -422,10 +422,18 @@ class TopicSummary(_Model):
     top_channel_name: str | None
 
 
+class TopicFlow(_Model):
+    channel_id: str
+    channel_name: str | None
+    topic_id: str
+    videos: int
+
+
 class TopicsResponse(_Model):
     snapshot_id: str
     topic_run_id: str
     items: list[TopicSummary]
+    flows: list[TopicFlow] = []
     note: str
 
 
@@ -572,6 +580,7 @@ class BridgePairRow(_Model):
     topic_coverage_confidence: float | None
     shared_commenters: int | None
     score_status: str
+    topic_similarity: float | None = None   # raw cosine similarity of the two content profiles (symmetric)
 
 
 class BridgePairsResponse(_Model):
@@ -597,4 +606,123 @@ class ResearchRunsResponse(_Model):
     snapshot_extracted_at: datetime | None
     row_counts: dict[str, int]
     items: list[ResearchRun]
+    note: str
+
+
+# --- neural models ------------------------------------------------------------------------------------
+
+class EpochRecord(_Model):
+    epoch: int
+    train_loss: float | None
+    valid_loss: float | None
+    valid_roc_auc: float | None
+    valid_average_precision: float | None
+
+
+class HgtSplit(_Model):
+    kind: str | None = None
+    train_edges: float | None = None
+    validation_edges: float | None = None
+    cutoff: datetime | None = None
+
+
+class HgtModel(_Model):
+    status: Literal["available", "missing"]
+    experiment_id: str | None = None
+    created_at: datetime | None = None
+    role: str | None = None
+    config: dict[str, Scalar] = Field(default_factory=dict)
+    objective: str | None = None
+    negative_sampling: dict[str, Scalar] = Field(default_factory=dict)
+    split: HgtSplit | None = None
+    node_features: dict[str, list[str]] = Field(default_factory=dict)
+    history: list[EpochRecord] = Field(default_factory=list)
+    duration_seconds: float | None = None
+    dimensions: int | None = None
+    coverage_ratio: float | None = None
+    validation_passed: bool | None = None
+
+
+class MetapathWalks(_Model):
+    metapath: str
+    node_types: list[str]
+    start_nodes: float | None
+    walks: float | None
+    truncated: float | None
+
+
+class Metapath2VecModel(_Model):
+    status: Literal["available", "missing"]
+    experiment_id: str | None = None
+    created_at: datetime | None = None
+    config: dict[str, Scalar] = Field(default_factory=dict)
+    metapaths: list[MetapathWalks] = Field(default_factory=list)
+    total_walks: float | None = None
+    mean_walk_length: float | None = None
+    training: dict[str, Scalar] = Field(default_factory=dict)
+    dimensions: int | None = None
+    coverage_ratio: float | None = None
+    validation_passed: bool | None = None
+
+
+class NeuralModelsResponse(_Model):
+    snapshot_id: str
+    hgt: HgtModel
+    metapath2vec: Metapath2VecModel
+    note: str
+
+
+# --- snapshot comparison ---------------------------------------------------------------------------------
+
+class CompareRun(_Model):
+    snapshot_id: str
+    experiment_id: str | None
+    created_at: datetime | None
+    method_version: str | None
+    w_diffusion: float | None
+    w_embedding: float | None
+    w_topic: float | None
+    embedding_source: str | None
+
+
+class CompareRow(_Model):
+    source_channel_id: str
+    source_channel_name: str | None
+    destination_channel_id: str
+    destination_channel_name: str | None
+    previous_score: float | None
+    current_score: float | None
+    score_change: float | None
+    previous_rank: float | None
+    current_rank: float | None
+    rank_change: float | None
+    previous_confidence: float | None
+    current_confidence: float | None
+    confidence_change: float | None
+    previous_diffusion: float | None
+    current_diffusion: float | None
+    diffusion_change: float | None
+    previous_topic_similarity: float | None
+    current_topic_similarity: float | None
+    topic_similarity_change: float | None
+
+
+class CompareResponse(_Model):
+    compatible: bool
+    reason: str | None
+    base: CompareRun | None
+    current: CompareRun | None
+    same_configuration: bool | None
+    items: list[CompareRow]
+    note: str
+
+
+class ChannelIcon(_Model):
+    channel_id: str
+    icon_url: str
+
+
+class ChannelIconsResponse(_Model):
+    fetched_at: datetime | None
+    items: list[ChannelIcon]
     note: str

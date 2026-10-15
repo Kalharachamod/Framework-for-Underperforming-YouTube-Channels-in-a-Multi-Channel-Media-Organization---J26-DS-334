@@ -181,7 +181,15 @@ class DashboardService:
         items = [{"topic_id": r.topic_id, "label": f"Topic {int(str(r.topic_id).lstrip('t')) + 1}",
                   "videos": int(r.videos), "share": (int(r.videos) / total) if total else None,
                   "views": _v(r.views), "top_channel_name": names.get(r.top_channel_id)} for r in df.itertuples()]
-        return _clean({"snapshot_id": snap.snapshot_id, "topic_run_id": run["_dir"].name, "items": items,
+        # channel -> topic video counts (aggregate; one row per channel and topic with at least one video)
+        fl = self.store.aggregate("""
+            SELECT v.channel_id, t.topic_id, count(*) AS videos
+            FROM video_topics t JOIN videos v USING (video_id)
+            GROUP BY 1, 2 ORDER BY 1, 2
+        """, {"video_topics": run["_dir"] / "video_topics.parquet", **self._files(snap.snapshot_id, "videos")})
+        flows = [{"channel_id": _public(r.channel_id), "channel_name": names.get(r.channel_id), "topic_id": r.topic_id,
+                  "videos": int(r.videos)} for r in fl.itertuples()]
+        return _clean({"snapshot_id": snap.snapshot_id, "topic_run_id": run["_dir"].name, "items": items, "flows": flows,
                        "note": "Topic clusters are unlabelled KMeans clusters of video text embeddings (STEP 18); "
                                "the numbers are cluster sizes, not trends."})
 

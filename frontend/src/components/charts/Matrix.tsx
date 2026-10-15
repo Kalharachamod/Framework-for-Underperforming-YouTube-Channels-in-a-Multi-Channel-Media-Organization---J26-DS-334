@@ -2,6 +2,8 @@
  * Similarity heatmap and histogram. The heatmap is an HTML table (screen readers can read every value);
  * colour intensity is scaled over the observed value range, which the legend states explicitly.
  */
+import { scoreColor } from "./BridgeViz";
+
 export interface MatrixAxis {
   id: string;
   label: string;
@@ -21,7 +23,7 @@ export function Heatmap({ axis, value, selected, onSelect, caption }: {
   const shade = (v: number | null) => {
     if (v === null) return undefined;
     const t = hi > lo ? (v - lo) / (hi - lo) : 1;
-    return `rgba(30, 58, 138, ${0.06 + 0.84 * t})`;
+    return scoreColor(t); // light blue scale spread over the observed range
   };
   return (
     <div className="heat">
@@ -50,7 +52,7 @@ export function Heatmap({ axis, value, selected, onSelect, caption }: {
                   const dim = selected !== undefined && selected !== r.id && selected !== c.id;
                   return (
                     <td key={c.id} title={r.id === c.id ? r.label : `${r.label} · ${c.label}: ${fmt(v)}`}
-                      className={`${r.id === c.id ? "is-self" : ""}${dim ? " is-dim" : ""}${t > 0.55 ? " is-dark" : ""}`}
+                      className={`${r.id === c.id ? "is-self" : ""}${dim ? " is-dim" : ""}${t > 0.78 ? " is-dark" : ""}`}
                       style={{ background: r.id === c.id ? undefined : shade(v) }}>
                       {r.id === c.id ? "—" : fmt(v)}
                     </td>

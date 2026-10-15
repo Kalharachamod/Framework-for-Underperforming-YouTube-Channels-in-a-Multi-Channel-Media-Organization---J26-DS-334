@@ -388,6 +388,7 @@ export interface TopicsResponse {
   snapshot_id: string;
   topic_run_id: string;
   items: TopicSummary[];
+  flows?: { channel_id: string; channel_name: string | null; topic_id: string; videos: number }[];
   note: string;
 }
 
@@ -527,6 +528,8 @@ export interface BridgePairRow {
   topic_coverage_confidence: number | null;
   shared_commenters: number | null;
   score_status: string;
+  /** raw cosine similarity of the two channels' content profiles (symmetric) */
+  topic_similarity?: number | null;
 }
 
 export interface BridgePairsResponse {
@@ -552,5 +555,110 @@ export interface ResearchRunsResponse {
   snapshot_extracted_at: string | null;
   row_counts: Record<string, number>;
   items: ResearchRun[];
+  note: string;
+}
+
+// --- neural models ------------------------------------------------------------------------------------
+
+export interface EpochRecord {
+  epoch: number;
+  train_loss: number | null;
+  valid_loss: number | null;
+  valid_roc_auc: number | null;
+  valid_average_precision: number | null;
+}
+
+export interface HgtModel {
+  status: "available" | "missing";
+  experiment_id?: string | null;
+  created_at?: string | null;
+  role?: string | null;
+  config?: Record<string, Scalar>;
+  objective?: string | null;
+  negative_sampling?: Record<string, Scalar>;
+  split?: { kind: string | null; train_edges: number | null; validation_edges: number | null; cutoff: string | null } | null;
+  node_features?: Record<string, string[]>;
+  history?: EpochRecord[];
+  duration_seconds?: number | null;
+  dimensions?: number | null;
+  coverage_ratio?: number | null;
+  validation_passed?: boolean | null;
+}
+
+export interface MetapathWalks {
+  metapath: string;
+  node_types: string[];
+  start_nodes: number | null;
+  walks: number | null;
+  truncated: number | null;
+}
+
+export interface Metapath2VecModel {
+  status: "available" | "missing";
+  experiment_id?: string | null;
+  created_at?: string | null;
+  config?: Record<string, Scalar>;
+  metapaths?: MetapathWalks[];
+  total_walks?: number | null;
+  mean_walk_length?: number | null;
+  training?: Record<string, Scalar>;
+  dimensions?: number | null;
+  coverage_ratio?: number | null;
+  validation_passed?: boolean | null;
+}
+
+export interface NeuralModelsResponse {
+  snapshot_id: string;
+  hgt: HgtModel;
+  metapath2vec: Metapath2VecModel;
+  note: string;
+}
+
+export interface CompareRun {
+  snapshot_id: string;
+  experiment_id: string | null;
+  created_at: string | null;
+  method_version: string | null;
+  w_diffusion: number | null;
+  w_embedding: number | null;
+  w_topic: number | null;
+  embedding_source: string | null;
+}
+
+export interface CompareRow {
+  source_channel_id: string;
+  source_channel_name: string | null;
+  destination_channel_id: string;
+  destination_channel_name: string | null;
+  previous_score: number | null;
+  current_score: number | null;
+  score_change: number | null;
+  previous_rank: number | null;
+  current_rank: number | null;
+  rank_change: number | null;
+  previous_confidence: number | null;
+  current_confidence: number | null;
+  confidence_change: number | null;
+  previous_diffusion: number | null;
+  current_diffusion: number | null;
+  diffusion_change: number | null;
+  previous_topic_similarity: number | null;
+  current_topic_similarity: number | null;
+  topic_similarity_change: number | null;
+}
+
+export interface CompareResponse {
+  compatible: boolean;
+  reason: string | null;
+  base: CompareRun | null;
+  current: CompareRun | null;
+  same_configuration: boolean | null;
+  items: CompareRow[];
+  note: string;
+}
+
+export interface ChannelIconsResponse {
+  fetched_at: string | null;
+  items: { channel_id: string; icon_url: string }[];
   note: string;
 }

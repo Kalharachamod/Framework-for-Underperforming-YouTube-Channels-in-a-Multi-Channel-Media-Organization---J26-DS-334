@@ -25,7 +25,9 @@ export interface Series {
   values: (number | null)[];
 }
 
-const fmt = (v: number) => (v >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : v >= 1e3 ? `${(v / 1e3).toFixed(0)}K` : String(Math.round(v)));
+/** Axis/tooltip numbers: compact for large values, decimals for small ones (e.g. metrics in 0–1). */
+const fmt = (v: number) => (v >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : v >= 1e3 ? `${(v / 1e3).toFixed(0)}K`
+  : Number.isInteger(v) || Math.abs(v) >= 10 ? String(Math.round(v)) : String(Number(v.toFixed(Math.abs(v) < 1 ? 3 : 2))));
 
 /** Smooth path through the points (Catmull-Rom -> cubic Bezier); the curve passes exactly through every value. */
 function smooth(pts: [number, number][], floor: number): string {
@@ -45,12 +47,16 @@ function niceMax(v: number): number {
   return Math.ceil(v / p / 2) * 2 * p;
 }
 
-export function LineChart({ labels, series, height = 300, yLabel, summary }: {
+/** A highlighted point on one series (e.g. the best epoch), drawn with a guide line and a label. */
+export interface Mark { index: number; seriesKey: string; label: string }
+
+export function LineChart({ labels, series, height = 300, yLabel, summary, marks = [] }: {
   labels: string[];
   series: Series[];
   height?: number;
   yLabel: string;
   summary: string;
+  marks?: Mark[];
 }) {
   const [hover, setHover] = useState<number | null>(null);
   const [box, width] = useWidth<HTMLElement>(760);
@@ -88,6 +94,22 @@ export function LineChart({ labels, series, height = 300, yLabel, summary }: {
             <g key={s.key}>
               <path d={`${line} L${x(s.values.length - 1)},${y(0)} L${x(0)},${y(0)} Z`} fill={`url(#lc-${s.key})`} />
               <path d={line} fill="none" stroke={s.color} strokeWidth={2.2} strokeLinejoin="round" />
+            </g>
+          );
+        })}
+        {marks.map((m) => {
+          const s = series.find((x) => x.key === m.seriesKey);
+          const v = s?.values[m.index];
+          if (!s || v === null || v === undefined) return null;
+          const cx = x(m.index), cy = y(v), w = m.label.length * 6.4 + 16;
+          const lx = Math.min(Math.max(cx - w / 2, L), W - R - w);
+          return (
+            <g key={`${m.seriesKey}-${m.index}`} className="linechart__mark">
+              <line x1={cx} x2={cx} y1={T} y2={H - B} stroke={s.color} strokeDasharray="3 4" strokeOpacity={0.6} />
+              <circle cx={cx} cy={cy} r={9} fill={s.color} fillOpacity={0.18} />
+              <circle cx={cx} cy={cy} r={4.5} fill={s.color} stroke="#fff" strokeWidth={2} />
+              <rect x={lx} y={Math.max(T, cy - 34)} width={w} height={20} rx={10} fill={s.color} />
+              <text x={lx + w / 2} y={Math.max(T, cy - 34) + 14} textAnchor="middle" className="linechart__marktext">{m.label}</text>
             </g>
           );
         })}

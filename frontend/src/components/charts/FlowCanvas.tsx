@@ -27,6 +27,8 @@ export interface FlowEdge {
   /** where the edge leaves/enters: vertical flow (bottom → top) or horizontal (right → left) */
   dir?: "down" | "right";
   muted?: boolean;
+  /** position of the label along a vertical edge (0 = start, 1 = end); default 0.7 */
+  labelAt?: number;
 }
 
 export interface FlowLane {
@@ -103,12 +105,13 @@ export function FlowCanvas({ width, height, nodes, edges, lanes = [], onSelect, 
                 if (e.dir === "right") {
                   const x1 = a.x + a.w, y1 = a.y + a.h / 2, x2 = b.x - 4, y2 = b.y + b.h / 2, mx = (x1 + x2) / 2;
                   d = `M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`;
-                  lx = mx; ly = (y1 + y2) / 2;
+                  const t = e.labelAt ?? 0.5;
+                  lx = x1 + (x2 - x1) * t; ly = y1 + (y2 - y1) * t;
                 } else {
                   const x1 = a.x + a.w / 2, y1 = a.y + a.h, x2 = b.x + b.w / 2, y2 = b.y - 4, my = (y1 + y2) / 2;
                   d = `M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}`;
                   // label at 70% along the curve, where neighbouring edges have already fanned out
-                  const t = 0.7, u = 1 - t;
+                  const t = e.labelAt ?? 0.7, u = 1 - t;
                   lx = u * u * u * x1 + 3 * u * u * t * x1 + 3 * u * t * t * x2 + t * t * t * x2;
                   ly = u * u * u * y1 + 3 * u * u * t * my + 3 * u * t * t * my + t * t * t * y2;
                 }
@@ -118,7 +121,7 @@ export function FlowCanvas({ width, height, nodes, edges, lanes = [], onSelect, 
                       strokeDasharray={e.dashed ? "5 5" : undefined} markerEnd="url(#flow-arrow)" strokeLinecap="round" />
                     {e.label && (
                       <g transform={`translate(${lx}, ${ly})`}>
-                        <rect x={-24} y={-10} width={48} height={20} rx={10} className="flow__edge-pill" />
+                        <rect x={-Math.max(24, e.label.length * 3.4 + 9)} y={-10} width={Math.max(48, e.label.length * 6.8 + 18)} height={20} rx={10} className="flow__edge-pill" />
                         <text textAnchor="middle" y={4} className="flow__edge-label">{e.label}</text>
                       </g>
                     )}
