@@ -242,3 +242,29 @@ def research_runs(v: Views, snapshot_id: SnapshotQ = None):
     """Every stored run of the snapshot (graph, features, diffusion, topics, embeddings, baselines, scoring,
     explanations, evaluations) with its id, creation time, validation result and recorded configuration."""
     return v.runs(snapshot_id)
+
+
+@router.get("/models/neural", response_model=sc.NeuralModelsResponse, tags=["Component 3: graph"], responses=ERRORS,
+            summary="HGT and metapath2vec settings and training records")
+def neural_models(v: Views, snapshot_id: SnapshotQ = None):
+    """Stored HGT configuration, per-epoch training and validation records, node-type input features and split
+    sizes, and metapath2vec walk statistics per metapath. A model that was not run is reported as `missing`."""
+    return v.neural_models(snapshot_id)
+
+
+@router.get("/dashboard/channel-icons", response_model=sc.ChannelIconsResponse, tags=["Component 3: dashboard"],
+            responses=ERRORS, summary="Public channel profile images")
+def channel_icons(v: Views):
+    """Public YouTube profile-image URLs of the research channels (presentation only, not used by any score).
+    Empty until `python -m research.component_3.preprocessing.channel_icons` has been run."""
+    return v.channel_icons()
+
+
+@router.get("/bridge/compare", response_model=sc.CompareResponse, tags=["Component 3: audience bridge"], responses=ERRORS,
+            summary="Compare stored scores of two snapshots")
+def bridge_compare(v: Views, base_snapshot_id: Annotated[str, Query(description="Previous (older) research snapshot id.")],
+                   snapshot_id: SnapshotQ = None):
+    """Joins the latest scoring run of two snapshots per directed pair and reports score, rank, confidence,
+    diffusion-component and topic-similarity changes. `compatible` is false (with a reason) unless both snapshots
+    have a scoring run, cover the same channels, and the previous snapshot is older."""
+    return v.compare(snapshot_id, base_snapshot_id)
