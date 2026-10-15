@@ -23,8 +23,17 @@ export function date(value: string | null | undefined): string {
   return Number.isNaN(d.getTime()) ? DASH : d.toISOString().replace("T", " ").slice(0, 16) + " UTC";
 }
 
+/** Research terms keep their conventional spelling in generated labels. */
+const TERMS: Record<string, string> = {
+  ppr: "PPR", hgt: "HGT", abs: "ABS", topk: "Top-k", jaccard: "Jaccard", kendall: "Kendall", spearman: "Spearman",
+  louvain: "Louvain", ndcg: "NDCG", mrr: "MRR", roc: "ROC", auc: "AUC",
+};
+const LOWERCASE_NAMES = new Set(["metapath2vec", "node2vec"]);
+
 export function label(code: string): string {
-  return code.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+  const words = code.split("_").map((w) => TERMS[w.toLowerCase()] ?? w);
+  const text = words.join(" ");
+  return LOWERCASE_NAMES.has(words[0]) ? text : text.replace(/^./, (c) => c.toUpperCase());
 }
 
 export function scalar(value: unknown): string {

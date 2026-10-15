@@ -20,6 +20,8 @@ export type ApiErrorCode =
   | "network_error"
   | "invalid_response"
   | "aborted"
+  | "rate_limited"
+  | "unauthorized"
   | "http_error";
 
 export class ApiError extends Error {
@@ -32,7 +34,27 @@ export class ApiError extends Error {
     this.code = code;
     this.status = status;
   }
+
+  /** Whether trying again can help (network, timeout, rate limit, server-side failures). */
+  get retryable(): boolean {
+    return ["network_error", "timeout", "rate_limited", "storage_unavailable", "internal_error"].includes(this.code)
+      || (this.status !== null && this.status >= 500);
+  }
 }
+
+/** User-facing message for an HTTP status without a known API error code (never exposes internals). */
+function messageForStatus(status: number): [ApiErrorCode, string] {
+  if (status === 429) return ["rate_limited", "Research API rate limit reached. Please retry later."];
+  if (status === 401 || status === 403) return ["unauthorized", "You are not authorised to read this research data."];
+  if (status === 400 || status === 422) return ["invalid_parameter", "The request was not accepted: a selection or filter value is invalid."];
+  if (status === 404) return ["not_found", "The requested research resource does not exist."];
+  if (status === 504 || status === 408) return ["timeout", "The research API did not respond in time."];
+  if (status >= 500) return ["internal_error", "The research API could not process the request."];
+  return ["http_error", `The research API answered with an unexpected status (${status}).`];
+}
+
+/** Requests that take longer than this fail with a timeout error instead of hanging. */
+export const REQUEST_TIMEOUT_MS = 20000;
 
 export type Params = Record<string, string | number | boolean | null | undefined>;
 export type Validator<T> = (data: unknown) => data is T;
@@ -64,10 +86,15 @@ export function buildUrl(path: string, params: Params = {}, base: string = API_B
 
 async function fetchJson(url: string): Promise<unknown> {
   let response: Response;
+  const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+  const timer = controller ? setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS) : null;
   try {
-    response = await fetch(url, { headers: { Accept: "application/json" } });
+    response = await fetch(url, { headers: { Accept: "application/json" }, signal: controller?.signal });
   } catch {
+    if (controller?.signal.aborted) throw new ApiError("timeout", "The research API did not respond in time.");
     throw new ApiError("network_error", "The research API could not be reached. Is the backend running?");
+  } finally {
+    if (timer) clearTimeout(timer);
   }
   const text = await response.text();
   let body: unknown = null;
@@ -80,8 +107,11 @@ async function fetchJson(url: string): Promise<unknown> {
   }
   if (!response.ok) {
     const err = (body as { error?: { code?: string; message?: string } } | null)?.error;
-    const code = err?.code && KNOWN_CODES.has(err.code as ApiErrorCode) ? (err.code as ApiErrorCode) : "http_error";
-    throw new ApiError(code, err?.message ?? `The API answered with HTTP ${response.status}.`, response.status);
+    if (err?.code && KNOWN_CODES.has(err.code as ApiErrorCode) && err.message) {
+      throw new ApiError(err.code as ApiErrorCode, err.message, response.status); // the API's own safe message
+    }
+    const [code, message] = messageForStatus(response.status);
+    throw new ApiError(code, message, response.status);
   }
   if (body === null) throw new ApiError("invalid_response", "The API returned an empty response.", response.status);
   if (IDENTIFIER_PATTERN.test(text)) {
