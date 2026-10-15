@@ -9,12 +9,11 @@ export interface NavItem {
   icon?: string;
 }
 
-/** Page shell: skip link, sidebar (brand, grouped navigation with icons, optional extra section such as
- * tracked channels; mobile: menu button), top bar slot and the main content. */
-export function AppShell({ nav, header, sidebarExtra, children }: {
+/** Page shell: skip link, left sidebar (logo, grouped navigation with icons, footer; a drawer behind the
+ * menu button on small screens), a slim top bar slot (selectors, search, status) and the main content. */
+export function AppShell({ nav, header, children }: {
   nav: NavItem[];
   header?: ReactNode;
-  sidebarExtra?: ReactNode;
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -27,25 +26,14 @@ export function AppShell({ nav, header, sidebarExtra, children }: {
   const groups = [...new Set(nav.map((n) => n.group ?? ""))];
   return (
     <div className="shell">
-      <a className="skip-link" href="#main">
-        Skip to content
-      </a>
+      <a className="skip-link" href="#main">Skip to content</a>
       <aside className={`sidebar${open ? " sidebar--open" : ""}`}>
         <div className="sidebar__top">
-          <div className="brand">
-            <span className="brand__mark" aria-hidden="true"><Icon name="play" size={18} /></span>
-            <span className="brand__text">
-              <span className="brand__name">Growth Intelligence</span>
-              <span className="brand__sub">Audience Intelligence</span>
-            </span>
-          </div>
-          <button
-            type="button"
-            className="button nav-toggle"
-            aria-expanded={open}
-            aria-controls="primary-nav"
-            onClick={() => setOpen((o) => !o)}
-          >
+          <NavLink to="/" className="sidebar__brand" aria-label="Growth Intelligence, overview">
+            <span className="sidebar__mark"><img src="/brand/logo-mark.png" alt="Growth Intelligence" width={30} height={30} /></span>
+            <span className="sidebar__word"><strong>Growth Intelligence</strong><span>Audience bridge research</span></span>
+          </NavLink>
+          <button type="button" className="button nav-toggle" aria-expanded={open} aria-controls="primary-nav" onClick={() => setOpen((o) => !o)}>
             <Icon name="overview" size={16} /> {open ? "Close" : "Menu"}
           </button>
         </div>
@@ -54,22 +42,19 @@ export function AppShell({ nav, header, sidebarExtra, children }: {
             <div className="nav__group" key={g || "main"}>
               {g && <p className="nav__heading">{g}</p>}
               <ul className="nav">
-                {nav
-                  .filter((item) => (item.group ?? "") === g)
-                  .map((item) => (
-                    <li key={item.to}>
-                      <NavLink to={item.to} end={item.to === "/"} className="nav__link" onClick={() => setOpen(false)}>
-                        {item.icon && <Icon name={item.icon} />}
-                        <span>{item.label}</span>
-                      </NavLink>
-                    </li>
-                  ))}
+                {nav.filter((item) => (item.group ?? "") === g).map((item) => (
+                  <li key={item.to}>
+                    <NavLink to={item.to} end={item.to === "/"} className="nav__link" onClick={() => setOpen(false)}>
+                      {item.icon && <Icon name={item.icon} />}
+                      <span>{item.label}</span>
+                    </NavLink>
+                  </li>
+                ))}
               </ul>
             </div>
           ))}
-          {sidebarExtra}
         </nav>
-        <p className="sidebar__foot"><span>Read-only research view</span><span className="mono">v0.1.0</span></p>
+        <p className="sidebar__foot"><span>Component 3 · SLIIT J26-DS-334</span><span className="mono">v0.1.0</span></p>
       </aside>
       {open && <button type="button" className="backdrop" aria-label="Close menu" onClick={() => setOpen(false)} />}
       <div className="content">
