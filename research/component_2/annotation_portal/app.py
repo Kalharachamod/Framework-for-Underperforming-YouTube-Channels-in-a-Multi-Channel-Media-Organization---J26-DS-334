@@ -2,6 +2,16 @@
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+# Streamlit may execute this file by path with the entry-point directory as
+# sys.path[0]. Add the repository root explicitly so package imports work from
+# both the repository root and a Cloud-style file launch.
+REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
+if str(REPOSITORY_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPOSITORY_ROOT))
+
 import pandas as pd
 
 from research.component_2.src.annotation import DEMAND_SUBTYPES

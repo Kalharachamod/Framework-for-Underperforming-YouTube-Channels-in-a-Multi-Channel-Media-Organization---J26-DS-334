@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 import tempfile
 import unittest
 from types import SimpleNamespace
@@ -373,6 +374,33 @@ class AnnotationPortalTests(unittest.TestCase):
         self.assertIn("SUPABASE_DB_URL", selected)
         self.assertNotIn("SUPABASE_ADMIN_DB_URL", selected)
         self.assertNotIn("SUPABASE_IMPORT_DB_URL", selected)
+
+    def test_app_imports_when_launched_outside_repository_root(self):
+        root = Path(__file__).resolve().parents[2]
+        app_path = root / "research" / "component_2" / "annotation_portal" / "app.py"
+        script = """
+import importlib.util
+from pathlib import Path
+
+app_path = Path(r'''APP_PATH''')
+spec = importlib.util.spec_from_file_location("cloud_app", app_path)
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+print("import ok")
+""".replace("APP_PATH", str(app_path))
+        environment = os.environ.copy()
+        environment.pop("PYTHONPATH", None)
+        with tempfile.TemporaryDirectory() as tmp:
+            result = subprocess.run(
+                [sys.executable, "-c", script],
+                cwd=tmp,
+                env=environment,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("import ok", result.stdout)
 
     def test_admin_and_importer_config_can_use_separate_urls(self):
         admin_config = load_config(
