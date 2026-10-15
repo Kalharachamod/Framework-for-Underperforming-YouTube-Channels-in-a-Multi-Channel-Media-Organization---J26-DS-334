@@ -138,11 +138,32 @@ def _render_portal(st, store, config) -> None:
     _render_context(st, current, st.session_state.comment_index + 1, len(assigned))
     response = _render_response_form(st, current, participant.participant_id)
 
+    jump_target = _render_question_navigation(
+        st,
+        assigned,
+        st.session_state.comment_index,
+        participant.participant_id,
+    )
+    if jump_target is not None:
+        if _response_has_unsaved_edits(current, response):
+            _warn_unsaved_navigation(st)
+        elif jump_target != st.session_state.comment_index:
+            st.session_state.comment_index = jump_target
+            st.session_state.component2_navigation_reset = (participant.participant_id, jump_target)
+            st.rerun()
+
     col_prev, col_save, col_next = st.columns(3)
     with col_prev:
         if st.button("Previous", disabled=st.session_state.comment_index == 0):
-            st.session_state.comment_index -= 1
-            st.rerun()
+            if _response_has_unsaved_edits(current, response):
+                _warn_unsaved_navigation(st)
+            else:
+                st.session_state.comment_index -= 1
+                st.session_state.component2_navigation_reset = (
+                    participant.participant_id,
+                    st.session_state.comment_index,
+                )
+                st.rerun()
     with col_save:
         if st.button("Save and Next", type="primary"):
             try:
@@ -156,11 +177,22 @@ def _render_portal(st, store, config) -> None:
                 st.success("Saved")
                 if st.session_state.comment_index < len(assigned) - 1:
                     st.session_state.comment_index += 1
+                st.session_state.component2_navigation_reset = (
+                    participant.participant_id,
+                    st.session_state.comment_index,
+                )
                 st.rerun()
     with col_next:
         if st.button("Next", disabled=st.session_state.comment_index == len(assigned) - 1):
-            st.session_state.comment_index += 1
-            st.rerun()
+            if _response_has_unsaved_edits(current, response):
+                _warn_unsaved_navigation(st)
+            else:
+                st.session_state.comment_index += 1
+                st.session_state.component2_navigation_reset = (
+                    participant.participant_id,
+                    st.session_state.comment_index,
+                )
+                st.rerun()
 
     with st.expander("Review my progress"):
         review = pd.DataFrame(assigned)[["position", "comment_id", "demand_label", "spam_status", "is_submitted"]]
@@ -305,6 +337,7 @@ def _clear_loaded_state(st) -> None:
         "component2_assigned",
         "component2_progress_key",
         "component2_progress",
+        "component2_navigation_reset",
     ):
         if key in st.session_state:
             del st.session_state[key]
@@ -431,6 +464,65 @@ def _render_spam_quick_reference(st) -> None:
             "- Judge the comment and available video context, not assumptions about the author.  \n"
             "- Use `UNCLEAR` when evidence is insufficient rather than guessing."
         )
+
+
+def _render_question_navigation(
+    st,
+    assigned: list[dict],
+    current_index: int,
+    participant_id: str,
+) -> int | None:
+    options = [_question_option_label(index, row) for index, row in enumerate(assigned)]
+    selector_key = f"question_jump_{participant_id}"
+    reset = st.session_state.pop("component2_navigation_reset", None)
+    if reset and reset[0] == participant_id:
+        st.session_state[selector_key] = options[reset[1]]
+    with st.form("question_navigation"):
+        selected_option = st.selectbox(
+            "Jump to Question",
+            options,
+            index=current_index,
+            key=selector_key,
+        )
+        submitted = st.form_submit_button("Go to selected question")
+    selected_index = options.index(selected_option)
+    return selected_index if submitted else None
+
+
+def _question_option_label(index: int, row: dict) -> str:
+    return f"Question {index + 1} - {_response_status(row)}"
+
+
+def _response_status(row: dict) -> str:
+    if not row.get("demand_label") or not row.get("spam_status"):
+        return "Unanswered"
+    if row.get("is_submitted"):
+        return "Ready for review"
+    return "Saved draft"
+
+
+def _response_has_unsaved_edits(row: dict, response: AnnotationResponse) -> bool:
+    saved_snapshot = (
+        row.get("demand_label") or "UNCLEAR",
+        row.get("spam_status") or "UNCLEAR",
+        row.get("demand_subtype") or "",
+        row.get("annotation_notes") or "",
+        row.get("spam_notes") or "",
+        bool(row.get("is_submitted")),
+    )
+    response_snapshot = (
+        response.demand_label,
+        response.spam_status,
+        response.demand_subtype or "",
+        response.annotation_notes or "",
+        response.spam_notes or "",
+        bool(response.is_submitted),
+    )
+    return saved_snapshot != response_snapshot
+
+
+def _warn_unsaved_navigation(st) -> None:
+    st.warning("You have unsaved edits. Save this response before navigating, or undo the edits to continue.")
 
 
 def _first_incomplete_index(rows: list[dict]) -> int:

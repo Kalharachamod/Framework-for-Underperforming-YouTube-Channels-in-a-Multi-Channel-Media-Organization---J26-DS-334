@@ -28,6 +28,8 @@ The local participant flow is:
 
 Display names are not verified authentication. Each session receives a unique participant ID and responses are isolated by participant ID plus comment ID. Multiple people can annotate the same section independently.
 
+While annotating, use **Jump to Question** to move directly to any assigned question. Questions remain in assignment order and show `Unanswered`, `Saved draft`, or `Ready for review`. Jumping, Previous, and Next never saves automatically. If the current form differs from its last saved response, the portal keeps you on that question and asks you to save or undo the edits before navigating.
+
 ## Guidance Shown In The Portal
 
 Demand and spam are separate decisions:

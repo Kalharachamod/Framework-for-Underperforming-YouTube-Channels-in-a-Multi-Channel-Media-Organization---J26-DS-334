@@ -233,6 +233,36 @@ class AnnotationPortalTests(unittest.TestCase):
         ):
             self.assertIn(phrase, rendered)
 
+    def test_question_status_and_unsaved_edit_detection(self):
+        from research.component_2.annotation_portal.app import (
+            _question_option_label,
+            _response_has_unsaved_edits,
+            _response_status,
+        )
+
+        unanswered = {"comment_id": "comment_001"}
+        draft = {"comment_id": "comment_002", "demand_label": "NON_DEMAND", "spam_status": "NOT_SPAM"}
+        submitted = {**draft, "is_submitted": True}
+        self.assertEqual(_response_status(unanswered), "Unanswered")
+        self.assertEqual(_response_status(draft), "Saved draft")
+        self.assertEqual(_response_status(submitted), "Ready for review")
+        self.assertEqual(_question_option_label(24, submitted), "Question 25 - Ready for review")
+
+        saved = {
+            "demand_label": "NON_DEMAND",
+            "spam_status": "NOT_SPAM",
+            "annotation_notes": "kept",
+            "is_submitted": False,
+        }
+        unchanged = AnnotationResponse("NON_DEMAND", "NOT_SPAM", annotation_notes="kept")
+        edited = AnnotationResponse("DEMAND", "NOT_SPAM", "new_topic_content_request", annotation_notes="kept")
+        self.assertFalse(_response_has_unsaved_edits(saved, unchanged))
+        self.assertTrue(_response_has_unsaved_edits(saved, edited))
+
+        blank = {}
+        defaults = AnnotationResponse("UNCLEAR", "UNCLEAR")
+        self.assertFalse(_response_has_unsaved_edits(blank, defaults))
+
     def test_participant_identity_does_not_use_display_name(self):
         comments = synthetic_comments()
         assignments = generate_assignments(comments, seed=20261014)
@@ -668,6 +698,9 @@ print("import ok")
         self.assertEqual(store.progress_for_participant.call_count, 1)
         self.assertEqual(first[0]["demand_label"], "NON_DEMAND")
         self.assertEqual(first[0]["spam_status"], "NOT_SPAM")
+        from research.component_2.annotation_portal.app import _response_status
+
+        self.assertEqual(_response_status(first[0]), "Ready for review")
         self.assertEqual(progress, {"assigned": 1, "saved": 1, "submitted": 1})
 
     def test_resume_attempt_limiter_blocks_repeated_guesses(self):
