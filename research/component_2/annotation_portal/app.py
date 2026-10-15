@@ -93,7 +93,7 @@ def main() -> None:
             try:
                 store.save_participant_response(participant.participant_id, current["comment_id"], response)
             except (ValueError, PermissionError, DatabaseConnectionError) as exc:
-                st.error(str(exc))
+                st.error(f"Response was not saved: {exc}")
             else:
                 st.session_state.new_return_code = ""
                 st.success("Saved")

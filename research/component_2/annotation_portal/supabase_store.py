@@ -231,6 +231,11 @@ class SupabaseAnnotationStore:
             response.is_submitted,
         )
         with self._transaction("participant_response", participant_id=participant_id) as conn:
+            # The RLS policies deliberately separate participant reads from
+            # response writes. Validate identity and assignment while the
+            # read-only session operation is active, then switch to the
+            # response operation for the INSERT/UPDATE.
+            self._set_context(conn, "participant_session", participant_id=participant_id)
             participant = self._participant_row(conn, self.run_id, participant_id)
             if participant is None:
                 raise PermissionError("Participant session is not active")
@@ -243,6 +248,7 @@ class SupabaseAnnotationStore:
             ).fetchone()
             if assigned is None:
                 raise PermissionError("Participant is not assigned to this comment")
+            self._set_context(conn, "participant_response", participant_id=participant_id)
             conn.execute(
                 """
                 INSERT INTO annotation.responses (

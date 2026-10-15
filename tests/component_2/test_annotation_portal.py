@@ -3,6 +3,7 @@ from __future__ import annotations
 import subprocess
 import sys
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
 import unittest
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
@@ -56,6 +57,69 @@ def synthetic_comments(count: int = 300) -> pd.DataFrame:
             }
         )
     return pd.DataFrame(rows)
+
+
+class FakeSupabaseSaveConnection:
+    """Small RLS-aware fake for the participant response transaction."""
+
+    def __init__(self, participant_id: str):
+        self.participant_id = participant_id
+        self.operation = ""
+        self.context_history: list[tuple[str, str]] = []
+        self.response_participant_id = None
+        self.committed = False
+
+    def execute(self, query, params=()):
+        normalized = " ".join(str(query).split())
+        if normalized.startswith("SELECT set_config"):
+            setting, value = params
+            if setting == "annotation.operation":
+                self.operation = value
+            if setting in {"annotation.operation", "annotation.participant_id"}:
+                self.context_history.append((setting, value))
+            return self
+        if "FROM annotation.participants p JOIN annotation.sections s" in normalized:
+            # This models the production policy: sections are not visible to
+            # the response-write operation, so the old adapter returned no row.
+            if self.operation != "participant_session":
+                return FakeSupabaseResult(None)
+            return FakeSupabaseResult(
+                {
+                    "participant_id": self.participant_id,
+                    "display_name": "Test participant",
+                    "section_id": "section_a",
+                    "section_label": "Section A",
+                    "assignment_template": "annotator_1",
+                    "active": True,
+                }
+            )
+        if "FROM annotation.section_assignments" in normalized:
+            if self.operation != "participant_session":
+                return FakeSupabaseResult(None)
+            return FakeSupabaseResult({"?column?": 1})
+        if normalized.startswith("INSERT INTO annotation.responses"):
+            self.response_participant_id = params[1]
+        return self
+
+    def fetchone(self):
+        return None
+
+    def commit(self):
+        self.committed = True
+
+    def rollback(self):
+        pass
+
+    def close(self):
+        pass
+
+
+class FakeSupabaseResult:
+    def __init__(self, row):
+        self.row = row
+
+    def fetchone(self):
+        return self.row
 
 
 class AnnotationPortalTests(unittest.TestCase):
@@ -182,6 +246,58 @@ class AnnotationPortalTests(unittest.TestCase):
             self.assertEqual(store.response_count(), 1)
             self.assertEqual(store.progress_for_participant(participant.participant_id)["submitted"], 1)
             store.close()
+
+    def test_supabase_response_save_switches_from_read_context_to_write_context(self):
+        participant_id = "participant_response_test"
+        connection = FakeSupabaseSaveConnection(participant_id)
+        store = SupabaseAnnotationStore("postgresql://server-side-only", run_id="run")
+        with patch.object(store, "_connect", return_value=connection):
+            store.save_participant_response(
+                participant_id,
+                "comment_000",
+                AnnotationResponse("NON_DEMAND", "NOT_SPAM"),
+            )
+
+        self.assertTrue(connection.committed)
+        self.assertEqual(connection.response_participant_id, participant_id)
+        self.assertEqual(
+            connection.context_history,
+            [
+                ("annotation.operation", "participant_response"),
+                ("annotation.participant_id", participant_id),
+                ("annotation.operation", "participant_session"),
+                ("annotation.participant_id", participant_id),
+                ("annotation.operation", "participant_response"),
+                ("annotation.participant_id", participant_id),
+            ],
+        )
+
+    def test_concurrent_supabase_participant_contexts_remain_isolated(self):
+        def save_for(participant_id: str):
+            connection = FakeSupabaseSaveConnection(participant_id)
+            store = SupabaseAnnotationStore("postgresql://server-side-only", run_id="run")
+            with patch.object(store, "_connect", return_value=connection):
+                store.save_participant_response(
+                    participant_id,
+                    "comment_000",
+                    AnnotationResponse("UNCLEAR", "UNCLEAR"),
+                )
+            return connection
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            connections = list(executor.map(save_for, ("participant_a", "participant_b")))
+
+        self.assertEqual(
+            {connection.response_participant_id for connection in connections},
+            {"participant_a", "participant_b"},
+        )
+        for connection in connections:
+            participant_values = {
+                value
+                for setting, value in connection.context_history
+                if setting == "annotation.participant_id"
+            }
+            self.assertEqual(participant_values, {connection.participant_id})
 
     def test_different_names_can_annotate_same_section_independently(self):
         comments = synthetic_comments()
