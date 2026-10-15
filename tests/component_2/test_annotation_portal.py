@@ -190,6 +190,49 @@ class AnnotationPortalTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_response("NON_DEMAND", "NOT_SPAM", "language_preference")
 
+    def test_spam_guidance_contains_requested_labels_boundaries_and_examples(self):
+        from research.component_2.annotation_portal.app import _render_spam_quick_reference
+
+        class Expander:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc_value, traceback):
+                return False
+
+        class GuidanceStreamlit:
+            def __init__(self):
+                self.text = []
+
+            def caption(self, value):
+                self.text.append(value)
+
+            def markdown(self, value):
+                self.text.append(value)
+
+            def expander(self, _label):
+                return Expander()
+
+        st = GuidanceStreamlit()
+        _render_spam_quick_reference(st)
+        rendered = "\n".join(st.text)
+
+        for label in ("SPAM", "NOT_SPAM", "UNCLEAR"):
+            self.assertIn(label, rendered)
+        for phrase in (
+            "NON_DEMAND and NOT_SPAM",
+            "Earn Rs. 50,000 daily! Contact me for investment opportunities.",
+            "Please make another video about Sri Lankan cricket.",
+            "මේ ගැන තව video එකක් කරන්න.",
+            "Meka gena thawath video ekak danna.",
+            "Check my page",
+            "another creator",
+            "Sinhala",
+            "Singlish",
+            "rather than guessing",
+        ):
+            self.assertIn(phrase, rendered)
+
     def test_participant_identity_does_not_use_display_name(self):
         comments = synthetic_comments()
         assignments = generate_assignments(comments, seed=20261014)

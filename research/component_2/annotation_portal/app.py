@@ -380,9 +380,10 @@ def _render_response_form(st, row: dict, participant_id: str) -> AnnotationRespo
         "Spam classification",
         ["SPAM", "NOT_SPAM", "UNCLEAR"],
         index=["SPAM", "NOT_SPAM", "UNCLEAR"].index(existing_spam),
-        help="Spam is separate from demand. Do not mark genuine content requests as spam only because they are unusual or short.",
+        help="Judge the available comment and video context, not assumptions about the author.",
         key=f"spam_{key_prefix}",
     )
+    _render_spam_quick_reference(st)
     annotation_notes = st.text_area(
         "Annotation notes",
         value=row.get("annotation_notes") or "",
@@ -406,6 +407,30 @@ def _render_response_form(st, row: dict, participant_id: str) -> AnnotationRespo
         spam_notes=spam_notes,
         is_submitted=submit,
     )
+
+
+def _render_spam_quick_reference(st) -> None:
+    st.caption("Spam and demand are separate decisions. A comment can be NON_DEMAND and NOT_SPAM.")
+    st.markdown(
+        "**SPAM:** Clearly unsolicited advertising, scams, irrelevant promotion, suspicious money-making offers, or unrelated self-promotion.  \n"
+        "**NOT_SPAM:** Genuine requests, opinions, criticism, praise, questions, discussions, and ordinary reactions.  \n"
+        "**UNCLEAR:** There is not enough information to decide confidently."
+    )
+    with st.expander("How to identify spam"):
+        st.markdown(
+            "**Examples**  \n"
+            "- `SPAM`: `Earn Rs. 50,000 daily! Contact me for investment opportunities.`  \n"
+            "- `NOT_SPAM`: `Please make another video about Sri Lankan cricket.`  \n"
+            "- `NOT_SPAM`: `මේ ගැන තව video එකක් කරන්න.`  \n"
+            "- `NOT_SPAM`: `Meka gena thawath video ekak danna.`  \n"
+            "- `UNCLEAR`: `Check my page` when there is not enough context."
+        )
+        st.markdown(
+            "**Remember**  \n"
+            "- Negative comments, criticism, short comments, emojis, Sinhala, English, Singlish, and comments mentioning another creator are not automatically spam.  \n"
+            "- Judge the comment and available video context, not assumptions about the author.  \n"
+            "- Use `UNCLEAR` when evidence is insufficient rather than guessing."
+        )
 
 
 def _first_incomplete_index(rows: list[dict]) -> int:

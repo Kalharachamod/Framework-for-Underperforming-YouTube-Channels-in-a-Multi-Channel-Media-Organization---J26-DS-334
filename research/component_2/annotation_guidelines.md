@@ -203,7 +203,18 @@ These spam examples are illustrative decision patterns. They are not verified sa
 3. After independent annotation, resolve disagreements in `final_spam_status`.
 4. Preserve legitimate demand comments. A genuine content request should remain available for demand analysis unless the team later approves an automated filtering rule.
 5. Do not infer spam from language, script, emojis, repeated punctuation, or short length alone.
-6. Do not train or apply automated spam filtering until human labels have been reviewed and adjudicated.
+6. Demand and spam are separate decisions. A comment can be `NON_DEMAND` and `NOT_SPAM`.
+7. Negative comments, criticism, questions, praise, ordinary reactions, and comments mentioning another creator are not automatically spam. Judge the purpose and available video context.
+8. Use `UNCLEAR` when there is insufficient evidence rather than guessing. Judge the available comment and video context, not assumptions about the author.
+9. Do not train or apply automated spam filtering until human labels have been reviewed and adjudicated.
+
+The following examples are illustrative and are not verified samples from the project dataset:
+
+- `SPAM`: "Earn Rs. 50,000 daily! Contact me for investment opportunities."
+- `NOT_SPAM`: "Please make another video about Sri Lankan cricket."
+- `NOT_SPAM`: "මේ ගැන තව video එකක් කරන්න."
+- `NOT_SPAM`: "Meka gena thawath video ekak danna."
+- `UNCLEAR`: "Check my page" when there is insufficient context.
 
 ## Annotation Quality Plan
 
