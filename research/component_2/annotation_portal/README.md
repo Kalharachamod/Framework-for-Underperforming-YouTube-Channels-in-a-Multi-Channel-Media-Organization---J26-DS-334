@@ -240,6 +240,29 @@ The approved sequence is:
 
 Do not put a service-role key, database password, return code, or `.env` file in the repository. Do not place admin/import connection strings in Streamlit Cloud. Do not expose the existing `research` schema.
 
+## Navigation Performance Diagnostics
+
+The portal keeps the current participant's assigned comment snapshot and
+progress in that Streamlit session, keyed by the configured run ID and
+participant ID. Previous and Next therefore rerender the current page without
+reloading the 30- or 300-comment assignment. A successful Save and Next first
+waits for the database transaction to commit, then updates the session cache
+and advances. Starting a new participant, resuming with a return code, leaving
+the session, or failing participant validation clears the cached snapshot.
+
+For local development only, enable timing logs with:
+
+```bash
+COMPONENT2_DEV_TIMING=1 \
+.venv/bin/python -m streamlit run research/component_2/annotation_portal/app.py
+```
+
+The logs report operation names and durations for database connection
+acquisition, participant validation, assignment/comment/response loading,
+progress loading, response saving, and Streamlit rendering. Timing is disabled
+by default and never logs credentials, participant IDs, comment text, or query
+parameters.
+
 ## Current Limitations
 
 - Live migrations, snapshot import, Supabase security tests, and deployment have not been performed.

@@ -561,6 +561,72 @@ print("import ok")
         self.assertIsInstance(store, SupabaseAnnotationStore)
         ping.assert_called_once()
 
+    def test_streamlit_session_reuses_store_and_ping(self):
+        from research.component_2.annotation_portal.app import _load_store
+
+        config = PortalConfig(
+            mode="supabase",
+            annotation_csv_path=Path("missing.csv"),
+            local_db_path=Path("should-not-be-created.sqlite3"),
+            assignment_seed=20261014,
+            portal_secret="secret",
+            supabase_db_url="postgresql://server-side-only",
+        )
+        session_state = {}
+        with patch.object(SupabaseAnnotationStore, "ping") as ping:
+            first = _load_store(config, session_state)
+            second = _load_store(config, session_state)
+
+        self.assertIs(first, second)
+        ping.assert_called_once()
+
+    def test_streamlit_session_caches_assignments_and_updates_after_committed_save(self):
+        from research.component_2.annotation_portal.app import (
+            _assigned_comments,
+            _participant_progress,
+            _update_cached_response,
+        )
+
+        config = PortalConfig(
+            mode="supabase",
+            annotation_csv_path=Path("missing.csv"),
+            local_db_path=Path("missing.sqlite3"),
+            assignment_seed=20261014,
+            portal_secret="secret",
+            supabase_db_url="postgresql://server-side-only",
+        )
+        participant_id = "participant_cache_test"
+        rows = [
+            {
+                "comment_id": "comment_000",
+                "demand_label": None,
+                "spam_status": None,
+                "is_submitted": False,
+            }
+        ]
+        store = Mock()
+        store.assigned_comments_for_participant.return_value = rows
+        store.progress_for_participant.return_value = {"assigned": 1, "saved": 0, "submitted": 0}
+        st = SimpleNamespace(session_state={})
+
+        first = _assigned_comments(st, store, config, participant_id)
+        second = _assigned_comments(st, store, config, participant_id)
+        progress = _participant_progress(st, store, config, participant_id)
+        _update_cached_response(
+            st,
+            config,
+            participant_id,
+            "comment_000",
+            AnnotationResponse("NON_DEMAND", "NOT_SPAM", is_submitted=True),
+        )
+
+        self.assertIs(first, second)
+        self.assertEqual(store.assigned_comments_for_participant.call_count, 1)
+        self.assertEqual(store.progress_for_participant.call_count, 1)
+        self.assertEqual(first[0]["demand_label"], "NON_DEMAND")
+        self.assertEqual(first[0]["spam_status"], "NOT_SPAM")
+        self.assertEqual(progress, {"assigned": 1, "saved": 1, "submitted": 1})
+
     def test_resume_attempt_limiter_blocks_repeated_guesses(self):
         limiter = ResumeAttemptLimiter(limit=2, window_seconds=60)
         self.assertTrue(limiter.allow())

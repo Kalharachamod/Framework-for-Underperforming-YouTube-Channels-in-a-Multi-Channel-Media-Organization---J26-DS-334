@@ -24,6 +24,7 @@ from .assignments import (
 from .auth import ParticipantSession, generate_return_code, hash_private_code
 from .db import DatabaseConnectionError
 from .local_store import COMMENT_COLUMNS
+from .timing import measure
 from .validation import AnnotationResponse, validate_response
 
 
@@ -81,7 +82,8 @@ class SupabaseAnnotationStore:
             }
             if not parse_qs(urlsplit(self.db_url).query).get("sslmode"):
                 kwargs["sslmode"] = "require"
-            return psycopg.connect(self.db_url, **kwargs)
+            with measure("db_connection_acquisition"):
+                return psycopg.connect(self.db_url, **kwargs)
         except ImportError as exc:  # pragma: no cover - dependency installation issue
             raise DatabaseConnectionError("psycopg is required for Supabase mode") from exc
         except Exception as exc:
@@ -178,17 +180,18 @@ class SupabaseAnnotationStore:
 
     def participant_by_id(self, participant_id: str) -> ParticipantSession | None:
         with self._transaction("participant_session", participant_id=participant_id) as conn:
-            row = conn.execute(
-                """
-                SELECT p.participant_id, p.display_name, p.section_id,
-                       s.section_label, s.assignment_template, p.active
-                FROM annotation.participants p
-                JOIN annotation.sections s
-                  ON s.run_id = p.run_id AND s.section_id = p.section_id
-                WHERE p.run_id = %s AND p.participant_id = %s AND p.active = true
-                """,
-                (self.run_id, participant_id),
-            ).fetchone()
+            with measure("participant_validation"):
+                row = conn.execute(
+                    """
+                    SELECT p.participant_id, p.display_name, p.section_id,
+                           s.section_label, s.assignment_template, p.active
+                    FROM annotation.participants p
+                    JOIN annotation.sections s
+                      ON s.run_id = p.run_id AND s.section_id = p.section_id
+                    WHERE p.run_id = %s AND p.participant_id = %s AND p.active = true
+                    """,
+                    (self.run_id, participant_id),
+                ).fetchone()
         return self._participant_from_row(row) if row else None
 
     def assigned_comments_for_participant(self, participant_id: str) -> list[dict]:
@@ -196,29 +199,30 @@ class SupabaseAnnotationStore:
             participant = self._participant_row(conn, self.run_id, participant_id)
             if participant is None:
                 raise PermissionError("Participant session is not active")
-            rows = conn.execute(
-                """
-                SELECT sa.position, c.comment_id, c.channel_id, c.channel_name,
-                       c.video_id, c.video_title, c.video_description, c.video_url,
-                       c.parent_comment_text, c.published_at, c.is_reply,
-                       c.original_text, c.cleaned_text, c.script_category,
-                       c.preprocessing_flags, c.sampling_stratum,
-                       r.demand_label, r.spam_status, r.demand_subtype,
-                       r.annotation_notes, r.spam_notes,
-                       COALESCE(r.is_submitted, false) AS is_submitted
-                FROM annotation.section_assignments sa
-                JOIN annotation.comments c
-                  ON c.run_id = sa.run_id AND c.comment_id = sa.comment_id
-                LEFT JOIN annotation.responses r
-                  ON r.run_id = sa.run_id
-                 AND r.section_id = sa.section_id
-                 AND r.comment_id = sa.comment_id
-                 AND r.participant_id = %s
-                WHERE sa.run_id = %s AND sa.section_id = %s
-                ORDER BY sa.position
-                """,
-                (participant_id, self.run_id, participant["section_id"]),
-            ).fetchall()
+            with measure("load_assignments_comments_existing_responses"):
+                rows = conn.execute(
+                    """
+                    SELECT sa.position, c.comment_id, c.channel_id, c.channel_name,
+                           c.video_id, c.video_title, c.video_description, c.video_url,
+                           c.parent_comment_text, c.published_at, c.is_reply,
+                           c.original_text, c.cleaned_text, c.script_category,
+                           c.preprocessing_flags, c.sampling_stratum,
+                           r.demand_label, r.spam_status, r.demand_subtype,
+                           r.annotation_notes, r.spam_notes,
+                           COALESCE(r.is_submitted, false) AS is_submitted
+                    FROM annotation.section_assignments sa
+                    JOIN annotation.comments c
+                      ON c.run_id = sa.run_id AND c.comment_id = sa.comment_id
+                    LEFT JOIN annotation.responses r
+                      ON r.run_id = sa.run_id
+                     AND r.section_id = sa.section_id
+                     AND r.comment_id = sa.comment_id
+                     AND r.participant_id = %s
+                    WHERE sa.run_id = %s AND sa.section_id = %s
+                    ORDER BY sa.position
+                    """,
+                    (participant_id, self.run_id, participant["section_id"]),
+                ).fetchall()
         return [dict(row) for row in rows]
 
     def save_participant_response(self, participant_id: str, comment_id: str, response: AnnotationResponse) -> None:
@@ -471,17 +475,18 @@ class SupabaseAnnotationStore:
 
     @staticmethod
     def _participant_row(conn, run_id: str, participant_id: str) -> dict | None:
-        return conn.execute(
-            """
-            SELECT p.participant_id, p.display_name, p.section_id,
-                   s.section_label, s.assignment_template, p.active
-            FROM annotation.participants p
-            JOIN annotation.sections s
-              ON s.run_id = p.run_id AND s.section_id = p.section_id
-            WHERE p.run_id = %s AND p.participant_id = %s AND p.active = true
-            """,
-            (run_id, participant_id),
-        ).fetchone()
+        with measure("participant_validation"):
+            return conn.execute(
+                """
+                SELECT p.participant_id, p.display_name, p.section_id,
+                       s.section_label, s.assignment_template, p.active
+                FROM annotation.participants p
+                JOIN annotation.sections s
+                  ON s.run_id = p.run_id AND s.section_id = p.section_id
+                WHERE p.run_id = %s AND p.participant_id = %s AND p.active = true
+                """,
+                (run_id, participant_id),
+            ).fetchone()
 
     @staticmethod
     def _require_admin(conn, admin_id: str) -> None:

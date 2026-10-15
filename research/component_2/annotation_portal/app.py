@@ -26,6 +26,7 @@ from research.component_2.annotation_portal.config import load_config
 from research.component_2.annotation_portal.db import DatabaseConnectionError
 from research.component_2.annotation_portal.local_store import LocalAnnotationStore
 from research.component_2.annotation_portal.supabase_store import SupabaseAnnotationStore
+from research.component_2.annotation_portal.timing import measure
 from research.component_2.annotation_portal.validation import AnnotationResponse
 
 
@@ -47,11 +48,65 @@ def main() -> None:
     st.title("Component 2 Annotation Portal")
 
     try:
-        store = _load_store(config)
+        store = _load_store(config, st.session_state)
     except DatabaseConnectionError:
         st.error("The annotation database is temporarily unavailable. Please try again later.")
         st.stop()
 
+    with measure("streamlit_render"):
+        _render_portal(st, store, config)
+
+
+def _read_streamlit_secrets(st) -> dict[str, object]:
+    keys = {
+        "COMPONENT2_ANNOTATION_MODE",
+        "COMPONENT2_ANNOTATION_RUN_ID",
+        "COMPONENT2_ASSIGNMENT_SEED",
+        "COMPONENT2_PORTAL_SECRET",
+        "COMPONENT2_DB_CONNECT_TIMEOUT",
+        "SUPABASE_DB_URL",
+    }
+    try:
+        return {key: st.secrets[key] for key in keys if key in st.secrets}
+    except Exception:
+        return {}
+
+
+def _load_store(config, session_state=None):
+    store_key = (
+        config.mode,
+        str(config.annotation_csv_path),
+        str(config.local_db_path),
+        config.assignment_seed,
+        config.annotation_run_id,
+    )
+    if session_state is not None and session_state.get("component2_store_key") == store_key:
+        return session_state["component2_store"]
+
+    if config.mode == "supabase":
+        store = SupabaseAnnotationStore(
+            config.supabase_db_url,
+            run_id=config.annotation_run_id,
+            connect_timeout=config.db_connect_timeout,
+        )
+        store.ping()
+        if session_state is not None:
+            session_state["component2_store_key"] = store_key
+            session_state["component2_store"] = store
+        return store
+    comments = load_annotation_comments(config.annotation_csv_path)
+    assignments = generate_assignments(comments, seed=config.assignment_seed)
+    annotators = create_development_annotators(config.portal_secret)
+    store = LocalAnnotationStore(config.local_db_path)
+    store.initialize(comments, assignments, annotators)
+
+    if session_state is not None:
+        session_state["component2_store_key"] = store_key
+        session_state["component2_store"] = store
+    return store
+
+
+def _render_portal(st, store, config) -> None:
     participant = _current_participant(st, store)
     if participant is None:
         _render_session_start(st, store, config)
@@ -66,12 +121,12 @@ def main() -> None:
         _clear_participant_state(st)
         st.rerun()
 
-    assigned = store.assigned_comments_for_participant(participant.participant_id)
+    assigned = _assigned_comments(st, store, config, participant.participant_id)
     if not assigned:
         st.warning("No comments are assigned to this section.")
         st.stop()
 
-    progress = store.progress_for_participant(participant.participant_id)
+    progress = _participant_progress(st, store, config, participant.participant_id)
     st.progress(progress["saved"] / progress["assigned"] if progress["assigned"] else 0)
     st.write(f"Saved {progress['saved']} of {progress['assigned']} assigned comments.")
 
@@ -91,10 +146,12 @@ def main() -> None:
     with col_save:
         if st.button("Save and Next", type="primary"):
             try:
-                store.save_participant_response(participant.participant_id, current["comment_id"], response)
+                with measure("save_response"):
+                    store.save_participant_response(participant.participant_id, current["comment_id"], response)
             except (ValueError, PermissionError, DatabaseConnectionError) as exc:
                 st.error(f"Response was not saved: {exc}")
             else:
+                _update_cached_response(st, config, participant.participant_id, current["comment_id"], response)
                 st.session_state.new_return_code = ""
                 st.success("Saved")
                 if st.session_state.comment_index < len(assigned) - 1:
@@ -109,40 +166,63 @@ def main() -> None:
         review = pd.DataFrame(assigned)[["position", "comment_id", "demand_label", "spam_status", "is_submitted"]]
         st.dataframe(review, use_container_width=True, hide_index=True)
 
-    if store.progress_for_participant(participant.participant_id)["saved"] == len(assigned):
+    if progress["saved"] == len(assigned):
         st.success("All assigned comments have saved responses. You can still review and edit them.")
 
 
-def _read_streamlit_secrets(st) -> dict[str, object]:
-    keys = {
-        "COMPONENT2_ANNOTATION_MODE",
-        "COMPONENT2_ANNOTATION_RUN_ID",
-        "COMPONENT2_ASSIGNMENT_SEED",
-        "COMPONENT2_PORTAL_SECRET",
-        "COMPONENT2_DB_CONNECT_TIMEOUT",
-        "SUPABASE_DB_URL",
-    }
-    try:
-        return {key: st.secrets[key] for key in keys if key in st.secrets}
-    except Exception:
-        return {}
+def _assigned_comments(st, store, config, participant_id: str) -> list[dict]:
+    cache_key = (config.annotation_run_id, participant_id)
+    if st.session_state.get("component2_assigned_key") != cache_key:
+        with measure("assignment_snapshot_cache_miss"):
+            assigned = store.assigned_comments_for_participant(participant_id)
+        _cache_assigned_comments(st, config, participant_id, assigned)
+    return st.session_state["component2_assigned"]
 
 
-def _load_store(config):
-    if config.mode == "supabase":
-        store = SupabaseAnnotationStore(
-            config.supabase_db_url,
-            run_id=config.annotation_run_id,
-            connect_timeout=config.db_connect_timeout,
-        )
-        store.ping()
-        return store
-    comments = load_annotation_comments(config.annotation_csv_path)
-    assignments = generate_assignments(comments, seed=config.assignment_seed)
-    annotators = create_development_annotators(config.portal_secret)
-    store = LocalAnnotationStore(config.local_db_path)
-    store.initialize(comments, assignments, annotators)
-    return store
+def _cache_assigned_comments(st, config, participant_id: str, assigned: list[dict]) -> None:
+    st.session_state["component2_assigned_key"] = (config.annotation_run_id, participant_id)
+    st.session_state["component2_assigned"] = assigned
+
+
+def _participant_progress(st, store, config, participant_id: str) -> dict[str, int]:
+    cache_key = (config.annotation_run_id, participant_id)
+    if st.session_state.get("component2_progress_key") != cache_key:
+        with measure("load_participant_progress"):
+            progress = store.progress_for_participant(participant_id)
+        st.session_state["component2_progress_key"] = cache_key
+        st.session_state["component2_progress"] = progress
+    return st.session_state["component2_progress"]
+
+
+def _update_cached_response(st, config, participant_id: str, comment_id: str, response: AnnotationResponse) -> None:
+    cache_key = (config.annotation_run_id, participant_id)
+    assigned_key = st.session_state.get("component2_assigned_key")
+    rows = st.session_state.get("component2_assigned")
+    if assigned_key != cache_key or not rows:
+        return
+
+    row = next((item for item in rows if item.get("comment_id") == comment_id), None)
+    if row is None:
+        return
+    was_saved = bool(row.get("demand_label") and row.get("spam_status"))
+    was_submitted = bool(row.get("is_submitted"))
+    row.update(
+        {
+            "demand_label": response.demand_label,
+            "spam_status": response.spam_status,
+            "demand_subtype": response.demand_subtype,
+            "annotation_notes": response.annotation_notes,
+            "spam_notes": response.spam_notes,
+            "is_submitted": response.is_submitted,
+        }
+    )
+
+    progress_key = st.session_state.get("component2_progress_key")
+    progress = st.session_state.get("component2_progress")
+    if progress_key == cache_key and progress is not None:
+        if not was_saved:
+            progress["saved"] += 1
+        progress["submitted"] += int(response.is_submitted) - int(was_submitted)
 
 
 def _render_session_start(st, store, config) -> None:
@@ -171,6 +251,7 @@ def _render_session_start(st, store, config) -> None:
             except (ValueError, DatabaseConnectionError) as exc:
                 st.error(str(exc))
             else:
+                _clear_loaded_state(st)
                 st.session_state.participant_id = participant.participant_id
                 st.session_state.new_return_code = participant.return_code
                 st.session_state.comment_index = 0
@@ -190,11 +271,13 @@ def _render_session_start(st, store, config) -> None:
             if participant is None:
                 st.error("No active participant session matches that return code.")
             else:
+                _clear_loaded_state(st)
                 st.session_state.participant_id = participant.participant_id
                 st.session_state.new_return_code = ""
-                st.session_state.comment_index = _first_incomplete_index(
-                    store.assigned_comments_for_participant(participant.participant_id)
-                )
+                with measure("assignment_snapshot_cache_miss"):
+                    assigned = store.assigned_comments_for_participant(participant.participant_id)
+                _cache_assigned_comments(st, config, participant.participant_id, assigned)
+                st.session_state.comment_index = _first_incomplete_index(assigned)
                 st.rerun()
 
 
@@ -210,7 +293,19 @@ def _current_participant(st, store: LocalAnnotationStore):
 
 
 def _clear_participant_state(st) -> None:
+    _clear_loaded_state(st)
     for key in ("participant_id", "new_return_code", "comment_index"):
+        if key in st.session_state:
+            del st.session_state[key]
+
+
+def _clear_loaded_state(st) -> None:
+    for key in (
+        "component2_assigned_key",
+        "component2_assigned",
+        "component2_progress_key",
+        "component2_progress",
+    ):
         if key in st.session_state:
             del st.session_state[key]
 
