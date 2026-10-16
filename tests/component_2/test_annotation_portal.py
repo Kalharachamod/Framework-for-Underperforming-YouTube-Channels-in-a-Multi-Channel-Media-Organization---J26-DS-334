@@ -1,0 +1,818 @@
+from __future__ import annotations
+
+import subprocess
+import sys
+import tempfile
+from concurrent.futures import ThreadPoolExecutor
+import unittest
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
+from pathlib import Path
+import os
+
+import pandas as pd
+
+from research.component_2.annotation_portal.assignments import (
+    PRIMARY_ANNOTATOR_ID,
+    PRIMARY_SECTION_ID,
+    SECTION_TEMPLATE_BY_ID,
+    VOLUNTEER_ANNOTATOR_IDS,
+    assignment_distribution,
+    create_development_annotators,
+    generate_assignments,
+    section_option,
+)
+from research.component_2.annotation_portal.auth import development_tokens, hash_invitation_token, hash_private_code
+from research.component_2.annotation_portal.auth import ResumeAttemptLimiter
+from research.component_2.annotation_portal.config import PortalConfig, load_config
+from research.component_2.annotation_portal.db import DatabaseConnectionError
+from research.component_2.annotation_portal.exports import export_for_researcher
+from research.component_2.annotation_portal.local_store import LocalAnnotationStore
+from research.component_2.annotation_portal.snapshot_import import load_and_validate_snapshot
+from research.component_2.annotation_portal.supabase_store import SupabaseAnnotationStore
+from research.component_2.annotation_portal.validation import AnnotationResponse, validate_response
+
+
+def synthetic_comments(count: int = 300) -> pd.DataFrame:
+    rows = []
+    scripts = ["latin_script", "sinhala_script", "mixed_sinhala_latin", "emoji_only", "other_or_symbolic"]
+    for index in range(count):
+        channel_idx = index % 5
+        script = scripts[index % len(scripts)]
+        rows.append(
+            {
+                "comment_id": f"comment_{index:03d}",
+                "channel_id": f"UC_{channel_idx}",
+                "channel_name": f"Channel {channel_idx}",
+                "video_id": f"video_{index % 25:03d}",
+                "video_title": f"Video title {index % 25}",
+                "video_description": "" if index % 17 == 0 else f"Description {index % 25}",
+                "video_url": f"https://www.youtube.com/watch?v=video_{index % 25:03d}",
+                "parent_comment_text": "Parent සිංහල context" if index % 41 == 0 else "",
+                "original_text": "සිංහල hello" if index % 7 == 0 else f"Comment text {index}",
+                "cleaned_text": "සිංහල hello" if index % 7 == 0 else f"comment text {index}",
+                "script_category": script,
+                "preprocessing_flags": "",
+                "sampling_stratum": script,
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+class FakeSupabaseSaveConnection:
+    """Small RLS-aware fake for the participant response transaction."""
+
+    def __init__(self, participant_id: str):
+        self.participant_id = participant_id
+        self.operation = ""
+        self.context_history: list[tuple[str, str]] = []
+        self.response_participant_id = None
+        self.committed = False
+
+    def execute(self, query, params=()):
+        normalized = " ".join(str(query).split())
+        if normalized.startswith("SELECT set_config"):
+            setting, value = params
+            if setting == "annotation.operation":
+                self.operation = value
+            if setting in {"annotation.operation", "annotation.participant_id"}:
+                self.context_history.append((setting, value))
+            return self
+        if "FROM annotation.participants p JOIN annotation.sections s" in normalized:
+            # This models the production policy: sections are not visible to
+            # the response-write operation, so the old adapter returned no row.
+            if self.operation != "participant_session":
+                return FakeSupabaseResult(None)
+            return FakeSupabaseResult(
+                {
+                    "participant_id": self.participant_id,
+                    "display_name": "Test participant",
+                    "section_id": "section_a",
+                    "section_label": "Section A",
+                    "assignment_template": "annotator_1",
+                    "active": True,
+                }
+            )
+        if "FROM annotation.section_assignments" in normalized:
+            if self.operation != "participant_session":
+                return FakeSupabaseResult(None)
+            return FakeSupabaseResult({"?column?": 1})
+        if normalized.startswith("INSERT INTO annotation.responses"):
+            self.response_participant_id = params[1]
+        return self
+
+    def fetchone(self):
+        return None
+
+    def commit(self):
+        self.committed = True
+
+    def rollback(self):
+        pass
+
+    def close(self):
+        pass
+
+
+class FakeSupabaseResult:
+    def __init__(self, row):
+        self.row = row
+
+    def fetchone(self):
+        return self.row
+
+
+class AnnotationPortalTests(unittest.TestCase):
+    def test_source_comment_count_and_unique_ids(self):
+        comments = synthetic_comments()
+        self.assertEqual(len(comments), 300)
+        self.assertEqual(comments["comment_id"].nunique(), 300)
+
+    def test_assignment_counts_and_no_volunteer_overlap(self):
+        comments = synthetic_comments()
+        assignments = generate_assignments(comments, seed=20261014)
+        primary = assignments[assignments["annotator_id"] == PRIMARY_ANNOTATOR_ID]
+        self.assertEqual(len(primary), 300)
+
+        volunteer_sets = []
+        for annotator_id in VOLUNTEER_ANNOTATOR_IDS:
+            assigned = assignments[assignments["annotator_id"] == annotator_id]
+            self.assertEqual(len(assigned), 30)
+            volunteer_sets.append(set(assigned["comment_id"]))
+
+        combined = set()
+        for assigned_set in volunteer_sets:
+            self.assertFalse(combined.intersection(assigned_set))
+            combined.update(assigned_set)
+        self.assertEqual(len(combined), 150)
+        self.assertTrue(combined.issubset(set(primary["comment_id"])))
+
+    def test_assignments_are_deterministic(self):
+        comments = synthetic_comments()
+        first = generate_assignments(comments, seed=20261014)
+        second = generate_assignments(comments, seed=20261014)
+        self.assertEqual(first.to_dict("records"), second.to_dict("records"))
+
+    def test_volunteer_channel_distribution_is_balanced(self):
+        comments = synthetic_comments()
+        assignments = generate_assignments(comments, seed=20261014)
+        volunteers = assignments[assignments["annotator_id"].isin(VOLUNTEER_ANNOTATOR_IDS)]
+        counts = volunteers.merge(comments[["comment_id", "channel_id"]], on="comment_id")
+        per_channel = counts.groupby(["annotator_id", "channel_id"]).size()
+        self.assertEqual(set(per_channel.tolist()), {6})
+
+    def test_script_distribution_report_includes_all_annotators(self):
+        comments = synthetic_comments()
+        assignments = generate_assignments(comments, seed=20261014)
+        distribution = assignment_distribution(comments, assignments)
+        self.assertTrue(set(VOLUNTEER_ANNOTATOR_IDS).issubset(set(distribution["annotator_id"])))
+        self.assertIn(PRIMARY_ANNOTATOR_ID, set(distribution["annotator_id"]))
+
+    def test_validate_response_accepts_valid_labels(self):
+        response = validate_response(
+            "DEMAND",
+            "NOT_SPAM",
+            "language_preference",
+            "Needs subtitles",
+            "",
+            True,
+        )
+        self.assertEqual(response.demand_label, "DEMAND")
+        self.assertTrue(response.is_submitted)
+
+    def test_validate_response_rejects_invalid_labels(self):
+        with self.assertRaises(ValueError):
+            validate_response("MAYBE", "NOT_SPAM")
+        with self.assertRaises(ValueError):
+            validate_response("DEMAND", "BOT", "language_preference")
+        with self.assertRaises(ValueError):
+            validate_response("DEMAND", "NOT_SPAM")
+        with self.assertRaises(ValueError):
+            validate_response("NON_DEMAND", "NOT_SPAM", "language_preference")
+
+    def test_spam_guidance_contains_requested_labels_boundaries_and_examples(self):
+        from research.component_2.annotation_portal.app import _render_spam_quick_reference
+
+        class Expander:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc_value, traceback):
+                return False
+
+        class GuidanceStreamlit:
+            def __init__(self):
+                self.text = []
+
+            def caption(self, value):
+                self.text.append(value)
+
+            def markdown(self, value):
+                self.text.append(value)
+
+            def expander(self, _label):
+                return Expander()
+
+        st = GuidanceStreamlit()
+        _render_spam_quick_reference(st)
+        rendered = "\n".join(st.text)
+
+        for label in ("SPAM", "NOT_SPAM", "UNCLEAR"):
+            self.assertIn(label, rendered)
+        for phrase in (
+            "NON_DEMAND and NOT_SPAM",
+            "Earn Rs. 50,000 daily! Contact me for investment opportunities.",
+            "Please make another video about Sri Lankan cricket.",
+            "මේ ගැන තව video එකක් කරන්න.",
+            "Meka gena thawath video ekak danna.",
+            "Check my page",
+            "another creator",
+            "Sinhala",
+            "Singlish",
+            "rather than guessing",
+        ):
+            self.assertIn(phrase, rendered)
+
+    def test_question_status_and_unsaved_edit_detection(self):
+        from research.component_2.annotation_portal.app import (
+            _question_option_label,
+            _response_has_unsaved_edits,
+            _response_status,
+        )
+
+        unanswered = {"comment_id": "comment_001"}
+        draft = {"comment_id": "comment_002", "demand_label": "NON_DEMAND", "spam_status": "NOT_SPAM"}
+        submitted = {**draft, "is_submitted": True}
+        self.assertEqual(_response_status(unanswered), "Unanswered")
+        self.assertEqual(_response_status(draft), "Saved draft")
+        self.assertEqual(_response_status(submitted), "Ready for review")
+        self.assertEqual(_question_option_label(24, submitted), "Question 25 - Ready for review")
+
+        saved = {
+            "demand_label": "NON_DEMAND",
+            "spam_status": "NOT_SPAM",
+            "annotation_notes": "kept",
+            "is_submitted": False,
+        }
+        unchanged = AnnotationResponse("NON_DEMAND", "NOT_SPAM", annotation_notes="kept")
+        edited = AnnotationResponse("DEMAND", "NOT_SPAM", "new_topic_content_request", annotation_notes="kept")
+        self.assertFalse(_response_has_unsaved_edits(saved, unchanged))
+        self.assertTrue(_response_has_unsaved_edits(saved, edited))
+
+        blank = {}
+        defaults = AnnotationResponse("UNCLEAR", "UNCLEAR")
+        self.assertFalse(_response_has_unsaved_edits(blank, defaults))
+
+    def test_participant_identity_does_not_use_display_name(self):
+        comments = synthetic_comments()
+        assignments = generate_assignments(comments, seed=20261014)
+        secret = "test-secret"
+        with tempfile.TemporaryDirectory() as tmp:
+            store = LocalAnnotationStore(Path(tmp) / "portal.sqlite3")
+            store.initialize(comments, assignments, create_development_annotators(secret))
+            participant = store.create_participant("Same Name", "section_a", secret, return_code="resume-one")
+            self.assertNotEqual(participant.participant_id, participant.display_name)
+            self.assertEqual(hash_private_code("resume-one", secret), hash_private_code(participant.return_code, secret))
+            store.close()
+
+    def test_participant_assignment_boundaries_and_progress(self):
+        comments = synthetic_comments()
+        assignments = generate_assignments(comments, seed=20261014)
+        secret = "test-secret"
+        with tempfile.TemporaryDirectory() as tmp:
+            store = LocalAnnotationStore(Path(tmp) / "portal.sqlite3")
+            store.initialize(comments, assignments, create_development_annotators(secret))
+            participant = store.create_participant("Volunteer A", "section_a", secret)
+            assigned = store.assigned_comments_for_participant(participant.participant_id)
+            self.assertEqual(len(assigned), 30)
+            store.save_participant_response(
+                participant.participant_id,
+                assigned[0]["comment_id"],
+                AnnotationResponse("NON_DEMAND", "NOT_SPAM", annotation_notes="ok"),
+            )
+            self.assertEqual(store.progress_for_participant(participant.participant_id)["saved"], 1)
+            unassigned = next(comment_id for comment_id in comments["comment_id"] if comment_id not in {row["comment_id"] for row in assigned})
+            with self.assertRaises(PermissionError):
+                store.save_participant_response(
+                    participant.participant_id,
+                    unassigned,
+                    AnnotationResponse("NON_DEMAND", "NOT_SPAM"),
+                )
+            store.close()
+
+    def test_response_update_does_not_create_duplicate_records(self):
+        comments = synthetic_comments()
+        assignments = generate_assignments(comments, seed=20261014)
+        secret = "test-secret"
+        with tempfile.TemporaryDirectory() as tmp:
+            store = LocalAnnotationStore(Path(tmp) / "portal.sqlite3")
+            store.initialize(comments, assignments, create_development_annotators(secret))
+            participant = store.create_participant("Volunteer B", "section_b", secret)
+            assigned = store.assigned_comments_for_participant(participant.participant_id)
+            comment_id = assigned[0]["comment_id"]
+            store.save_participant_response(participant.participant_id, comment_id, AnnotationResponse("UNCLEAR", "UNCLEAR"))
+            store.save_participant_response(
+                participant.participant_id,
+                comment_id,
+                AnnotationResponse("DEMAND", "NOT_SPAM", "language_preference", is_submitted=True),
+            )
+            self.assertEqual(store.response_count(), 1)
+            self.assertEqual(store.progress_for_participant(participant.participant_id)["submitted"], 1)
+            store.close()
+
+    def test_supabase_response_save_switches_from_read_context_to_write_context(self):
+        participant_id = "participant_response_test"
+        connection = FakeSupabaseSaveConnection(participant_id)
+        store = SupabaseAnnotationStore("postgresql://server-side-only", run_id="run")
+        with patch.object(store, "_connect", return_value=connection):
+            store.save_participant_response(
+                participant_id,
+                "comment_000",
+                AnnotationResponse("NON_DEMAND", "NOT_SPAM"),
+            )
+
+        self.assertTrue(connection.committed)
+        self.assertEqual(connection.response_participant_id, participant_id)
+        self.assertEqual(
+            connection.context_history,
+            [
+                ("annotation.operation", "participant_response"),
+                ("annotation.participant_id", participant_id),
+                ("annotation.operation", "participant_session"),
+                ("annotation.participant_id", participant_id),
+                ("annotation.operation", "participant_response"),
+                ("annotation.participant_id", participant_id),
+            ],
+        )
+
+    def test_concurrent_supabase_participant_contexts_remain_isolated(self):
+        def save_for(participant_id: str):
+            connection = FakeSupabaseSaveConnection(participant_id)
+            store = SupabaseAnnotationStore("postgresql://server-side-only", run_id="run")
+            with patch.object(store, "_connect", return_value=connection):
+                store.save_participant_response(
+                    participant_id,
+                    "comment_000",
+                    AnnotationResponse("UNCLEAR", "UNCLEAR"),
+                )
+            return connection
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            connections = list(executor.map(save_for, ("participant_a", "participant_b")))
+
+        self.assertEqual(
+            {connection.response_participant_id for connection in connections},
+            {"participant_a", "participant_b"},
+        )
+        for connection in connections:
+            participant_values = {
+                value
+                for setting, value in connection.context_history
+                if setting == "annotation.participant_id"
+            }
+            self.assertEqual(participant_values, {connection.participant_id})
+
+    def test_different_names_can_annotate_same_section_independently(self):
+        comments = synthetic_comments()
+        assignments = generate_assignments(comments, seed=20261014)
+        secret = "test-secret"
+        with tempfile.TemporaryDirectory() as tmp:
+            store = LocalAnnotationStore(Path(tmp) / "portal.sqlite3")
+            store.initialize(comments, assignments, create_development_annotators(secret))
+            first = store.create_participant("Nilu", "section_a", secret)
+            second = store.create_participant("Kavi", "section_a", secret)
+            first_rows = store.assigned_comments_for_participant(first.participant_id)
+            second_rows = store.assigned_comments_for_participant(second.participant_id)
+            self.assertEqual([row["comment_id"] for row in first_rows], [row["comment_id"] for row in second_rows])
+
+            comment_id = first_rows[0]["comment_id"]
+            store.save_participant_response(first.participant_id, comment_id, AnnotationResponse("NON_DEMAND", "NOT_SPAM"))
+            store.save_participant_response(second.participant_id, comment_id, AnnotationResponse("UNCLEAR", "UNCLEAR"))
+
+            self.assertEqual(store.response_count(), 2)
+            self.assertEqual(store.progress_for_participant(first.participant_id)["saved"], 1)
+            self.assertEqual(store.progress_for_participant(second.participant_id)["saved"], 1)
+            store.close()
+
+    def test_same_name_collisions_create_distinct_participants(self):
+        comments = synthetic_comments()
+        assignments = generate_assignments(comments, seed=20261014)
+        secret = "test-secret"
+        with tempfile.TemporaryDirectory() as tmp:
+            store = LocalAnnotationStore(Path(tmp) / "portal.sqlite3")
+            store.initialize(comments, assignments, create_development_annotators(secret))
+            first = store.create_participant("Same Name", "section_b", secret)
+            second = store.create_participant("Same Name", "section_b", secret)
+            self.assertNotEqual(first.participant_id, second.participant_id)
+            self.assertNotEqual(first.return_code, second.return_code)
+            self.assertEqual(store.participant_count(), 2)
+            store.close()
+
+    def test_return_code_resumes_participant_session(self):
+        comments = synthetic_comments()
+        assignments = generate_assignments(comments, seed=20261014)
+        secret = "test-secret"
+        with tempfile.TemporaryDirectory() as tmp:
+            store = LocalAnnotationStore(Path(tmp) / "portal.sqlite3")
+            store.initialize(comments, assignments, create_development_annotators(secret))
+            participant = store.create_participant("Resume Me", "section_c", secret, return_code="resume-code")
+            assigned = store.assigned_comments_for_participant(participant.participant_id)
+            store.save_participant_response(participant.participant_id, assigned[0]["comment_id"], AnnotationResponse("UNCLEAR", "UNCLEAR"))
+
+            resumed = store.resume_participant("resume-code", secret)
+            self.assertIsNotNone(resumed)
+            self.assertEqual(resumed.participant_id, participant.participant_id)
+            self.assertEqual(store.progress_for_participant(resumed.participant_id)["saved"], 1)
+            self.assertIsNone(store.resume_participant("wrong-code", secret))
+            store.close()
+
+    def test_section_assignments_remain_unchanged(self):
+        comments = synthetic_comments()
+        assignments = generate_assignments(comments, seed=20261014)
+        for section_id, template_id in SECTION_TEMPLATE_BY_ID.items():
+            option = section_option(section_id)
+            assigned = assignments[assignments["annotator_id"] == template_id]
+            self.assertEqual(len(assigned), option.assigned_count)
+
+    def test_primary_300_comment_mode_works(self):
+        comments = synthetic_comments()
+        assignments = generate_assignments(comments, seed=20261014)
+        secret = "test-secret"
+        with tempfile.TemporaryDirectory() as tmp:
+            store = LocalAnnotationStore(Path(tmp) / "portal.sqlite3")
+            store.initialize(comments, assignments, create_development_annotators(secret))
+            participant = store.create_participant("Primary Researcher", PRIMARY_SECTION_ID, secret)
+            self.assertEqual(participant.assignment_template_id, PRIMARY_ANNOTATOR_ID)
+            self.assertEqual(len(store.assigned_comments_for_participant(participant.participant_id)), 300)
+            store.close()
+
+    def test_snapshot_import_validation_preserves_deterministic_sections(self):
+        comments = synthetic_comments()
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "snapshot.csv"
+            comments.to_csv(path, index=False)
+            validation = load_and_validate_snapshot(path, seed=20261014)
+            self.assertTrue(validation.is_valid, validation.errors)
+            self.assertEqual(len(validation.comments), 300)
+            self.assertEqual(len(validation.assignments), 450)
+            self.assertEqual(validation.invalid_records, 0)
+
+    def test_snapshot_import_validation_rejects_duplicate_ids(self):
+        comments = synthetic_comments()
+        comments.loc[299, "comment_id"] = comments.loc[0, "comment_id"]
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "invalid_snapshot.csv"
+            comments.to_csv(path, index=False)
+            validation = load_and_validate_snapshot(path, seed=20261014)
+            self.assertFalse(validation.is_valid)
+            self.assertGreater(validation.invalid_records, 0)
+
+    def test_supabase_mode_requires_server_side_database_url(self):
+        with patch.dict(
+            os.environ,
+            {"COMPONENT2_ANNOTATION_MODE": "supabase", "SUPABASE_DB_URL": ""},
+            clear=False,
+        ):
+            with self.assertRaises(ValueError):
+                load_config()
+
+    def test_streamlit_style_settings_can_configure_supabase_mode(self):
+        config = load_config(
+            {
+                "COMPONENT2_ANNOTATION_MODE": "supabase",
+                "COMPONENT2_ANNOTATION_RUN_ID": "component2_phase2a_20261014",
+                "COMPONENT2_ASSIGNMENT_SEED": "20261014",
+                "COMPONENT2_PORTAL_SECRET": "s" * 32,
+                "SUPABASE_DB_URL": "postgresql://server-side-only",
+                "SUPABASE_ADMIN_DB_URL": "postgresql://admin-only",
+                "SUPABASE_IMPORT_DB_URL": "postgresql://import-only",
+            }
+        )
+        self.assertEqual(config.mode, "supabase")
+        self.assertEqual(config.annotation_run_id, "component2_phase2a_20261014")
+        self.assertEqual(config.assignment_seed, 20261014)
+        self.assertEqual(config.supabase_admin_db_url, "postgresql://admin-only")
+        self.assertEqual(config.supabase_import_db_url, "postgresql://import-only")
+        self.assertNotIn("s" * 32, repr(config))
+
+    def test_supabase_mode_rejects_a_different_imported_snapshot(self):
+        for key, value in (
+            ("COMPONENT2_ANNOTATION_RUN_ID", "another-run"),
+            ("COMPONENT2_ASSIGNMENT_SEED", "123"),
+        ):
+            settings = {
+                "COMPONENT2_ANNOTATION_MODE": "supabase",
+                "COMPONENT2_ANNOTATION_RUN_ID": "component2_phase2a_20261014",
+                "COMPONENT2_ASSIGNMENT_SEED": "20261014",
+                "COMPONENT2_PORTAL_SECRET": "s" * 32,
+                "SUPABASE_DB_URL": "postgresql://server-side-only",
+                key: value,
+            }
+            with self.subTest(key=key):
+                with self.assertRaises(ValueError):
+                    load_config(settings)
+
+    def test_supabase_mode_rejects_default_or_short_portal_secret(self):
+        for secret in ("local-development-secret", "short"):
+            with self.subTest(secret=secret):
+                with self.assertRaises(ValueError):
+                    load_config(
+                        {
+                            "COMPONENT2_ANNOTATION_MODE": "supabase",
+                            "COMPONENT2_PORTAL_SECRET": secret,
+                            "SUPABASE_DB_URL": "postgresql://server-side-only",
+                        }
+                    )
+
+    def test_supabase_store_does_not_accept_empty_database_url(self):
+        with self.assertRaises(ValueError):
+            SupabaseAnnotationStore("", run_id="run")
+
+    def test_supabase_store_rejects_non_postgres_or_non_ssl_url(self):
+        with self.assertRaises(ValueError):
+            SupabaseAnnotationStore("sb_publishable_not_a_database_url", run_id="run")
+        with self.assertRaises(ValueError):
+            SupabaseAnnotationStore("postgresql://server-side-only/postgres?sslmode=disable", run_id="run")
+
+    def test_supabase_store_requires_ssl_for_session_pooler_connection(self):
+        import psycopg
+
+        fake_connection = Mock()
+        store = SupabaseAnnotationStore("postgresql://server-side-only/postgres", run_id="run")
+        with patch.object(psycopg, "connect", return_value=fake_connection) as connect:
+            result = store._connect()
+        self.assertIs(result, fake_connection)
+        self.assertEqual(connect.call_args.kwargs["sslmode"], "require")
+        self.assertIsNone(connect.call_args.kwargs["prepare_threshold"])
+
+    def test_public_app_allowlist_excludes_admin_and_importer_urls(self):
+        from research.component_2.annotation_portal.app import _read_streamlit_secrets
+
+        secrets = SimpleNamespace(
+            secrets={
+                "COMPONENT2_ANNOTATION_MODE": "supabase",
+                "COMPONENT2_ANNOTATION_RUN_ID": "component2_phase2a_20261014",
+                "COMPONENT2_ASSIGNMENT_SEED": "20261014",
+                "COMPONENT2_PORTAL_SECRET": "s" * 32,
+                "SUPABASE_DB_URL": "postgresql://annotation-app-only",
+                "SUPABASE_ADMIN_DB_URL": "postgresql://admin-only",
+                "SUPABASE_IMPORT_DB_URL": "postgresql://import-only",
+            }
+        )
+        selected = _read_streamlit_secrets(secrets)
+        self.assertIn("SUPABASE_DB_URL", selected)
+        self.assertNotIn("SUPABASE_ADMIN_DB_URL", selected)
+        self.assertNotIn("SUPABASE_IMPORT_DB_URL", selected)
+
+    def test_app_imports_when_launched_outside_repository_root(self):
+        root = Path(__file__).resolve().parents[2]
+        app_path = root / "research" / "component_2" / "annotation_portal" / "app.py"
+        script = """
+import importlib.util
+from pathlib import Path
+
+app_path = Path(r'''APP_PATH''')
+spec = importlib.util.spec_from_file_location("cloud_app", app_path)
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+print("import ok")
+""".replace("APP_PATH", str(app_path))
+        environment = os.environ.copy()
+        environment.pop("PYTHONPATH", None)
+        with tempfile.TemporaryDirectory() as tmp:
+            result = subprocess.run(
+                [sys.executable, "-c", script],
+                cwd=tmp,
+                env=environment,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("import ok", result.stdout)
+
+    def test_admin_and_importer_config_can_use_separate_urls(self):
+        admin_config = load_config(
+            {
+                "COMPONENT2_ANNOTATION_MODE": "supabase",
+                "COMPONENT2_PORTAL_SECRET": "s" * 32,
+                "SUPABASE_ADMIN_DB_URL": "postgresql://admin-only",
+            },
+            require_app_db_url=False,
+        )
+        import_config = load_config(
+            {
+                "COMPONENT2_ANNOTATION_MODE": "supabase",
+                "COMPONENT2_PORTAL_SECRET": "s" * 32,
+                "SUPABASE_IMPORT_DB_URL": "postgresql://import-only",
+            },
+            require_app_db_url=False,
+        )
+        self.assertIsNone(admin_config.supabase_db_url)
+        self.assertEqual(admin_config.supabase_admin_db_url, "postgresql://admin-only")
+        self.assertEqual(import_config.supabase_import_db_url, "postgresql://import-only")
+
+    def test_database_connection_failure_is_explicit(self):
+        store = SupabaseAnnotationStore("postgresql://not-used", run_id="run")
+        store._connect = lambda: (_ for _ in ()).throw(DatabaseConnectionError("unavailable"))
+        with self.assertRaises(DatabaseConnectionError):
+            store.ping()
+
+    def test_supabase_mode_has_no_sqlite_fallback(self):
+        from research.component_2.annotation_portal.app import _load_store
+
+        config = PortalConfig(
+            mode="supabase",
+            annotation_csv_path=Path("missing.csv"),
+            local_db_path=Path("should-not-be-created.sqlite3"),
+            assignment_seed=20261014,
+            portal_secret="secret",
+            supabase_db_url="postgresql://server-side-only",
+        )
+        with patch.object(SupabaseAnnotationStore, "ping") as ping:
+            store = _load_store(config)
+        self.assertIsInstance(store, SupabaseAnnotationStore)
+        ping.assert_called_once()
+
+    def test_streamlit_session_reuses_store_and_ping(self):
+        from research.component_2.annotation_portal.app import _load_store
+
+        config = PortalConfig(
+            mode="supabase",
+            annotation_csv_path=Path("missing.csv"),
+            local_db_path=Path("should-not-be-created.sqlite3"),
+            assignment_seed=20261014,
+            portal_secret="secret",
+            supabase_db_url="postgresql://server-side-only",
+        )
+        session_state = {}
+        with patch.object(SupabaseAnnotationStore, "ping") as ping:
+            first = _load_store(config, session_state)
+            second = _load_store(config, session_state)
+
+        self.assertIs(first, second)
+        ping.assert_called_once()
+
+    def test_streamlit_session_caches_assignments_and_updates_after_committed_save(self):
+        from research.component_2.annotation_portal.app import (
+            _assigned_comments,
+            _participant_progress,
+            _update_cached_response,
+        )
+
+        config = PortalConfig(
+            mode="supabase",
+            annotation_csv_path=Path("missing.csv"),
+            local_db_path=Path("missing.sqlite3"),
+            assignment_seed=20261014,
+            portal_secret="secret",
+            supabase_db_url="postgresql://server-side-only",
+        )
+        participant_id = "participant_cache_test"
+        rows = [
+            {
+                "comment_id": "comment_000",
+                "demand_label": None,
+                "spam_status": None,
+                "is_submitted": False,
+            }
+        ]
+        store = Mock()
+        store.assigned_comments_for_participant.return_value = rows
+        store.progress_for_participant.return_value = {"assigned": 1, "saved": 0, "submitted": 0}
+        st = SimpleNamespace(session_state={})
+
+        first = _assigned_comments(st, store, config, participant_id)
+        second = _assigned_comments(st, store, config, participant_id)
+        progress = _participant_progress(st, store, config, participant_id)
+        _update_cached_response(
+            st,
+            config,
+            participant_id,
+            "comment_000",
+            AnnotationResponse("NON_DEMAND", "NOT_SPAM", is_submitted=True),
+        )
+
+        self.assertIs(first, second)
+        self.assertEqual(store.assigned_comments_for_participant.call_count, 1)
+        self.assertEqual(store.progress_for_participant.call_count, 1)
+        self.assertEqual(first[0]["demand_label"], "NON_DEMAND")
+        self.assertEqual(first[0]["spam_status"], "NOT_SPAM")
+        from research.component_2.annotation_portal.app import _response_status
+
+        self.assertEqual(_response_status(first[0]), "Ready for review")
+        self.assertEqual(progress, {"assigned": 1, "saved": 1, "submitted": 1})
+
+    def test_resume_attempt_limiter_blocks_repeated_guesses(self):
+        limiter = ResumeAttemptLimiter(limit=2, window_seconds=60)
+        self.assertTrue(limiter.allow())
+        self.assertTrue(limiter.allow())
+        self.assertFalse(limiter.allow())
+
+    def test_prepared_sql_isolated_from_research_schema(self):
+        root = Path(__file__).resolve().parents[2]
+        sql_root = root / "research" / "component_2" / "annotation_portal" / "sql"
+        combined = "\n".join(path.read_text(encoding="utf-8") for path in sorted(sql_root.glob("*.sql")))
+        self.assertNotIn("research.", combined)
+        self.assertIn("annotation.responses", combined)
+        self.assertIn("annotation.participants", combined)
+
+    def test_prepared_sql_separates_runtime_admin_and_import_roles(self):
+        root = Path(__file__).resolve().parents[2]
+        sql_path = root / "research" / "component_2" / "annotation_portal" / "sql" / "0002_annotation_rls.sql"
+        sql = sql_path.read_text(encoding="utf-8")
+        self.assertIn("'CREATE ROLE %I NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS'", sql)
+        self.assertIn("'annotation_app'::text", sql)
+        self.assertIn("'annotation_admin'::text", sql)
+        self.assertIn("'annotation_importer'::text", sql)
+        self.assertIn("NOBYPASSRLS", sql)
+        self.assertNotIn("ALTER ROLE annotation_app", sql)
+        self.assertNotIn("ALTER ROLE annotation_admin", sql)
+        self.assertNotIn("ALTER ROLE annotation_importer", sql)
+        self.assertIn("rolsuper", sql)
+        self.assertIn("rolcreaterole", sql)
+        self.assertIn("rolcreatedb", sql)
+        self.assertIn("rolbypassrls", sql)
+        self.assertIn("rolinherit", sql)
+        self.assertIn("rolreplication", sql)
+        self.assertIn("RAISE EXCEPTION", sql)
+        self.assertIn("FOR SELECT TO annotation_admin", sql)
+        self.assertIn("FOR ALL TO annotation_importer", sql)
+        self.assertIn("section_id = 'primary_researcher' AND participant_role = 'primary_researcher'", sql)
+        self.assertIn("REVOKE ALL ON ALL TABLES IN SCHEMA annotation FROM annotation_app, annotation_admin, annotation_importer", sql)
+        self.assertNotIn("GRANT SELECT ON annotation.researcher_admins, annotation.adjudications TO annotation_app", sql)
+
+    def test_unicode_and_missing_optional_context_are_preserved(self):
+        comments = synthetic_comments()
+        comments.loc[0, "video_description"] = ""
+        comments.loc[0, "original_text"] = "සිංහල mixed hello"
+        assignments = generate_assignments(comments, seed=20261014)
+        with tempfile.TemporaryDirectory() as tmp:
+            store = LocalAnnotationStore(Path(tmp) / "portal.sqlite3")
+            store.initialize(comments, assignments, create_development_annotators("secret"))
+            primary = store.create_participant("Primary", PRIMARY_SECTION_ID, "secret")
+            primary_rows = store.assigned_comments_for_participant(primary.participant_id)
+            first = next(row for row in primary_rows if row["comment_id"] == "comment_000")
+            self.assertIn("සිංහල", first["original_text"])
+            self.assertEqual(first["video_description"], "")
+            store.close()
+
+    def test_researcher_export_requires_admin_and_preserves_comment_ids(self):
+        comments = synthetic_comments()
+        assignments = generate_assignments(comments, seed=20261014)
+        secret = "test-secret"
+        with tempfile.TemporaryDirectory() as tmp:
+            store = LocalAnnotationStore(Path(tmp) / "portal.sqlite3")
+            store.initialize(comments, assignments, create_development_annotators(secret))
+            participant = store.create_participant("Volunteer C", "section_c", secret)
+            admin = store.authenticate(hash_invitation_token(development_tokens()["researcher_admin"], secret))
+            volunteer = store.authenticate(hash_invitation_token(development_tokens()["volunteer_3"], secret))
+            assigned = store.assigned_comments_for_participant(participant.participant_id)
+            store.save_participant_response(
+                participant.participant_id,
+                assigned[0]["comment_id"],
+                AnnotationResponse("NON_DEMAND", "NOT_SPAM"),
+            )
+            export = export_for_researcher(store, admin)
+            self.assertIn("comment_id", export.columns)
+            self.assertIn("participant_id", export.columns)
+            self.assertEqual(len(export), 30)
+            with self.assertRaises(PermissionError):
+                export_for_researcher(store, volunteer)
+            store.close()
+
+    def test_portal_config_repr_redacts_secrets(self):
+        cfg = PortalConfig(
+            mode="local",
+            annotation_csv_path=Path("comments.csv"),
+            local_db_path=Path("portal.sqlite3"),
+            assignment_seed=1,
+            portal_secret="very-secret",
+            supabase_db_url="configured-secret-db-url",
+        )
+        text = repr(cfg)
+        self.assertNotIn("very-secret", text)
+        self.assertNotIn("configured-secret-db-url", text)
+
+    def test_generated_local_database_path_is_git_ignored(self):
+        root = Path(__file__).resolve().parents[2]
+        result = subprocess.run(
+            [
+                "git",
+                "check-ignore",
+                "-q",
+                "data/processed/component_2/annotation/annotation_portal_local.sqlite3",
+            ],
+            cwd=root,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0)
+
+    def test_no_unexpected_component_paths_in_portal_scope(self):
+        portal_root = Path(__file__).resolve().parents[2] / "research" / "component_2" / "annotation_portal"
+        self.assertTrue(portal_root.exists())
+        self.assertFalse((portal_root / ".." / ".." / "component_3").resolve().is_relative_to(portal_root))
+
+
+if __name__ == "__main__":
+    unittest.main()

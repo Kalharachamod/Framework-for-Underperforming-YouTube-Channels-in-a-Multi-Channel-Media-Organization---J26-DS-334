@@ -1,0 +1,270 @@
+"""Component 3 API routes (read-only). Mounted under /api/v1/component-3.
+
+Every endpoint reads stored research artifacts; none trains a model or reruns the pipeline.
+Selection: ``snapshot_id`` defaults to the latest research snapshot, ``experiment_id`` to the
+latest Audience Bridge Score run of that snapshot. Responses always echo the ids actually used.
+"""
+
+from __future__ import annotations
+
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Path, Query, Request
+
+from backend.api.component_3 import schemas as sc
+from backend.services.component_3.service import Component3Service, InvalidParameter
+
+router = APIRouter(prefix="/api/v1/component-3")
+
+ERRORS = {404: {"model": sc.ErrorResponse, "description": "Unknown snapshot / channel / experiment / evaluation "
+                                                          "(`not_found`), or the artifact has not been produced yet "
+                                                          "(`artifact_unavailable`)."},
+          422: {"model": sc.ErrorResponse, "description": "Invalid parameter (`invalid_parameter`)."},
+          503: {"model": sc.ErrorResponse, "description": "Stored artifacts could not be read (`storage_unavailable`)."}}
+
+SnapshotQ = Annotated[str | None, Query(description="Research snapshot id (rs-YYYYMMDDTHHMMSSZ); default: latest.")]
+ExperimentQ = Annotated[str | None, Query(description="Audience Bridge experiment id (abs-...); default: latest "
+                                                      "run of the snapshot.")]
+ChannelP = Annotated[str, Path(description="YouTube channel id (UC...).", min_length=2, max_length=72)]
+
+
+def service(request: Request) -> Component3Service:
+    return request.app.state.component3
+
+
+Service = Annotated[Component3Service, Depends(service)]
+
+
+def page(request: Request, limit: Annotated[int, Query(ge=1, description="Page size (max API_MAX_PAGE_SIZE).")] = 20,
+         offset: Annotated[int, Query(ge=0, le=100_000)] = 0) -> tuple[int, int]:
+    maximum = request.app.state.settings.max_page_size
+    if limit > maximum:
+        raise InvalidParameter(f"limit must be <= {maximum}")
+    return limit, offset
+
+
+Paging = Annotated[tuple[int, int], Depends(page)]
+
+
+# --- status ---------------------------------------------------------------------------------------
+
+@router.get("/status", response_model=sc.ResearchStatusResponse, tags=["Component 3: status"], responses=ERRORS,
+            summary="Research data and artifact availability")
+def research_status(svc: Service, snapshot_id: SnapshotQ = None):
+    """Lists research snapshots and, for the selected snapshot, reports each artifact (graph, features,
+    diffusion, topics, baselines, bridge scores, explanations, evaluations) **separately** as
+    `available` / `missing`. Read-only: never triggers a pipeline run."""
+    return svc.research_status(snapshot_id)
+
+
+# --- channels -------------------------------------------------------------------------------------
+
+@router.get("/channels", response_model=sc.ChannelListResponse, tags=["Component 3: channels"], responses=ERRORS,
+            summary="List research channels")
+def list_channels(svc: Service, snapshot_id: SnapshotQ = None):
+    """Channels of the research snapshot with aggregate STEP 14 features (NULL with
+    `features_status = missing` when features were not computed)."""
+    return svc.list_channels(snapshot_id)
+
+
+@router.get("/channels/{channel_id}", response_model=sc.ChannelDetailResponse, tags=["Component 3: channels"],
+            responses=ERRORS, summary="One channel's metadata and aggregate features")
+def channel_detail(channel_id: ChannelP, svc: Service, snapshot_id: SnapshotQ = None):
+    return svc.channel_detail(channel_id, snapshot_id)
+
+
+@router.get("/channels/{channel_id}/pairs", response_model=sc.ChannelPairListResponse,
+            tags=["Component 3: channels"], responses=ERRORS, summary="Channels sharing commenters with a channel")
+def channel_pairs(channel_id: ChannelP, svc: Service, paging: Paging, snapshot_id: SnapshotQ = None):
+    """Aggregate shared-commenter overlap (counts, Jaccard, directional overlap) from STEP 14,
+    sorted by shared commenters. No individual commenter is exposed."""
+    return svc.channel_pairs(channel_id, snapshot_id, *paging)
+
+
+# --- audience bridge --------------------------------------------------------------------------------
+
+@router.get("/bridge/experiments", response_model=sc.BridgeExperimentListResponse,
+            tags=["Component 3: audience bridge"], responses=ERRORS, summary="Audience Bridge Score experiments")
+def bridge_experiments(svc: Service, snapshot_id: SnapshotQ = None):
+    """STEP 19 scoring runs of a snapshot (newest first) with their weights, and the STEP 22
+    explanations and STEP 21 evaluations that refer to each."""
+    return svc.bridge_experiments(snapshot_id)
+
+
+@router.get("/bridge/{source_channel_id}/destinations", response_model=sc.BridgeRankingResponse,
+            tags=["Component 3: audience bridge"], responses=ERRORS, summary="Ranked destination channels")
+def bridge_ranking(source_channel_id: ChannelP, svc: Service, paging: Paging, snapshot_id: SnapshotQ = None,
+                   experiment_id: ExperimentQ = None,
+                   include_unscored: Annotated[bool, Query(description="Also list pairs whose score is incomplete "
+                                                                       "(NULL score, no rank).")] = False):
+    """Destinations ranked by stored Audience Bridge Score (rank 1 = strongest). Self pairs are
+    never returned. Scores are read, not recalculated."""
+    return svc.bridge_ranking(source_channel_id, snapshot_id, experiment_id, *paging, include_unscored)
+
+
+@router.get("/bridge/{source_channel_id}/destinations/{destination_channel_id}", response_model=sc.BridgePairResponse,
+            tags=["Component 3: audience bridge"], responses=ERRORS, summary="One pair: score, decomposition, evidence")
+def bridge_pair(source_channel_id: ChannelP, destination_channel_id: ChannelP, svc: Service,
+                snapshot_id: SnapshotQ = None, experiment_id: ExperimentQ = None):
+    """Stored score and its decomposition, plus the STEP 22 explanation (aggregate evidence,
+    reasons, uncertainty, ranking context). If no explanation artifact exists for the experiment,
+    `explanation_status` is `unavailable` with the reason; nothing is invented."""
+    return svc.bridge_pair(source_channel_id, destination_channel_id, snapshot_id, experiment_id)
+
+
+# --- evaluation -------------------------------------------------------------------------------------
+
+@router.get("/evaluation/runs", response_model=sc.EvaluationRunListResponse, tags=["Component 3: evaluation"],
+            responses=ERRORS, summary="Stored evaluation runs")
+def evaluation_runs(svc: Service, snapshot_id: SnapshotQ = None):
+    """STEP 21 evaluation runs of a snapshot (newest first). An empty list means no evaluation has run."""
+    return svc.evaluation_runs(snapshot_id)
+
+
+@router.get("/evaluation/{evaluation_id}/metadata", response_model=sc.EvaluationMetadataResponse,
+            tags=["Component 3: evaluation"], responses=ERRORS, summary="Evaluation run metadata")
+def evaluation_metadata(evaluation_id: str, svc: Service, snapshot_id: SnapshotQ = None):
+    return svc.evaluation_metadata(evaluation_id, snapshot_id)
+
+
+@router.get("/evaluation/{evaluation_id}/{table}", response_model=sc.EvaluationRowsResponse,
+            tags=["Component 3: evaluation"], responses=ERRORS, summary="Evaluation result rows")
+def evaluation_rows(evaluation_id: str, table: sc.EvaluationTable, svc: Service, paging: Paging,
+                    snapshot_id: SnapshotQ = None,
+                    method: Annotated[str | None, Query(description="Filter by method (must be a method of the run).")] = None,
+                    metric: Annotated[str | None, Query(description="Filter by metric (tables with a metric column).")] = None):
+    """Rows of one STEP 21 table: `ranking`, `top_k`, `temporal_stability`, `sparse_robustness` or
+    `performance`. An empty `items` list means no row matched the filters; an unknown method or an
+    unsupported filter is `invalid_parameter`; a run that does not exist is `not_found`."""
+    return svc.evaluation_rows(evaluation_id, table, snapshot_id, method, metric, *paging)
+
+
+# --- dashboard aggregates ---------------------------------------------------------------------------
+
+def dashboard(request: Request):
+    from backend.services.component_3.dashboard import DashboardService
+
+    return DashboardService(request.app.state.component3)
+
+
+Dashboard = Annotated[object, Depends(dashboard)]
+DASH = "Component 3: dashboard"
+
+
+@router.get("/dashboard/summary", response_model=sc.DashboardSummary, tags=[DASH], responses=ERRORS,
+            summary="Snapshot totals")
+def dashboard_summary(dash: Dashboard, snapshot_id: SnapshotQ = None):
+    """Totals of the collected snapshot: channels, videos, public view/like/comment counts of the collected
+    videos, collected comments and the number of distinct (pseudonymized) commenters."""
+    return dash.summary(snapshot_id)
+
+
+@router.get("/dashboard/channels", response_model=sc.ChannelPerformanceResponse, tags=[DASH], responses=ERRORS,
+            summary="Channel performance (collected videos)")
+def dashboard_channels(dash: Dashboard, snapshot_id: SnapshotQ = None):
+    return dash.channels(snapshot_id)
+
+
+@router.get("/dashboard/top-videos", response_model=sc.TopVideosResponse, tags=[DASH], responses=ERRORS,
+            summary="Most-viewed collected videos")
+def dashboard_top_videos(dash: Dashboard, request: Request,
+                         limit: Annotated[int, Query(ge=1, le=50)] = 5, snapshot_id: SnapshotQ = None,
+                         channel_id: Annotated[str | None, Query(description="Only this channel (UC...).")] = None,
+                         sort: Annotated[str, Query(description="views, likes or comments")] = "views"):
+    return dash.top_videos(snapshot_id, limit, channel_id, sort)
+
+
+@router.get("/dashboard/views-timeline", response_model=sc.ViewsTimelineResponse, tags=[DASH], responses=ERRORS,
+            summary="Views of collected videos by publish period")
+def dashboard_views_timeline(dash: Dashboard, snapshot_id: SnapshotQ = None,
+                             granularity: Annotated[str, Query(description="week or month")] = "month",
+                             periods: Annotated[int, Query(ge=2, le=104)] = 12):
+    return dash.views_timeline(snapshot_id, granularity, periods)
+
+
+@router.get("/dashboard/overlap", response_model=sc.OverlapResponse, tags=[DASH], responses=ERRORS,
+            summary="Shared-commenter overlap network")
+def dashboard_overlap(dash: Dashboard, snapshot_id: SnapshotQ = None):
+    return dash.overlap(snapshot_id)
+
+
+@router.get("/dashboard/topics", response_model=sc.TopicsResponse, tags=[DASH], responses=ERRORS,
+            summary="Topic cluster sizes")
+def dashboard_topics(dash: Dashboard, snapshot_id: SnapshotQ = None):
+    return dash.topics(snapshot_id)
+
+
+@router.get("/dashboard/top-bridges", response_model=sc.TopBridgesResponse, tags=[DASH], responses=ERRORS,
+            summary="Highest Audience Bridge Scores")
+def dashboard_top_bridges(dash: Dashboard, limit: Annotated[int, Query(ge=1, le=50)] = 6,
+                          snapshot_id: SnapshotQ = None, experiment_id: ExperimentQ = None):
+    return dash.top_bridges(snapshot_id, experiment_id, limit)
+
+
+# --- research views (graph intelligence, topic similarity, all pairs, run browser) ---------------------
+
+def views(request: Request):
+    from backend.services.component_3.research_views import ResearchViewsService
+
+    return ResearchViewsService(request.app.state.component3)
+
+
+Views = Annotated[object, Depends(views)]
+
+
+@router.get("/graph/summary", response_model=sc.GraphSummaryResponse, tags=["Component 3: graph"], responses=ERRORS,
+            summary="Heterogeneous graph, representation and diffusion summary")
+def graph_summary(v: Views, snapshot_id: SnapshotQ = None):
+    """Node and edge counts by type, degree histograms (counts of nodes per degree bin, observed edges only),
+    channel connectivity, connected components of the channel overlap graph, and the stored metapath2vec,
+    HGT and Personalized PageRank run settings. No node identifier of a commenter or video is returned."""
+    return v.graph_summary(snapshot_id)
+
+
+@router.get("/topics/similarity", response_model=sc.TopicSimilarityResponse, tags=["Component 3: topics"],
+            responses=ERRORS, summary="Channel topic-similarity matrix")
+def topic_similarity(v: Views, snapshot_id: SnapshotQ = None):
+    """Stored STEP 18 cosine similarity between channel content profiles, for every channel pair."""
+    return v.topic_similarity(snapshot_id)
+
+
+@router.get("/bridge/pairs", response_model=sc.BridgePairsResponse, tags=["Component 3: audience bridge"],
+            responses=ERRORS, summary="All scored channel pairs")
+def bridge_pairs(v: Views, snapshot_id: SnapshotQ = None, experiment_id: ExperimentQ = None):
+    """Every stored source → destination pair of a scoring run with its components, ordered by score.
+    Scores are read, not recalculated; the response is bounded by the number of channel pairs."""
+    return v.bridge_pairs(snapshot_id, experiment_id)
+
+
+@router.get("/experiments/runs", response_model=sc.ResearchRunsResponse, tags=["Component 3: status"],
+            responses=ERRORS, summary="Stored research runs and their configuration")
+def research_runs(v: Views, snapshot_id: SnapshotQ = None):
+    """Every stored run of the snapshot (graph, features, diffusion, topics, embeddings, baselines, scoring,
+    explanations, evaluations) with its id, creation time, validation result and recorded configuration."""
+    return v.runs(snapshot_id)
+
+
+@router.get("/models/neural", response_model=sc.NeuralModelsResponse, tags=["Component 3: graph"], responses=ERRORS,
+            summary="HGT and metapath2vec settings and training records")
+def neural_models(v: Views, snapshot_id: SnapshotQ = None):
+    """Stored HGT configuration, per-epoch training and validation records, node-type input features and split
+    sizes, and metapath2vec walk statistics per metapath. A model that was not run is reported as `missing`."""
+    return v.neural_models(snapshot_id)
+
+
+@router.get("/dashboard/channel-icons", response_model=sc.ChannelIconsResponse, tags=["Component 3: dashboard"],
+            responses=ERRORS, summary="Public channel profile images")
+def channel_icons(v: Views):
+    """Public YouTube profile-image URLs of the research channels (presentation only, not used by any score).
+    Empty until `python -m research.component_3.preprocessing.channel_icons` has been run."""
+    return v.channel_icons()
+
+
+@router.get("/bridge/compare", response_model=sc.CompareResponse, tags=["Component 3: audience bridge"], responses=ERRORS,
+            summary="Compare stored scores of two snapshots")
+def bridge_compare(v: Views, base_snapshot_id: Annotated[str, Query(description="Previous (older) research snapshot id.")],
+                   snapshot_id: SnapshotQ = None):
+    """Joins the latest scoring run of two snapshots per directed pair and reports score, rank, confidence,
+    diffusion-component and topic-similarity changes. `compatible` is false (with a reason) unless both snapshots
+    have a scoring run, cover the same channels, and the previous snapshot is older."""
+    return v.compare(snapshot_id, base_snapshot_id)

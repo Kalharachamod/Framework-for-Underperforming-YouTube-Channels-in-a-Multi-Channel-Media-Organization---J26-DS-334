@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "growth-intelligence"
+version = "0.1.0"
+description = "J26-DS-334 Growth Intelligence Framework (SLIIT research project)"
+requires-python = ">=3.10"
+
+[tool.setuptools.packages.find]
+include = ["shared*", "research*", "backend*"]
+
+[tool.setuptools.package-data]
+"shared.database" = ["migrations/*.sql"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+# Library-internal deprecation notices (PyTorch Geometric on Python 3.13); not project code.
+filterwarnings = [
+    "ignore::DeprecationWarning:torch_geometric.*",
+    "ignore:`torch.jit.script` is deprecated:FutureWarning",
+]

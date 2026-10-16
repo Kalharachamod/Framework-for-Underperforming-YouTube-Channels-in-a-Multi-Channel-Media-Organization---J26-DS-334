@@ -1,0 +1,31 @@
+{
+  "name": "full_experiment",
+  "title": "Component 3 Full-Scale Multi-Channel Experiment (STEP 27)",
+  "description": "All channels of the configured research groups (config/research_channels.json). Collection depth matches the earlier full collection (50 videos, 100 threads, all replies) so snapshots stay comparable.",
+  "channel_groups": ["owned", "competitor"],
+  "expected_channel_counts": {"owned": 16, "competitor": 41},
+  "channel_note": "The team decided on the Derana-only channel set (18 confirmed owned channels, no competitor group); the plan's 16 owned + 41 competitor channels are reported as a registry gap, not invented.",
+  "snapshot_source": "supabase_postgresql_experiment",
+  "collection": {
+    "max_videos_per_channel": 50,
+    "max_threads_per_video": 100,
+    "fetch_all_replies": true,
+    "reply_page_rate": 0.0065,
+    "published_since": null,
+    "request_timeout_seconds": 30,
+    "max_retries": 3,
+    "retry_backoff_seconds": 1.0,
+    "max_quota_units": 3000
+  },
+  "pipeline": {
+    "stages": ["research_data", "topics", "graph", "features", "metapath2vec", "hgt", "ppr_diffusion",
+               "audience_bridge", "louvain", "node2vec", "explainability", "evaluation"],
+    "n_topics": 10,
+    "seed": 42,
+    "topic_backend": "e5",
+    "evaluation_sparse_fractions": [0.5],
+    "evaluation_sparse_seeds": [0, 1]
+  },
+  "min_free_disk_gb": 2.0,
+  "report_path": "docs/component_3_full_experiment_report.md"
+}

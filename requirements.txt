@@ -1,54 +1,48 @@
-annotated-types==0.8.0
-anyio==4.15.1
-certifi==2026.7.22
-cffi==2.1.1
-charset-normalizer==3.5.2
-cryptography==50.0.2
-deprecation==2.1.0
-google-api-core==2.42.0
-google-api-python-client==2.201.0
-google-auth==2.62.0
-google-auth-httplib2==0.4.4
-googleapis-common-protos==1.75.5
-h11==0.16.0
-h2==4.4.1
-hpack==4.2.0
-httpcore==1.0.9
-httplib2==0.32.0
-httpx==0.28.1
-hyperframe==6.1.0
-idna==3.20
-multidict==7.1.0
-numpy==2.4.6
-opentelemetry-api==1.45.1
-packaging==26.3
-pandas==3.0.6
-postgrest==2.32.0
-propcache==0.5.4
-proto-plus==1.29.0
-protobuf==7.36.2
-pyasn1==0.6.4
-pyasn1_modules==0.4.2
-pycparser==3.11
-pydantic==2.14.1
-pydantic_core==2.50.1
-PyJWT==2.15.1
-pyparsing==3.3.3
-python-dateutil==2.9.0.post0
-python-dotenv==1.2.4
-realtime==2.32.0
-requests==2.34.2
-six==1.17.0
-storage3==2.32.0
-StrEnum==0.4.15
-supabase==2.32.0
-supabase-auth==2.32.0
-supabase-functions==2.32.0
-typing-inspection==0.4.4
-typing_extensions==4.16.0
-tzdata==2026.5
-uritemplate==4.2.0
-urllib3==2.8.0
-websockets==15.0.1
-yarl==1.25.1
-psycopg[binary]==3.3.6
+# Shared research data layer (Parquet storage + DuckDB query engine)
+duckdb>=1.1
+pyarrow>=17.0
+pandas>=2.2,<3
+pytz>=2024.1  # needed by DuckDB to return TIMESTAMPTZ values as Python datetimes
+
+# Shared research schemas (validation)
+pydantic>=2.7
+
+# Component 2 Phase 1 research notebooks and analysis
+matplotlib>=3.8,<4
+nbformat>=5.10,<6
+nbconvert>=7.16,<8
+ipykernel>=6.29,<7
+
+# Component 2 human annotation portal
+streamlit>=1.38,<2
+
+# Component 3 heterogeneous graph (in-memory adapter; graph artifacts are Parquet)
+networkx>=3.3
+# Component 3 Personalized PageRank: sparse transition matrices
+scipy>=1.11
+# Component 3 metapath2vec: skip-gram with negative sampling (walks are sampled by our own code)
+gensim>=4.4
+# Component 3 HGT (alternative graph learning). CPU build is enough:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+torch>=2.6
+torch_geometric>=2.6
+# Component 3 topic layer: multilingual sentence embeddings (model intfloat/multilingual-e5-small,
+# downloaded once from Hugging Face at a pinned revision) + char n-gram TF-IDF/LSA baseline and KMeans
+sentence-transformers>=3.0
+scikit-learn>=1.5
+
+# Configuration
+python-dotenv>=1.0
+
+# Shared online research database (Supabase PostgreSQL)
+psycopg[binary]>=3.2
+
+# YouTube Data API v3: accessed over HTTPS with the standard library (shared/data_collection/youtube_client.py)
+
+# Backend API (read-only access to research artifacts)
+fastapi>=0.115
+uvicorn>=0.30
+
+# Testing
+pytest>=8.0
+httpx2>=2.13  # FastAPI/Starlette TestClient (API tests)

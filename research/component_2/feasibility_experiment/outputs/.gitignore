@@ -1,0 +1,3 @@
+# Calibration comments, human annotations, predictions, and evaluation exports are local-only.
+*
+!.gitignore

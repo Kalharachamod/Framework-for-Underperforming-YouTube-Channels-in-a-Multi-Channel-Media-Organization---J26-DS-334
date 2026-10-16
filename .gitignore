@@ -4,6 +4,8 @@ __pycache__/
 .venv/
 venv/
 env/
+.pytest_cache/
+*.egg-info/
 
 # Node / React
 node_modules/
@@ -11,9 +13,12 @@ dist/
 build/
 .vite/
 coverage/
+*.tsbuildinfo
 
 # Secrets and logs
 .env
+.env.local
+.env.*.local
 *.log
 
 # Notebooks / OS
@@ -25,7 +30,9 @@ data/raw/*
 data/processed/*
 !data/processed/component_*/
 data/processed/component_*/*
+data/analysis/*
 data/snapshots/*
+data/features/*
 !data/**/.gitkeep
 
 # Models, embeddings, large outputs
@@ -40,5 +47,9 @@ models/component_*/*
 *.pkl
 *.joblib
 *.parquet
+
+# DuckDB database files (rebuildable from Parquet)
+*.duckdb
+*.duckdb.wal
 research/*/results/*
 !research/*/results/.gitkeep
