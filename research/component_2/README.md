@@ -5,9 +5,9 @@ Owner: Kahandawa K A N N (IT23307094)
 
 ## Research Purpose
 
-Component 2 analyses public YouTube audience comments to identify audience demand signals, prepare multilingual text for modelling, and later compare demand topics against video content supply. Phase 1 focuses on reproducible dataset validation, exploratory analysis, and conservative multilingual preprocessing. Phase 2A prepares a deterministic manual annotation sample and annotation guide for demand-intent labelling.
+Component 2 analyses public YouTube audience comments to identify audience demand signals, prepare multilingual text for modelling, and later compare demand topics against video content supply. Phase 1 focuses on reproducible dataset validation, exploratory analysis, and conservative multilingual preprocessing. Phase 2A prepares a deterministic manual annotation sample and annotation guide for demand-intent and spam-status labelling, enriched with read-only video context for human annotators.
 
-These phases do **not** implement demand classification, BERTopic, or Jensen-Shannon Divergence yet.
+These phases do **not** implement demand classification, spam filtering, BERTopic, or Jensen-Shannon Divergence yet.
 
 ## Required Local Datasets
 
@@ -31,6 +31,7 @@ The pilot extraction is documented as up to 400 non-empty comments per selected 
 ```text
 research/component_2/
 ├── annotation_guidelines.md
+├── annotation_portal/
 ├── notebooks/
 │   ├── 01_dataset_validation.ipynb
 │   ├── 02_exploratory_analysis.ipynb
@@ -86,13 +87,13 @@ Important outputs:
 - EDA summary tables
 - preprocessing audit tables
 - research charts
-- manual demand annotation sample and aggregate distribution summaries
+- manual demand and spam-status annotation sample, video context fields, and aggregate distribution summaries
 
 These outputs are not intended for Git commits.
 
 ## Phase 2A Annotation Preparation
 
-Phase 2A creates a deterministic 300-comment manual annotation template at:
+Phase 2A creates or safely extends a deterministic 300-comment manual annotation template at:
 
 ```text
 data/processed/component_2/annotation/component2_demand_annotation_sample.csv
@@ -100,13 +101,33 @@ data/processed/component_2/annotation/component2_demand_annotation_sample.csv
 
 The annotation template includes:
 
+- video title, description, URL, and parent-comment context where locally available
 - original and cleaned comment text for human labelling
 - channel and video identifiers for traceability
 - reply status and publication timestamp
 - script category and preprocessing flags
-- blank fields for primary demand label, demand subtype, annotator labels, notes, and final adjudication
+- blank fields for primary demand label, demand subtype, demand annotator labels, notes, and final adjudication
+- blank fields for independent spam-status annotation, spam notes, and final spam adjudication
 
-Use `annotation_guidelines.md` when filling the labels. Do not generate artificial labels. The annotation output is a local research artifact and should not be committed to Git.
+Use `annotation_guidelines.md` when filling the labels. Demand classification and spam classification are separate annotation decisions. Video context is for interpretation, not an automatic reason to label comments as demand. Do not generate artificial labels, train classifiers, or automatically exclude comments at this stage. If an existing annotation CSV contains human labels, the notebook preserves them while refreshing read-only context fields. The annotation output is a local research artifact and should not be committed to Git.
+
+## Annotation Portal
+
+The optional online annotation portal lives at:
+
+```text
+research/component_2/annotation_portal/
+```
+
+It provides a Streamlit interface, deterministic Section A-E and primary-researcher assignment generation, local SQLite development storage for testing, prepared Supabase migration SQL, and documentation for secure deployment. The portal preserves the 300-comment annotation snapshot and does not modify the shared `research` database schema.
+
+Regular annotators enter a display name, choose Section A through E, and save a private return code for resume. Name-only identification is not verified authentication. A separate researcher-admin mechanism protects exports; selecting primary-researcher mode does not grant export access.
+
+Local startup:
+
+```bash
+.venv/bin/python -m streamlit run research/component_2/annotation_portal/app.py
+```
 
 ## Methodology Choices
 
@@ -128,10 +149,11 @@ Use `annotation_guidelines.md` when filling the labels. Do not generate artifici
 
 ## Next Planned Research Stages
 
-1. Pilot demand-intent labelling.
+1. Pilot demand-intent and spam-status labelling.
 2. Inter-annotator agreement and adjudication.
-3. Baseline demand classifier experiments.
-4. BERTopic demand-topic modelling.
-5. Video supply topic modelling.
-6. Demand-supply topic distribution comparison.
-7. Jensen-Shannon Divergence and underserved-topic ranking.
+3. Human-reviewed spam filtering design.
+4. Baseline demand classifier experiments.
+5. BERTopic demand-topic modelling.
+6. Video supply topic modelling.
+7. Demand-supply topic distribution comparison.
+8. Jensen-Shannon Divergence and underserved-topic ranking.

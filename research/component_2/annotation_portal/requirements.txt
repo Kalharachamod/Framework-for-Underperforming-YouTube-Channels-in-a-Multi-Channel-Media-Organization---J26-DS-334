@@ -1,0 +1,5 @@
+# Streamlit Community Cloud dependencies for this portal only.
+# This file takes precedence over the repository-wide research requirements.
+streamlit>=1.38,<2
+pandas>=2.2,<3
+psycopg[binary]>=3.2,<4

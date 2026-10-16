@@ -9,11 +9,15 @@ from pathlib import Path
 import pandas as pd
 
 
-ANNOTATION_COLUMNS = [
+BASE_ANNOTATION_COLUMNS = [
     "comment_id",
-    "channel_id",
     "channel_name",
     "video_id",
+    "video_title",
+    "video_description",
+    "video_url",
+    "parent_comment_text",
+    "channel_id",
     "published_at",
     "is_reply",
     "original_text",
@@ -21,6 +25,9 @@ ANNOTATION_COLUMNS = [
     "script_category",
     "preprocessing_flags",
     "sampling_stratum",
+]
+
+DEMAND_ANNOTATION_COLUMNS = [
     "primary_label",
     "demand_subtype",
     "annotation_notes",
@@ -29,8 +36,19 @@ ANNOTATION_COLUMNS = [
     "final_adjudicated_label",
 ]
 
+SPAM_ANNOTATION_COLUMNS = [
+    "annotator_1_spam_status",
+    "annotator_2_spam_status",
+    "final_spam_status",
+    "spam_notes",
+]
+
+ANNOTATION_COLUMNS = BASE_ANNOTATION_COLUMNS + DEMAND_ANNOTATION_COLUMNS + SPAM_ANNOTATION_COLUMNS
+HUMAN_ANNOTATION_COLUMNS = DEMAND_ANNOTATION_COLUMNS + SPAM_ANNOTATION_COLUMNS
+VIDEO_CONTEXT_COLUMNS = ["video_title", "video_description", "video_url", "parent_comment_text"]
 
 LABEL_VALUES = ["DEMAND", "NON_DEMAND", "UNCLEAR"]
+SPAM_STATUS_VALUES = ["SPAM", "NOT_SPAM", "UNCLEAR"]
 
 DEMAND_SUBTYPES = [
     "new_topic_content_request",
@@ -205,19 +223,136 @@ def create_annotation_sample(
 
 def create_annotation_template(sample: pd.DataFrame) -> pd.DataFrame:
     template = sample.copy()
-    for column in [
-        "primary_label",
-        "demand_subtype",
-        "annotation_notes",
-        "annotator_1_label",
-        "annotator_2_label",
-        "final_adjudicated_label",
-    ]:
+    for column in HUMAN_ANNOTATION_COLUMNS:
         template[column] = ""
     for column in ANNOTATION_COLUMNS:
         if column not in template.columns:
             template[column] = ""
     return template[ANNOTATION_COLUMNS]
+
+
+def add_spam_annotation_fields(template: pd.DataFrame) -> pd.DataFrame:
+    updated = template.copy()
+    for column in SPAM_ANNOTATION_COLUMNS:
+        if column not in updated.columns:
+            updated[column] = ""
+    for column in ANNOTATION_COLUMNS:
+        if column not in updated.columns:
+            updated[column] = ""
+    extra_columns = [column for column in updated.columns if column not in ANNOTATION_COLUMNS]
+    return updated[ANNOTATION_COLUMNS + extra_columns]
+
+
+def spreadsheet_safe_text(value: object) -> str:
+    if pd.isna(value):
+        return ""
+    text = str(value)
+    if text and text[0] in ("=", "+", "-", "@", "\t", "\r"):
+        return f"'{text}"
+    return text
+
+
+def add_video_context_fields(
+    template: pd.DataFrame,
+    videos: pd.DataFrame,
+    comments: pd.DataFrame | None = None,
+) -> pd.DataFrame:
+    updated = template.drop(columns=[col for col in VIDEO_CONTEXT_COLUMNS if col in template.columns]).copy()
+    updated["video_id"] = updated["video_id"].astype("string")
+
+    video_metadata = videos[["video_id", "title", "description"]].drop_duplicates("video_id").rename(
+        columns={"title": "video_title", "description": "video_description"}
+    )
+    video_metadata["video_id"] = video_metadata["video_id"].astype("string")
+    video_metadata["video_title"] = video_metadata["video_title"].map(spreadsheet_safe_text)
+    video_metadata["video_description"] = video_metadata["video_description"].map(spreadsheet_safe_text)
+
+    updated = updated.merge(video_metadata, on="video_id", how="left", sort=False)
+    updated["video_title"] = updated["video_title"].fillna("")
+    updated["video_description"] = updated["video_description"].fillna("")
+    updated["video_url"] = updated["video_id"].fillna("").astype(str).map(
+        lambda video_id: f"https://www.youtube.com/watch?v={video_id}" if video_id else ""
+    )
+
+    updated["parent_comment_text"] = ""
+    if comments is not None and {"comment_id", "comment_text", "parent_comment_id"}.issubset(comments.columns):
+        comments_lookup = comments[["comment_id", "comment_text", "parent_comment_id"]].copy()
+        comments_lookup["comment_id"] = comments_lookup["comment_id"].astype(str)
+        parent_by_comment = comments_lookup.set_index("comment_id")["parent_comment_id"].to_dict()
+        text_by_comment = comments_lookup.set_index("comment_id")["comment_text"].to_dict()
+
+        parent_ids = updated["comment_id"].astype(str).map(parent_by_comment).fillna("")
+        updated["parent_comment_text"] = parent_ids.map(text_by_comment).fillna("").map(spreadsheet_safe_text)
+
+    for column in ANNOTATION_COLUMNS:
+        if column not in updated.columns:
+            updated[column] = ""
+    extra_columns = [column for column in updated.columns if column not in ANNOTATION_COLUMNS]
+    return updated[ANNOTATION_COLUMNS + extra_columns]
+
+
+def nonblank_annotation_counts(
+    template: pd.DataFrame,
+    columns: list[str] | None = None,
+) -> dict[str, int]:
+    checked_columns = columns or HUMAN_ANNOTATION_COLUMNS
+    counts: dict[str, int] = {}
+    for column in checked_columns:
+        if column in template.columns:
+            counts[column] = int(template[column].fillna("").astype(str).str.strip().ne("").sum())
+    return counts
+
+
+def ensure_no_human_annotations(template: pd.DataFrame) -> None:
+    nonblank = {
+        column: count
+        for column, count in nonblank_annotation_counts(template).items()
+        if count > 0
+    }
+    if nonblank:
+        raise ValueError(
+            "Existing annotation CSV contains human annotations and must not be overwritten: "
+            f"{nonblank}"
+        )
+
+
+def validate_existing_annotation_template(
+    existing_template: pd.DataFrame,
+    expected_template: pd.DataFrame,
+) -> None:
+    if len(existing_template) != len(expected_template):
+        raise ValueError(
+            "Existing annotation CSV row count does not match the deterministic sample: "
+            f"{len(existing_template)} != {len(expected_template)}"
+        )
+    if existing_template["comment_id"].astype(str).tolist() != expected_template["comment_id"].astype(str).tolist():
+        raise ValueError("Existing annotation CSV comment_id order differs from the deterministic sample")
+
+    preserved_columns = [
+        "comment_id",
+        "channel_id",
+        "channel_name",
+        "video_id",
+        "original_text",
+        "cleaned_text",
+        "script_category",
+        "preprocessing_flags",
+        "sampling_stratum",
+    ]
+    changed_columns: list[str] = []
+    for column in preserved_columns:
+        if column not in existing_template.columns or column not in expected_template.columns:
+            changed_columns.append(column)
+            continue
+        existing_values = existing_template[column].fillna("").astype(str).tolist()
+        expected_values = expected_template[column].fillna("").astype(str).tolist()
+        if existing_values != expected_values:
+            changed_columns.append(column)
+    if changed_columns:
+        raise ValueError(
+            "Existing annotation CSV differs from the deterministic sample in preserved columns: "
+            f"{changed_columns}"
+        )
 
 
 def annotation_distribution_summary(template: pd.DataFrame) -> dict[str, pd.DataFrame]:
