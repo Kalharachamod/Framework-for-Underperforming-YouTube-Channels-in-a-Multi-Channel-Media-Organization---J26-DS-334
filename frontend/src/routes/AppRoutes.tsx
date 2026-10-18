@@ -19,15 +19,19 @@ const PipelinePage = lazy(() => import("../features/component_3/pages/PipelinePa
 const OverviewPage = lazy(() => import("../features/component_3/pages/OverviewPage").then((m) => ({ default: m.OverviewPage })));
 const StatusPage = lazy(() => import("../features/component_3/pages/StatusPage").then((m) => ({ default: m.StatusPage })));
 const TopicsPage = lazy(() => import("../features/component_3/pages/TopicsPage").then((m) => ({ default: m.TopicsPage })));
+const EmergingTopicsPage = lazy(() => import("../features/component_4/pages/EmergingTopicsPage").then((m) => ({ default: m.EmergingTopicsPage })));
+const C4EvaluationPage = lazy(() => import("../features/component_4/pages/C4EvaluationPage").then((m) => ({ default: m.C4EvaluationPage })));
 
 export const NAV: NavItem[] = [
   { to: "/", label: "Overview", group: "Core workspace", icon: "dashboard" },
   { to: "/bridges", label: "Audience Bridges", group: "Core workspace", icon: "bridges" },
   { to: "/channels", label: "Channel Explorer", group: "Core workspace", icon: "channels" },
+  { to: "/emerging-topics", label: "Emerging Topics (C4)", group: "Research models", icon: "topic" },
   { to: "/pipeline", label: "Pipeline Graph", group: "Research models", icon: "flow" },
   { to: "/graph", label: "Graph Intelligence", group: "Research models", icon: "graph" },
   { to: "/neural", label: "Neural Models", group: "Research models", icon: "neural" },
   { to: "/topics", label: "Topic Intelligence", group: "Research models", icon: "topic" },
+  { to: "/c4-evaluation", label: "C4 Benchmarks & Evaluation", group: "Validation", icon: "evaluation" },
   { to: "/evaluation", label: "Baselines & Evaluation", group: "Validation", icon: "evaluation" },
   { to: "/explainability", label: "Explainability", group: "Validation", icon: "explain" },
   { to: "/experiments", label: "Experiments", group: "Validation", icon: "overview" },
@@ -67,6 +71,8 @@ export function AppRoutes() {
           <Route path="/overview" element={<OverviewPage />} />
           <Route path="/bridges" element={<BridgesPage />} />
           <Route path="/channels" element={<ChannelExplorerPage />} />
+          <Route path="/emerging-topics" element={<EmergingTopicsPage />} />
+          <Route path="/c4-evaluation" element={<C4EvaluationPage />} />
           <Route path="/evaluation" element={<EvaluationPage />} />
           <Route path="/explainability" element={<ExplainabilityPage />} />
           <Route path="/pipeline" element={<PipelinePage />} />
