@@ -16,17 +16,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend import errors
 from backend.api.component_3 import schemas as sc
 from backend.api.component_3.routes import router as component_3_router
+from backend.api.component_4.routes import router as component_4_router
 from backend.config import Settings, load_settings
 from backend.services.component_3.service import Component3Service
+from backend.services.component_4.service import Component4Service
 
 DESCRIPTION = """Read-only API over the J26-DS-334 research results.
 
-**Component 3: Diffusion-Based Cross-Channel Audience Bridge Scoring.** Channels, Audience Bridge
-Scores (STEP 19, provisional formula), explanations (STEP 22), evaluation (STEP 21) and artifact
-status. Results are read from stored research artifacts; no model is trained or rerun by a request.
-
-Scores are potential audience bridge signals. They do not show audience migration, subscriber
-transfer, causality or growth. No commenter identifiers (raw or pseudonymized) are ever returned.
+**Component 3: Diffusion-Based Cross-Channel Audience Bridge Scoring.**
+**Component 4: Hierarchically Pooled Dynamic Topic Modelling with Bayesian Changepoint Flagging.**
+Results are read from stored research artifacts; no model is trained or rerun by a request.
 """
 
 
@@ -38,9 +37,12 @@ def create_app(settings: Settings | None = None, service: Component3Service | No
                                 {"name": "Component 3: channels", "description": "Channels and aggregate features."},
                                 {"name": "Component 3: audience bridge",
                                  "description": "Audience Bridge Scores, decomposition and explanations."},
-                                {"name": "Component 3: evaluation", "description": "Stored STEP 21 evaluation results."}])
+                                {"name": "Component 3: evaluation", "description": "Stored STEP 21 evaluation results."},
+                                {"name": "Component 4: Emerging Topic Detection",
+                                 "description": "Hierarchically Pooled Dynamic Topic Modelling with BOCPD emerging signals."}])
     app.state.settings = settings
     app.state.component3 = service or Component3Service()
+    app.state.component4 = Component4Service()
     app.add_middleware(CORSMiddleware, allow_origins=list(settings.cors_origins), allow_credentials=False,
                        allow_methods=["GET"], allow_headers=["Accept", "Content-Type"])
 
@@ -61,6 +63,7 @@ def create_app(settings: Settings | None = None, service: Component3Service | No
                 "time": datetime.now(timezone.utc).replace(microsecond=0)}
 
     app.include_router(component_3_router)
+    app.include_router(component_4_router)
     return app
 
 
