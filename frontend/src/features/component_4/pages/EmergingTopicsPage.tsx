@@ -45,7 +45,7 @@ export const EmergingTopicsPage: React.FC = () => {
       {/* Page Header */}
       <div style={{ marginBottom: "24px" }}>
         <div style={{ display: "inline-block", padding: "4px 10px", background: "#e0f2fe", color: "#0369a1", borderRadius: "16px", fontSize: "12px", fontWeight: 700, marginBottom: "8px" }}>
-          RESEARCH COMPONENT 4
+          MOMENTUM INTELLIGENCE
         </div>
         <h1 style={{ margin: "4px 0", fontSize: "28px", fontWeight: 800, color: "var(--fg-primary, #0f172a)" }}>
           Emerging Topic Intelligence

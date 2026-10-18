@@ -28,7 +28,7 @@ export const C4EvaluationPage: React.FC = () => {
           EXPERIMENTAL VALIDATION
         </div>
         <h1 style={{ margin: "4px 0", fontSize: "28px", fontWeight: 800, color: "var(--fg-primary, #0f172a)" }}>
-          Component 4: Benchmark & Evaluation
+          Emerging Topic Benchmark & Evaluation
         </h1>
         <p style={{ margin: 0, color: "#64748b", fontSize: "15px" }}>
           Comparative Experimental Validation across Heuristic, Statistical, and Hierarchical Bayesian Methods
