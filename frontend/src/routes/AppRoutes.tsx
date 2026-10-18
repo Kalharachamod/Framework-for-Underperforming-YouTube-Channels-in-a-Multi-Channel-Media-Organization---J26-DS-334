@@ -19,6 +19,7 @@ const PipelinePage = lazy(() => import("../features/component_3/pages/PipelinePa
 const OverviewPage = lazy(() => import("../features/component_3/pages/OverviewPage").then((m) => ({ default: m.OverviewPage })));
 const StatusPage = lazy(() => import("../features/component_3/pages/StatusPage").then((m) => ({ default: m.StatusPage })));
 const TopicsPage = lazy(() => import("../features/component_3/pages/TopicsPage").then((m) => ({ default: m.TopicsPage })));
+const Component2Page = lazy(() => import("../features/component_2/Component2Page").then((m) => ({ default: m.Component2Page })));
 
 export const NAV: NavItem[] = [
   { to: "/", label: "Overview", group: "Core workspace", icon: "dashboard" },
@@ -28,6 +29,7 @@ export const NAV: NavItem[] = [
   { to: "/graph", label: "Graph Intelligence", group: "Research models", icon: "graph" },
   { to: "/neural", label: "Neural Models", group: "Research models", icon: "neural" },
   { to: "/topics", label: "Topic Intelligence", group: "Research models", icon: "topic" },
+  { to: "/component-2", label: "Component 2 · Demand Mining", group: "Research models", icon: "topic" },
   { to: "/evaluation", label: "Baselines & Evaluation", group: "Validation", icon: "evaluation" },
   { to: "/explainability", label: "Explainability", group: "Validation", icon: "explain" },
   { to: "/experiments", label: "Experiments", group: "Validation", icon: "overview" },
@@ -57,7 +59,7 @@ function TopBar() {
   );
 }
 
-export function AppRoutes() {
+function Component3Workspace() {
   return (
     <ResearchProvider>
       <AppShell nav={NAV} header={<TopBar />}>
@@ -81,4 +83,19 @@ export function AppRoutes() {
       </AppShell>
     </ResearchProvider>
   );
+}
+
+/** Historical Component 2 evidence is available even when the live Component 3 API is offline. */
+export function AppRoutes() {
+  const { pathname } = useLocation();
+  if (/^\/component-2\/?$/.test(pathname)) {
+    return (
+      <AppShell nav={NAV} header={<div className="c2-static-header"><strong>Component 2 · Demand Mining</strong><span>Research evidence · 18 October 2026</span><span>Static research snapshot</span></div>}>
+        <Suspense fallback={<Loading variant="block" label="Loading Component 2…" />}>
+          <Routes><Route path="/component-2" element={<Component2Page />} /></Routes>
+        </Suspense>
+      </AppShell>
+    );
+  }
+  return <Component3Workspace />;
 }
