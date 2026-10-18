@@ -78,3 +78,39 @@ used for supervised model training and demand-topic discovery. Report results
 by channel and script, retain sampling seed and IDs, inspect false positives,
 and account for class imbalance when interpreting BERTopic distributions and
 Jensen-Shannon Divergence. This experiment makes no accuracy claim.
+
+## Experiment 2A.2 corrected sampling frame
+
+Experiment 2A.1 found that the original 500-comment sample touched 197 videos,
+leaving too little video-disjoint development data, and that it overlapped the
+40-comment calibration experiment. The historical 500 rows remain unchanged
+and are now treated as an exploratory annotation pool.
+
+The corrected offline preparation samples videos first, excludes all
+calibration videos, preserves a held-out evaluation partition, and builds a
+separate blinded candidate/control queue from development videos:
+
+```bash
+.venv/bin/python -m research.component_2.feasibility_experiment.prepare_experiment_2a2
+```
+
+Local outputs are written under `outputs/experiment_2a2/` and are ignored by
+Git because the review files contain comment text and IDs. The design and its
+limits are documented in
+[`experiment_2a2_protocol.md`](experiment_2a2_protocol.md). The command does
+not train a model, assign labels, access Supabase, or call an external API.
+
+The approved split is frozen by
+[`experiment_2a2_partition_lock.json`](experiment_2a2_partition_lock.json).
+Future training code must load data through `partition_guard.py` or call
+`PartitionGuard.validate_training_frame()` before feature extraction. The guard
+accepts only `development_pool` identifiers and rejects calibration-only,
+held-out, unknown, duplicate, or conflicting identifiers. A changed seed,
+source hash, manifest identity, or checksum fails rather than silently creating
+a different test set.
+
+New review templates follow
+[`annotation_schema_v1.md`](annotation_schema_v1.md). They preserve exact source
+text in `raw_comment_text`, retain NFC text separately in `normalized_text`, and
+define evidence spans against the raw field. The legacy 300-comment portal
+taxonomy is not automatically migrated into the refined eight-class schema.

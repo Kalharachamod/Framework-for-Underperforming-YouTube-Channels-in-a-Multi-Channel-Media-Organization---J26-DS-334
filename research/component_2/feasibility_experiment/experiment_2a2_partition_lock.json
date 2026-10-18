@@ -1,0 +1,25 @@
+{
+  "lock_version": "component2.experiment-2a2.partition-lock.v1",
+  "fingerprint_algorithm": "sha256-canonical-partition-v1",
+  "manifest_fingerprint": "fbc2bdaca6ff73987e257a3408d23ea405e062168a4a535218f5ac4117a46f9f",
+  "split_seed": 20261018,
+  "comment_count": 2000,
+  "video_count": 255,
+  "comment_role_counts": {
+    "calibration_only": 396,
+    "development_pool": 1293,
+    "held_out_evaluation": 311
+  },
+  "video_role_counts": {
+    "calibration_only": 37,
+    "development_pool": 175,
+    "held_out_evaluation": 43
+  },
+  "input_sha256": {
+    "comments": "481acece343115e4a00163b95df558f3d3a99775b07eab5e1513d41c54256965",
+    "videos": "b11ad9809aecd4500aebfb739ebbfe78c60777e20ae7aa450f0926d5935dbb84",
+    "preprocessed": "bafb5e07f6937fffb965898b182ce4339e16ff8e396cb7bf5e63aa27b51b5ae9",
+    "calibration": "73e5fae442024ba9448ba957fbabb0cfa52d1f5a67306580f3a89acf06adab38",
+    "exploratory_sample": "26c666c992f868f286c297884230896dac82fe76b355d2ebaa34efb36b1565d0"
+  }
+}

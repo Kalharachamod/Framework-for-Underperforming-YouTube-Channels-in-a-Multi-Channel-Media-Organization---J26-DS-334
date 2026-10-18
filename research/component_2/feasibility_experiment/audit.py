@@ -56,8 +56,10 @@ def build_pilot_frame(
 ) -> pd.DataFrame:
     """Assemble raw comments, existing preprocessing, and video context.
 
-    The original source fields are retained. No rows are filtered and no
-    human annotation columns are copied into this frame.
+    Source fields, including ``comment_text``, are retained. The preprocessing
+    field ``original_text`` may already be NFC-normalized; callers that require
+    exact evidence text must preserve ``comment_text`` separately. No rows are
+    filtered and no human annotation columns are copied into this frame.
     """
 
     comments = load_comments(comments_path).copy()

@@ -17,6 +17,17 @@ import pandas as pd
 from research.component_2.src.annotation import assign_sampling_stratum, combine_preprocessing_flags
 from research.component_2.src.data_io import load_comments, load_videos
 
+from .annotation_schema import (
+    ACTIONABILITY_LABELS,
+    ANNOTATION_SCHEMA_VERSION,
+    EVIDENCE_TEXT_FIELD,
+    PRIMARY_SIGNALS,
+    REVIEW_ANNOTATION_FIELDS,
+    TEXT_PROVENANCE_VERSION,
+    normalized_text,
+    raw_text_sha256,
+    validate_annotation_frame,
+)
 from .audit import build_pilot_frame, CHANNEL_TYPES, sha256
 from .baseline import detect_frame
 from .config import (
@@ -29,55 +40,6 @@ from .config import (
 EXPERIMENT_2A_SEED = 20261016
 DEFAULT_OUTPUT_DIR = Path(__file__).resolve().parent / "outputs" / "experiment_2a"
 REPRESENTATIVE_PER_CHANNEL = 100
-PRIMARY_SIGNALS = (
-    "EXPLICIT_CONTENT_REQUEST",
-    "CONTENT_CHANGE_PREFERENCE",
-    "INFORMATION_NEED",
-    "CONTENT_QUALITY_FEEDBACK",
-    "TOPICAL_INTEREST_OR_DISCUSSION",
-    "ORDINARY_REACTION",
-    "SPAM_OR_IRRELEVANT",
-    "UNCLEAR",
-)
-ACTIONABILITY_LABELS = ("YES", "NO", "UNCLEAR")
-
-REVIEW_ANNOTATION_FIELDS = [
-    "annotator_1_id",
-    "annotator_1_status",
-    "annotator_1_primary_signal",
-    "annotator_1_secondary_signals",
-    "annotator_1_actionable_content_demand",
-    "annotator_1_requested_action",
-    "annotator_1_requested_topic",
-    "annotator_1_requested_format",
-    "annotator_1_evidence_span",
-    "annotator_1_notes",
-    "annotator_1_spam_status",
-    "annotator_2_id",
-    "annotator_2_status",
-    "annotator_2_primary_signal",
-    "annotator_2_secondary_signals",
-    "annotator_2_actionable_content_demand",
-    "annotator_2_requested_action",
-    "annotator_2_requested_topic",
-    "annotator_2_requested_format",
-    "annotator_2_evidence_span",
-    "annotator_2_notes",
-    "annotator_2_spam_status",
-    "adjudication_status",
-    "adjudicator_id",
-    "final_primary_signal",
-    "final_secondary_signals",
-    "final_actionable_content_demand",
-    "final_requested_action",
-    "final_requested_topic",
-    "final_requested_format",
-    "final_evidence_span",
-    "final_notes",
-    "final_spam_status",
-    "spam_notes",
-]
-
 REVIEW_CONTEXT_FIELDS = [
     "review_order",
     "comment_id",
@@ -94,6 +56,12 @@ REVIEW_CONTEXT_FIELDS = [
     "video_context_status",
     "published_at",
     "is_reply",
+    "annotation_schema_version",
+    "text_provenance_version",
+    "raw_comment_text",
+    "raw_comment_text_sha256",
+    "normalized_text",
+    "evidence_text_field",
     "original_text",
     "cleaned_text",
     "script_category",
@@ -159,6 +127,22 @@ def build_experiment_source(
     frame = build_pilot_frame(comments_path, videos_path, preprocessed_path).copy()
     comments = load_comments(comments_path).copy()
     videos = load_videos(videos_path).copy()
+    raw_source = pd.read_csv(
+        comments_path,
+        usecols=["comment_id", "comment_text"],
+        dtype={"comment_id": "string", "comment_text": "string"},
+        keep_default_na=False,
+    )
+    if raw_source["comment_id"].duplicated().any():
+        raise ValueError("Pilot source contains duplicate comment IDs")
+    raw_text_lookup = raw_source.set_index("comment_id")["comment_text"]
+    frame["raw_comment_text"] = frame["comment_id"].map(raw_text_lookup)
+    if frame["raw_comment_text"].isna().any():
+        raise ValueError("Pilot source is missing raw text for at least one comment")
+    frame["normalized_text"] = frame["raw_comment_text"].map(normalized_text)
+    frame["raw_comment_text_sha256"] = frame["raw_comment_text"].map(raw_text_sha256)
+    frame["text_provenance_version"] = TEXT_PROVENANCE_VERSION
+    frame["evidence_text_field"] = EVIDENCE_TEXT_FIELD
     comments["parent_comment_id_normalized"] = comments["parent_comment_id"].map(_normalise_parent_id)
     local_comment_text = {
         str(row["comment_id"]): str(row["comment_text"])
@@ -309,12 +293,25 @@ def create_blank_review_template(frame: pd.DataFrame) -> pd.DataFrame:
     """Create a reviewer-facing template without baseline selection fields."""
 
     template = frame.copy()
+    template["annotation_schema_version"] = ANNOTATION_SCHEMA_VERSION
+    template["text_provenance_version"] = TEXT_PROVENANCE_VERSION
+    template["evidence_text_field"] = EVIDENCE_TEXT_FIELD
+    if "raw_comment_text" not in template:
+        template["raw_comment_text"] = template.get("original_text", "")
+    if "normalized_text" not in template:
+        template["normalized_text"] = template["raw_comment_text"].map(normalized_text)
+    if "raw_comment_text_sha256" not in template:
+        template["raw_comment_text_sha256"] = template["raw_comment_text"].map(
+            raw_text_sha256
+        )
     for column in REVIEW_ANNOTATION_FIELDS:
         template[column] = ""
     for column in REVIEW_CONTEXT_FIELDS:
         if column not in template:
             template[column] = ""
-    return template[REVIEW_CONTEXT_FIELDS + REVIEW_ANNOTATION_FIELDS].copy()
+    template = template[REVIEW_CONTEXT_FIELDS + REVIEW_ANNOTATION_FIELDS].copy()
+    validate_annotation_frame(template)
+    return template
 
 
 def create_video_split_manifest(
@@ -482,12 +479,12 @@ or prevalence estimation.
 
 ## Blank annotation procedure
 
-Both templates contain original text, cleaned text, video title/description,
-video URL, reply metadata, script category, sampling stratum, and explicit
-context-availability fields. All annotation fields are blank. The templates
-include independent annotator IDs/statuses, primary signal, secondary signals,
-actionability (`YES`, `NO`, `UNCLEAR`), request details, spam status, and final
-adjudication fields.
+Both templates contain exact raw text, its UTF-8 hash, separate NFC-normalized
+and cleaned text, video title/description, video URL, reply metadata, script
+category, sampling stratum, and explicit context-availability fields. All
+annotation fields are blank. The templates include independent annotator
+IDs/statuses, primary signal, secondary signals, actionability (`YES`, `NO`,
+`UNCLEAR`), request details, spam status, and final adjudication fields.
 
 Recommended procedure:
 
