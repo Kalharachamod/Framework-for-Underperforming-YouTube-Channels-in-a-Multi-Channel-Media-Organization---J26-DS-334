@@ -24,6 +24,9 @@ import type {
   TopicSimilarityResponse,
   BridgePairsResponse,
   ResearchRunsResponse,
+  NeuralModelsResponse,
+  CompareResponse,
+  ChannelIconsResponse,
 } from "./types";
 
 const BASE = "/api/v1/component-3";
@@ -142,8 +145,20 @@ export const component3Api = {
   bridgePairs: (c: Context, signal?: AbortSignal) =>
     getJson<BridgePairsResponse>(`${BASE}/bridge/pairs`, ctx(c), shape(["items", "experiment_id"], ["items"]), signal),
 
+  neuralModels: (c: Context, signal?: AbortSignal) =>
+    getJson<NeuralModelsResponse>(`${BASE}/models/neural`, snap(c), shape(["hgt", "metapath2vec"]), signal),
+
   researchRuns: (c: Context, signal?: AbortSignal) =>
     getJson<ResearchRunsResponse>(`${BASE}/experiments/runs`, snap(c), shape(["items", "row_counts"], ["items"]), signal),
+
+  /** Pair-level change between an older snapshot and the selected one (backend checks compatibility). */
+  compare: (baseSnapshotId: string, snapshotId: string, signal?: AbortSignal) =>
+    getJson<CompareResponse>(`${BASE}/bridge/compare`, { base_snapshot_id: baseSnapshotId, snapshot_id: snapshotId },
+      shape(["compatible", "items", "note"], ["items"]), signal),
+
+  /** Public channel profile-image URLs (presentation only). */
+  channelIcons: (signal?: AbortSignal) =>
+    getJson<ChannelIconsResponse>(`${BASE}/dashboard/channel-icons`, {}, shape(["items"], ["items"]), signal),
 
   /** All rows of an evaluation table, following pages (bounded to 20 pages). */
   async evaluationAllRows(

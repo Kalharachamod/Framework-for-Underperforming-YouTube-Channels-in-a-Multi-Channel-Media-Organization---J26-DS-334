@@ -35,7 +35,7 @@ RUN_KINDS = [
 ]
 BRIDGE_COLUMNS = ["source_channel_id", "destination_channel_id", "rank", "audience_bridge_score", "base_score",
                   "diffusion_contribution", "embedding_contribution", "topic_contribution", "confidence",
-                  "evidence_confidence", "topic_coverage_confidence", "shared_commenters", "score_status"]
+                  "evidence_confidence", "topic_coverage_confidence", "shared_commenters", "score_status", "raw_topic_similarity"]
 
 
 def _scalar(v: Any) -> str | float | int | bool | None:
@@ -71,6 +71,21 @@ class ResearchViewsService:
     def __init__(self, base: Component3Service):
         self.base = base
         self.store: Component3Store = base.store
+
+    def channel_icons(self) -> dict[str, Any]:
+        """Public channel profile-image URLs saved by ``research.component_3.preprocessing.channel_icons``.
+        Presentation metadata only. Entries with an invalid channel id or a non-allowed image host are dropped,
+        so the dashboard only loads images from YouTube's image hosts. A missing file gives an empty list."""
+        from urllib.parse import urlparse
+        from research.component_3.preprocessing.channel_icons import ALLOWED_HOSTS, icons_path, is_channel_id
+        data = self.store.read_json(icons_path()) or {}
+        items = []
+        for cid, url in sorted((data.get("items") or {}).items()):
+            parsed = urlparse(url) if isinstance(url, str) else None
+            if is_channel_id(cid) and parsed and parsed.scheme == "https" and parsed.hostname in ALLOWED_HOSTS:
+                items.append({"channel_id": cid, "icon_url": url})
+        return _clean({"fetched_at": _ts(data.get("fetched_at")), "items": items,
+                       "note": "Public channel profile images from YouTube; shown for recognition only."})
 
     def _names(self, sid: str) -> dict[str, str | None]:
         ch = self.store.query(self.store.snapshot_dataset(sid, "channels"), ["channel_id", "channel_name"])
@@ -252,7 +267,8 @@ class ResearchViewsService:
                           "diffusion_component": _v(r.diffusion_contribution), "embedding_component": _v(r.embedding_contribution),
                           "topic_component": _v(r.topic_contribution), "confidence_component": _v(r.confidence),
                           "evidence_confidence": _v(r.evidence_confidence), "topic_coverage_confidence": _v(r.topic_coverage_confidence),
-                          "shared_commenters": _v(r.shared_commenters), "score_status": str(r.score_status)})
+                          "shared_commenters": _v(r.shared_commenters), "score_status": str(r.score_status),
+                          "topic_similarity": _v(r.raw_topic_similarity)})
         return _clean({"snapshot_id": snap.snapshot_id, "experiment_id": run["experiment_id"], "items": items,
                        "note": "Stored Audience Bridge Scores (provisional formula), ordered by score; rank is the "
                                "per-source rank from the scoring run. Nothing is recalculated."})
@@ -288,3 +304,129 @@ class ResearchViewsService:
         return _clean({"snapshot_id": sid, "snapshot_created_at": snap.created_at, "snapshot_extracted_at": snap.extracted_at,
                        "row_counts": snap.row_counts, "items": items,
                        "note": "Stored research runs of this snapshot with their recorded configuration (read-only)."})
+
+    # --- neural models (HGT, metapath2vec) ------------------------------------------------------------
+
+    def neural_models(self, snapshot_id: str | None) -> dict[str, Any]:
+        """Stored settings and training records of the graph neural models. Aggregates only: per-epoch
+        losses and metrics, walk counts per metapath, feature names per node type."""
+        snap = self.base._snapshot(snapshot_id)
+        sid = snap.snapshot_id
+
+        def num(v: Any) -> float | None:
+            try:
+                return None if v is None else float(v)
+            except (TypeError, ValueError):
+                return None
+
+        hgt_meta = self._latest(sid, "embeddings", "hgt", "experiment.json")
+        hgt: dict[str, Any] = {"status": "missing"}
+        if hgt_meta is not None:
+            tr = hgt_meta.get("training", {}) or {}
+            history = [{"epoch": int(h.get("epoch", i + 1)), "train_loss": num(h.get("train_loss")),
+                        "valid_loss": num(h.get("valid_loss")), "valid_roc_auc": num(h.get("valid_roc_auc")),
+                        "valid_average_precision": num(h.get("valid_average_precision"))}
+                       for i, h in enumerate(tr.get("history", []) or []) if isinstance(h, dict)]
+            split = hgt_meta.get("split", {}) or {}
+            nf = hgt_meta.get("node_features", {}) or {}
+            hgt = {"status": "available", "experiment_id": hgt_meta.get("experiment_id"),
+                   "created_at": _ts(hgt_meta.get("created_at")), "role": hgt_meta.get("role"),
+                   "config": _config(hgt_meta, 14), "objective": str(hgt_meta.get("objective", ""))[:200] or None,
+                   "negative_sampling": {k: _scalar(v) for k, v in (hgt_meta.get("negative_sampling", {}) or {}).items()},
+                   "split": {"kind": split.get("kind"), "train_edges": num(split.get("train_edges")),
+                             "validation_edges": num(split.get("validation_edges")), "cutoff": _ts(split.get("cutoff"))},
+                   "node_features": {str(k): [str(x) for x in v] for k, v in nf.items() if isinstance(v, list)},
+                   "history": history, "duration_seconds": num(tr.get("duration_seconds")),
+                   "dimensions": (hgt_meta.get("validation", {}) or {}).get("dimensions"),
+                   "coverage_ratio": (hgt_meta.get("coverage", {}) or {}).get("coverage_ratio"),
+                   "validation_passed": _passed(hgt_meta)}
+
+        m2v_meta = self._latest(sid, "embeddings", "m2v", "experiment.json")
+        m2v: dict[str, Any] = {"status": "missing"}
+        if m2v_meta is not None:
+            cfg = m2v_meta.get("config", {}) or {}
+            paths = {str(p.get("name")): p for p in cfg.get("metapaths", []) if isinstance(p, dict)}
+            walks = (m2v_meta.get("walks", {}) or {})
+            per = []
+            for name, w in (walks.get("per_metapath", {}) or {}).items():
+                p = paths.get(str(name), {})
+                per.append({"metapath": str(name), "node_types": [str(t) for t in p.get("node_types", [])],
+                            "start_nodes": num(w.get("start_nodes")), "walks": num(w.get("walks")), "truncated": num(w.get("truncated"))})
+            tr = m2v_meta.get("training", {}) or {}
+            m2v = {"status": "available", "experiment_id": m2v_meta.get("experiment_id"),
+                   "created_at": _ts(m2v_meta.get("created_at")), "config": _config(m2v_meta, 14),
+                   "metapaths": per, "total_walks": num(walks.get("total_walks")), "mean_walk_length": num(walks.get("mean_walk_length")),
+                   "training": {k: _scalar(v) for k, v in tr.items()},
+                   "dimensions": (m2v_meta.get("validation", {}) or {}).get("dimensions"),
+                   "coverage_ratio": (m2v_meta.get("coverage", {}) or {}).get("coverage_ratio"),
+                   "validation_passed": _passed(m2v_meta)}
+        return _clean({"snapshot_id": sid, "hgt": hgt, "metapath2vec": m2v,
+                       "note": "Graph representation models of the score's embedding component. Records are read from "
+                               "the stored runs; nothing is retrained. Embedding similarity reflects graph structure only."})
+
+    # --- snapshot comparison ----------------------------------------------------------------------------
+
+    def compare(self, snapshot_id: str | None, base_snapshot_id: str) -> dict[str, Any]:
+        """Stored scores of the latest scoring run of two snapshots, joined per directed pair. Comparison is
+        allowed only when both snapshots have a scoring run and the same channel set, and the base snapshot
+        is older. Differences are plain subtractions of stored values; nothing is rescored."""
+        cur = self.base._snapshot(snapshot_id)
+        base = self.base._snapshot(base_snapshot_id)
+
+        def run_info(snap):
+            runs = self.store.runs(snap.snapshot_id, BRIDGE_DIR, "abs", BRIDGE_RUN)
+            if not runs:
+                return None
+            m = runs[-1]
+            cfg = m.get("config", {}) or {}
+            return m, {"snapshot_id": snap.snapshot_id, "experiment_id": m.get("experiment_id"), "created_at": _ts(m.get("created_at")),
+                       "method_version": m.get("method_version"), "w_diffusion": cfg.get("w_diffusion"),
+                       "w_embedding": cfg.get("w_embedding"), "w_topic": cfg.get("w_topic"),
+                       "embedding_source": cfg.get("embedding_source")}
+
+        out: dict[str, Any] = {"compatible": False, "reason": None, "base": None, "current": None,
+                               "same_configuration": None, "items": [],
+                               "note": "Changes are differences of stored values between two scoring runs (current minus "
+                                       "previous). They describe how the research signal changed, not audience movement."}
+        if base.snapshot_id == cur.snapshot_id:
+            out["reason"] = "Select two different snapshots."
+            return _clean(out)
+        if base.as_of >= cur.as_of:
+            out["reason"] = "The previous snapshot must be older than the current snapshot."
+            return _clean(out)
+        bi, ci = run_info(base), run_info(cur)
+        if bi is None or ci is None:
+            out["reason"] = "Both snapshots need a stored Audience Bridge Score run."
+            return _clean(out)
+        out["base"], out["current"] = bi[1], ci[1]
+        if set(self._names(base.snapshot_id)) != set(self._names(cur.snapshot_id)):
+            out["reason"] = "The snapshots cover different channel sets, so their rankings are not comparable."
+            return _clean(out)
+        keys = ("method_version", "w_diffusion", "w_embedding", "w_topic", "embedding_source")
+        out["same_configuration"] = all(bi[1].get(k) == ci[1].get(k) for k in keys)
+        cols = ["source_channel_id", "destination_channel_id", "audience_bridge_score", "rank", "confidence",
+                "diffusion_contribution", "raw_topic_similarity"]
+        frames = {}
+        for tag, (m, _) in (("b", bi), ("c", ci)):
+            df = self.store.query(m["_dir"] / "audience_bridge_scores.parquet", cols, where="source_channel_id <> destination_channel_id")
+            frames[tag] = {(str(r.source_channel_id), str(r.destination_channel_id)): r for r in df.itertuples()}
+        names = self._names(cur.snapshot_id)
+
+        def diff(a, b):
+            return None if a is None or b is None else b - a
+
+        items = []
+        for key in sorted(set(frames["b"]) | set(frames["c"])):
+            rb, rc = frames["b"].get(key), frames["c"].get(key)
+            get = lambda r, f: None if r is None else _v(getattr(r, f))
+            s, d = _public(key[0]), _public(key[1])
+            row = {"source_channel_id": s, "source_channel_name": names.get(s),
+                   "destination_channel_id": d, "destination_channel_name": names.get(d)}
+            for field, name in (("audience_bridge_score", "score"), ("rank", "rank"), ("confidence", "confidence"),
+                                ("diffusion_contribution", "diffusion"), ("raw_topic_similarity", "topic_similarity")):
+                pv, cv = get(rb, field), get(rc, field)
+                row[f"previous_{name}"], row[f"current_{name}"], row[f"{name}_change"] = pv, cv, diff(pv, cv)
+            items.append(row)
+        items.sort(key=lambda r: (-(abs(r["score_change"]) if r["score_change"] is not None else -1), r["source_channel_id"], r["destination_channel_id"]))
+        out.update({"compatible": True, "items": items})
+        return _clean(out)

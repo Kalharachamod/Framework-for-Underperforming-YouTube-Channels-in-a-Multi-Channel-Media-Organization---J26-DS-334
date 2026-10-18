@@ -72,13 +72,16 @@ How selection works:
 | `GET /evaluation/runs` | STEP 21 runs of a snapshot |
 | `GET /evaluation/{evaluation_id}/metadata` | Run settings, method statuses, labels and temporal status (no local paths) |
 | `GET /evaluation/{evaluation_id}/{table}` | Rows of `ranking`, `top_k`, `temporal_stability`, `sparse_robustness` or `performance`, filtered by `method` and `metric`, paged |
-| `GET /bridge/pairs` | Every stored scored pair of a scoring run with its components, ordered by score (bounded by the number of channel pairs; nothing recalculated) |
+| `GET /bridge/pairs` | Every stored scored pair of a scoring run with its components and raw topic similarity, ordered by score (bounded by the number of channel pairs; nothing recalculated) |
+| `GET /dashboard/channel-icons` | Public YouTube profile-image URLs of the research channels (presentation only; not used by any score). Filled by `python -m research.component_3.preprocessing.channel_icons` (one `channels.list` call, about 1 quota unit per 50 channels) into `data/processed/component_3/channel_icons.json`; only https URLs on YouTube image hosts and valid channel ids are served, an absent file gives an empty list |
+| `GET /bridge/compare?base_snapshot_id=…&snapshot_id=…` | Pair-level change between the latest scoring runs of an older snapshot and the selected one (score, rank, confidence, diffusion contribution, topic similarity: previous, current, difference). Returns `compatible: false` with a reason unless the base is older, both have a scoring run and both cover the same channel set; `same_configuration` says whether method version and weights match. Differences of stored values only |
 | `GET /graph/summary` | Node and edge counts by type, degree histograms (node counts per degree bin, observed edges only), channel connectivity, connected components, stored metapath2vec / HGT / Personalized PageRank run settings |
 | `GET /topics/similarity` | Channel × channel topic-similarity matrix of the latest STEP 18 run, with profile coverage |
+| `GET /models/neural` | Stored HGT configuration, per-epoch training and validation records (loss, ROC-AUC, average precision), input feature names per node type, split sizes, and metapath2vec walk statistics per metapath; a model that was not run is `missing` |
 | `GET /experiments/runs` | Every stored run of a snapshot (graph, features, diffusion, topics, embeddings, baselines, scoring, explanations, evaluations) with id, time, validation result and recorded configuration |
 | `GET /dashboard/summary`, `/dashboard/channels`, `/dashboard/top-videos`, `/dashboard/views-timeline`, `/dashboard/overlap`, `/dashboard/topics`, `/dashboard/top-bridges` | Snapshot totals and channel-level aggregates for the dashboard (public counts of collected videos; aggregate commenter counts only) |
 
-The research-view endpoints (`/bridge/pairs`, `/graph/summary`, `/topics/similarity`, `/experiments/runs`) read stored run metadata and Parquet results only. They return counts, channel-level values and run settings, never a commenter or video node identifier; a missing run is reported (`artifact_unavailable`, or `status: missing` inside the graph summary), never filled in.
+The research-view endpoints (`/bridge/pairs`, `/bridge/compare`, `/graph/summary`, `/topics/similarity`, `/experiments/runs`, `/models/neural`) read stored run metadata and Parquet results only. They return counts, channel-level values and run settings, never a commenter or video node identifier; a missing run is reported (`artifact_unavailable`, or `status: missing` inside the graph summary), never filled in.
 
 ### Example
 

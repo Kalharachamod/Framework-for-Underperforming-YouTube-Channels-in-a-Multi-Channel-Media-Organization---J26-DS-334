@@ -1,3 +1,4 @@
+import { ChannelIconContext } from "../../components/common/ChannelAvatar";
 /**
  * Snapshot / experiment selection shared by all Component 3 screens. Defaults follow the API
  * (latest snapshot, latest experiment); every screen also shows the ids the API actually used.
@@ -26,6 +27,9 @@ export function ResearchProvider({ children }: { children: ReactNode }) {
   const hasData = status.status === "success" && status.data.research_data === "available";
   const experiments = useApi((s) => component3Api.experiments({ snapshotId }, s), [snapshotId], hasData);
   const channels = useApi((s) => component3Api.channels({ snapshotId }, s), [snapshotId], hasData);
+  // channel icons are optional decoration: a failed request simply leaves the initials badges
+  const icons = useApi((s) => component3Api.channelIcons(s), []);
+  const iconMap = useMemo(() => new Map(icons.status === "success" ? icons.data.items.map((i) => [i.channel_id, i.icon_url] as [string, string]) : []), [icons]);
 
   const value = useMemo<ResearchContextValue>(
     () => ({
@@ -42,7 +46,11 @@ export function ResearchProvider({ children }: { children: ReactNode }) {
     }),
     [snapshotId, experimentId, status, experiments, channels],
   );
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+  return (
+    <Ctx.Provider value={value}>
+      <ChannelIconContext.Provider value={iconMap}>{children}</ChannelIconContext.Provider>
+    </Ctx.Provider>
+  );
 }
 
 export function useResearch(): ResearchContextValue {

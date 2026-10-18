@@ -453,3 +453,64 @@ def test_research_views_have_no_identifiers(client):
     blob = "".join(client.get(u).text for u in urls)
     assert "anon_" not in blob and "commenter:" not in blob and "video:" not in blob
     assert not any(v in blob for v in RAW.values()) and not any(v in blob for v in P.values())
+
+
+def test_neural_models_are_reported_not_invented(client):
+    nm = get(client, f"{API}/models/neural")
+    sc.NeuralModelsResponse.model_validate(nm)
+    for key in ("hgt", "metapath2vec"):
+        assert nm[key]["status"] in ("available", "missing")
+        if nm[key]["status"] == "missing":                               # not run: no settings or history invented
+            assert not nm[key].get("history") and not nm[key].get("metapaths")
+    epochs = [h["epoch"] for h in nm["hgt"].get("history", [])]
+    assert epochs == sorted(epochs)
+    assert "anon_" not in client.get(f"{API}/models/neural").text and "commenter:" not in client.get(f"{API}/models/neural").text
+    assert f"{API}/models/neural" in get(client, "/openapi.json")["paths"]
+
+
+def test_snapshot_comparison_requires_compatible_snapshots(client, full):
+    same = get(client, f"{API}/bridge/compare", base_snapshot_id=full["sid"])
+    sc.CompareResponse.model_validate(same)
+    assert same["compatible"] is False and same["items"] == [] and "different snapshots" in same["reason"]
+    assert get(client, f"{API}/bridge/compare", 404, base_snapshot_id="rs-20000101T000000Z")["error"]["code"] == "not_found"
+    assert get(client, f"{API}/bridge/compare", 422)["error"]["code"] == "invalid_parameter"   # base snapshot is required
+
+
+def test_channel_icons_are_served_only_from_allowed_image_hosts(client, full):
+    empty = get(client, f"{API}/dashboard/channel-icons")
+    sc.ChannelIconsResponse.model_validate(empty)
+    assert empty["items"] == []                                   # nothing fetched yet: no invented images
+    path = full["root"] / "processed" / "component_3" / "channel_icons.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    good = "UC" + "a" * 22
+    path.write_text(json.dumps({"fetched_at": "2026-01-01T00:00:00Z", "items": {
+        good: "https://yt3.ggpht.com/abc=s88",
+        "UC" + "b" * 22: "https://evil.example.com/x.png",          # host not allowed
+        "UC" + "c" * 22: "http://yt3.ggpht.com/plain-http",          # not https
+        "not-a-channel": "https://yt3.ggpht.com/def",                # invalid id
+    }}), encoding="utf-8")
+    try:
+        data = get(client, f"{API}/dashboard/channel-icons")
+        assert data["items"] == [{"channel_id": good, "icon_url": "https://yt3.ggpht.com/abc=s88"}]
+    finally:
+        path.unlink()
+
+
+def test_channel_icon_fetch_keeps_public_profile_images_only():
+    from research.component_3.preprocessing import channel_icons as ci
+
+    class FakeClient:
+        calls = []
+
+        def channels_list(self, *, part, id):
+            self.calls.append((part, list(id)))
+            return type("R", (), {"items": [
+                {"id": id[0], "snippet": {"thumbnails": {"medium": {"url": "https://yt3.ggpht.com/m"}, "default": {"url": "https://yt3.ggpht.com/d"}}}},
+                {"id": id[1], "snippet": {"thumbnails": {"medium": {"url": "https://example.com/m"}}}},
+                {"id": id[2], "snippet": {}},
+            ]})()
+
+    ids = ["UC" + c * 22 for c in "xyz"]
+    fake = FakeClient()
+    assert ci.fetch_icons(fake, ids) == {ids[0]: "https://yt3.ggpht.com/m"}
+    assert fake.calls == [("snippet", ids)]                       # one batched snippet request

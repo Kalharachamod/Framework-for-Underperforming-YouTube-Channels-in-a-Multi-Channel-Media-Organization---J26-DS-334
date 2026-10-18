@@ -127,9 +127,12 @@ export function defaultRoutes(overrides: Partial<Record<string, unknown>> = {}):
     if (/^\/channels\/[^/]+\/pairs$/.test(p)) return pick("channelPairs", channelPairs(decodeURIComponent(p.split("/")[2])));
     if (/^\/channels\/[^/]+$/.test(p)) return pick("channelDetail", channelDetail(decodeURIComponent(p.split("/")[2])));
     if (p === "/bridge/pairs") return pick("bridgePairs", bridgePairs);
+    if (p === "/bridge/compare") return pick("compare", compare);
+    if (p === "/dashboard/channel-icons") return pick("channelIcons", { fetched_at: null, items: [], note: "TEST" });
     if (p === "/graph/summary") return pick("graphSummary", graphSummary);
     if (p === "/topics/similarity") return pick("topicSimilarity", topicSimilarity);
     if (p === "/experiments/runs") return pick("researchRuns", researchRuns);
+    if (p === "/models/neural") return pick("neuralModels", neuralModels);
     if (p === "/evaluation/runs") return pick("evaluationRuns", evaluationRuns);
     if (p.endsWith("/metadata")) return pick("evaluationMeta", evaluationMeta);
     const table = p.match(/^\/evaluation\/[^/]+\/([a-z_]+)$/)?.[1];
@@ -192,7 +195,7 @@ const pairRow = (src: string, dst: string, rank: number | null, score: number | 
   destination_channel_id: dst, destination_channel_name: `Test Channel ${dst.slice(-1)}`,
   rank, audience_bridge_score: score, base_score: score === null ? null : Math.min(1, score + 0.1),
   diffusion_component: score === null ? null : 0.3, embedding_component: score === null ? null : 0.2,
-  topic_component: score === null ? null : 0.1, confidence_component: conf, evidence_confidence: conf,
+  topic_component: score === null ? null : 0.1, topic_similarity: score === null ? null : 0.65, confidence_component: conf, evidence_confidence: conf,
   topic_coverage_confidence: conf === null ? null : 1, shared_commenters: shared, score_status: score === null ? "incomplete" : "ok",
 });
 
@@ -204,6 +207,19 @@ export const bridgePairs = {
     pairRow(C, A, 1, 0.33, 0.5, 2), pairRow(B, C, 2, 0.2, 0.3, 1), pairRow(C, B, null, null, null, 0),
   ],
   note: "Stored scores (TEST DATA).",
+};
+
+/** Snapshot comparison (TEST DATA): an older base snapshot with the same channel set. */
+export const PREV_SID = "rs-20251201T000000Z";
+const run = (snapshot_id: string, experiment_id: string) => ({ snapshot_id, experiment_id, created_at: "2026-01-02T00:00:00Z",
+  method_version: "2.0-test", w_diffusion: 0.5, w_embedding: 0, w_topic: 0.5, embedding_source: "none" });
+export const compare = {
+  compatible: true, reason: null, base: run(PREV_SID, "abs-prev"), current: run(SID, EID), same_configuration: true,
+  items: [{ source_channel_id: A, source_channel_name: "Test Channel A", destination_channel_id: C, destination_channel_name: "Test Channel C",
+    previous_score: 0.61, current_score: 0.71, score_change: 0.1, previous_rank: 2, current_rank: 1, rank_change: -1,
+    previous_confidence: 0.8, current_confidence: 0.9, confidence_change: 0.1, previous_diffusion: 0.3, current_diffusion: 0.3, diffusion_change: 0,
+    previous_topic_similarity: 0.65, current_topic_similarity: 0.65, topic_similarity_change: 0 }],
+  note: "Changes are differences of stored values (TEST DATA).",
 };
 
 export const graphSummary = {
@@ -273,3 +289,24 @@ export const channelPairs = (id: string) => ({
   items: [{ source_channel_id: id, destination_channel_id: B, destination_channel_name: "Test Channel B", shared_commenters: 3,
     jaccard_similarity: 0.2, directional_overlap_source_to_destination: 0.6 }],
 });
+
+
+/** TEST DATA ONLY: synthetic model records (not real training results). */
+export const neuralModels = {
+  snapshot_id: SID,
+  hgt: {
+    status: "available", experiment_id: "hgt-111111111111", created_at: "2026-01-01T00:00:00Z", role: "alternative (metapath2vec is primary)",
+    config: { hidden: 16, layers: 2, heads: 2, dropout: 0.1, learning_rate: 0.01, weight_decay: 0.0001, epochs: 3 },
+    objective: "link prediction (TEST)", negative_sampling: { per_positive: 2 },
+    split: { kind: "temporal", train_edges: 30, validation_edges: 6, cutoff: "2026-01-01T00:00:00Z" },
+    node_features: { channel: ["subscriber_count", "video_count"], video: ["view_count"], commenter: ["videos"] },
+    history: [
+      { epoch: 1, train_loss: 1.2, valid_loss: 1.1, valid_roc_auc: 0.61, valid_average_precision: 0.4 },
+      { epoch: 2, train_loss: 0.9, valid_loss: 0.95, valid_roc_auc: 0.72, valid_average_precision: 0.45 },
+      { epoch: 3, train_loss: 0.7, valid_loss: 1.05, valid_roc_auc: 0.7, valid_average_precision: 0.44 },
+    ],
+    duration_seconds: 1.5, dimensions: 16, coverage_ratio: 1, validation_passed: true,
+  },
+  metapath2vec: { status: "missing" },
+  note: "Model records (TEST DATA).",
+};
