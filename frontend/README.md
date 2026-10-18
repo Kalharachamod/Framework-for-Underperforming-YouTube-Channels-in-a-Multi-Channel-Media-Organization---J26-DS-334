@@ -103,3 +103,23 @@ Layout and design (AURA template style): a white left sidebar (Growth Intelligen
 - **Comparison table** shows the 25 pairs with the largest absolute score change; the total count is stated.
 - **No graph library:** charts are dependency-free SVG and HTML. The bridge network shows channel-level data only (at most one node per channel), so they stay small; the raw commenter graph is never sent to the browser.
 - **Snapshot comparison** needs two snapshots with the same channel set; the 3-channel pilot snapshot is therefore not comparable with the 18-channel snapshots.
+
+# Component 2 research progress
+
+Open `/component-2` or choose **Component 2 · Demand Mining** in the shared
+sidebar. This page uses the existing shell, cards, badges and expandable sections,
+but loads independently of the live Component 3 API and snapshot selectors.
+It presents the six requested areas: overview, nine research stages, minimized
+examples, methodology comparison, future pipeline and viva explanations.
+
+Curated content lives in `src/features/component_2/researchData.ts`; presentation
+and scoped styles live alongside it. Update metrics only after checking the
+[evidence register](../docs/research/component2_evidence_register.md). Never import
+private research CSVs, volunteer exports or credentials into frontend assets.
+Prepared/unlabelled datasets, calibration diagnostics and future plans must retain
+their explicit statuses. The Streamlit annotation portal is a separate tool.
+
+The locked frontend test dependencies require a recent Node runtime (Node 24.22.0
+was used for this integration). Run `npm ci`, `npm run build` and `npm test`.
+The Component 2 Python suite runs from the repository root with
+`.venv/bin/python -m unittest discover -s tests/component_2 -v`.
