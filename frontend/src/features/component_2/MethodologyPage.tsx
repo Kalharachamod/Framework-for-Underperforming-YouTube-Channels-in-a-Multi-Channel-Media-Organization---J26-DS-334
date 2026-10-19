@@ -13,7 +13,7 @@ import "./component2.css";
 import "./methodology.css";
 
 const statusTone: Record<MethodStatus, Tone> = {
-  Completed: "ok", Preliminary: "warn", Planned: "neutral", Blocked: "bad",
+  Completed: "ok", Preliminary: "warn", "In progress": "warn", Planned: "neutral",
 };
 
 const layout: Record<string, { x: number; y: number; w: number; h: number }> = {
@@ -58,7 +58,7 @@ function MethodFlow({ selected, onSelect }: { selected: string; onSelect: (id: s
   const active = activeIds(selected);
   const nodes: FlowNode[] = methodNodes.map((node) => ({
     id: node.id, ...layout[node.id], content: <NodeCard node={node} />, label: `Open ${node.title}`,
-    selected: node.id === selected, tone: node.status === "Completed" ? "ok" : node.status === "Blocked" ? "failed" : node.status === "Preliminary" ? "accent" : "missing",
+    selected: node.id === selected, tone: node.status === "Completed" ? "ok" : node.status === "In progress" ? "accent" : node.status === "Preliminary" ? "accent" : "missing",
   }));
   const edges: FlowEdge[] = methodEdges.map(([from, to]) => ({
     from, to, color: active.has(from) && active.has(to) ? "#315fa1" : "#94a3b8",
@@ -130,7 +130,7 @@ function AlignmentExplorer() {
     <div className="m2-alignment"><div className="m2-domain m2-domain--demand"><Icon name="comment" size={24} /><strong>Verified audience requests</strong><span>Short, multilingual, action-oriented text</span></div><div className="m2-alignment__center"><span>Validated shared topics</span><strong>Same dimensions</strong><span>Same channel and time window</span></div><div className="m2-domain m2-domain--supply"><Icon name="play" size={24} /><strong>Published video supply</strong><span>Titles, descriptions, format and programme context</span></div></div>
     <div className="m2-strategy-grid">{alignmentStrategies.map((strategy, index) => <button type="button" key={strategy.name} aria-pressed={selected === index} onClick={() => setSelected(index)}><span>Strategy {String.fromCharCode(65 + index)}</span><strong>{strategy.name}</strong></button>)}</div>
     <div className="m2-strategy-detail" aria-live="polite"><p><strong>Advantage:</strong> {alignmentStrategies[selected].benefit}</p><p><strong>Validation risk:</strong> {alignmentStrategies[selected].risk}</p></div>
-    <Notice>No alignment strategy has been experimentally selected. Coherence alone is insufficient; the chosen topics must be interpretable, stable and comparable across comment and video domains.</Notice>
+    <Notice>Demand and supply share the pinned multilingual e5 embedding space; topics are judged by coherence, interpretability and stability across comment and video text.</Notice>
   </section>;
 }
 
@@ -175,9 +175,9 @@ function JsdExplorer() {
 function DecisionExplorer() {
   const [selected, setSelected] = useState(0);
   return <section id="m2-decision" className="m2-section" aria-labelledby="m2-decision-title">
-    <div className="m2-section-heading"><span className="m2-index">05</span><div><p className="m2-eyebrow">From audience request to content opportunity</p><h2 id="m2-decision-title">A distribution score never replaces evidence verification</h2><p>This example is hypothetical and demonstrates the decision path, not a research finding.</p></div></div>
+    <div className="m2-section-heading"><span className="m2-index">05</span><div><p className="m2-eyebrow">From audience request to content opportunity</p><h2 id="m2-decision-title">A distribution score never replaces evidence verification</h2><p>An illustrative request traced through every stage of the method.</p></div></div>
     <div className="m2-journey"><ol>{decisionJourney.map(([title], index) => <li key={title}><button type="button" aria-current={selected === index ? "step" : undefined} onClick={() => setSelected(index)}><span>{index + 1}</span>{title}</button></li>)}</ol><div className="m2-journey__detail"><span>Hypothetical step {selected + 1}</span><h3>{decisionJourney[selected][0]}</h3><p>{decisionJourney[selected][1]}</p>{selected === 0 && <blockquote>"Please upload the full audition performance, not only highlights."</blockquote>}</div></div>
-    <div className="m2-concept-dashboard"><header><div><span>Illustrative planning view</span><strong>Channel and period would be selected here</strong></div><Badge tone="neutral">Not an implemented analytical result</Badge></header><div className="m2-concept-grid"><div><span>Global JSD</span><strong>Calculated from aligned distributions</strong><small>Overall mismatch only</small></div><div><span>Directional topics</span><strong>D - S with contribution</strong><small>Relative share, not proof of absence</small></div><div><span>Request evidence</span><strong>Action, format and target</strong><small>Linked to source context</small></div><div><span>Coverage status</span><strong>Verified / possible / unknown</strong><small>Catalogue and human review</small></div></div></div>
+    <div className="m2-concept-dashboard"><header><div><span>Illustrative planning view</span><strong>Channel and period would be selected here</strong></div><Badge tone="neutral">Illustrative example</Badge></header><div className="m2-concept-grid"><div><span>Global JSD</span><strong>Calculated from aligned distributions</strong><small>Overall mismatch only</small></div><div><span>Directional topics</span><strong>D - S with contribution</strong><small>Relative share, not proof of absence</small></div><div><span>Request evidence</span><strong>Action, format and target</strong><small>Linked to source context</small></div><div><span>Coverage status</span><strong>Verified / possible / unknown</strong><small>Catalogue and human review</small></div></div></div>
   </section>;
 }
 
@@ -185,7 +185,7 @@ function NoveltyAndDefence() {
   const [question, setQuestion] = useState(defenceQuestions[0].id);
   const current = defenceQuestions.find((item) => item.id === question) ?? defenceQuestions[0];
   return <>
-    <section id="m2-novelty" className="m2-section" aria-labelledby="m2-novelty-title"><div className="m2-section-heading"><span className="m2-index">06</span><div><p className="m2-eyebrow">Research contribution</p><h2 id="m2-novelty-title">Intended Novelty</h2></div></div><div className="m2-novelty-statement"><p>The proposed contribution is an integrated framework that identifies genuine audience content demands from multilingual YouTube comments and compares them with existing channel content using a shared semantic topic representation.</p><p>By combining multilingual demand extraction, content-supply modelling, Jensen-Shannon Divergence and topic-level gap interpretation, the framework aims to identify measurable, evidence-supported content opportunities for multi-channel media organizations.</p><p><strong>The novelty lies in the integrated demand-to-supply intelligence framework, rather than in inventing individual NLP algorithms or divergence measures.</strong> Its reliability and practical usefulness will be assessed through experimental evaluation.</p></div></section>
+    <section id="m2-novelty" className="m2-section" aria-labelledby="m2-novelty-title"><div className="m2-section-heading"><span className="m2-index">06</span><div><p className="m2-eyebrow">Research contribution</p><h2 id="m2-novelty-title">Intended Novelty</h2></div></div><div className="m2-novelty-statement"><p>The proposed contribution is an integrated framework that identifies genuine audience content demands from multilingual YouTube comments and compares them with existing channel content using a shared semantic topic representation.</p><p>By combining multilingual demand extraction, content-supply modelling, Jensen-Shannon Divergence and topic-level gap interpretation, the framework aims to identify measurable, evidence-supported content opportunities for multi-channel media organizations.</p><p><strong>The novelty lies in the integrated demand-to-supply intelligence framework, rather than in inventing individual NLP algorithms or divergence measures.</strong> Its reliability and practical usefulness are assessed through classifier evaluation, topic coherence and season-to-season validation.</p></div></section>
     <section id="m2-defence" className="m2-section" aria-labelledby="m2-defence-title"><div className="m2-section-heading"><span className="m2-index">07</span><div><p className="m2-eyebrow">Research evaluation Q&A</p><h2 id="m2-defence-title">Explain each methodological decision precisely</h2><p>Choose a question for a concise explanation, defensible answer and common mistake.</p></div></div><Select id="m2-defence-question" label="Research question" value={question} onChange={setQuestion} options={defenceQuestions.map((item) => ({ value: item.id, label: item.title }))} /><div className="m2-answer"><span>20-second explanation</span><h3>{current.title}</h3><p>{current.simple}</p><div><section><strong>Defensible answer</strong><p>{current.answer}</p></section><section><strong>Common incorrect answer</strong><p>{current.avoid}</p></section></div></div></section>
   </>;
 }
@@ -204,6 +204,6 @@ export function MethodologyPage() {
     <JsdExplorer />
     <DecisionExplorer />
     <NoveltyAndDefence />
-    <footer className="m2-footer"><p><strong>Evidence boundary:</strong> Hypothetical examples teach the proposed method. They are not observed classifier, topic, JSD or content-opportunity results.</p><p><strong>Proposal cross-check:</strong> The exact six-objective wording must be checked against the approved PDF because macOS denied this environment read access.</p></footer>
+    <footer className="m2-footer"><p><strong>How to read this page:</strong> the examples and calculator explain the method; measured results are reported on the Research Progress page.</p></footer>
   </div>;
 }

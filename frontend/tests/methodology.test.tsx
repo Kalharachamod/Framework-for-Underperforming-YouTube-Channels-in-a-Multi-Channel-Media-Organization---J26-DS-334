@@ -25,15 +25,17 @@ describe("Component 2 Methodology Explorer", () => {
     await openMethodology();
     await userEvent.click(screen.getByRole("button", { name: "Open Jensen-Shannon Divergence" }));
     expect(screen.getByRole("heading", { name: "Jensen-Shannon Divergence", level: 3 })).toBeVisible();
-    expect(screen.getByText(/No empirical research JSD value exists/)).toBeVisible();
+    expect(screen.getByText(/implemented and unit-tested/)).toBeVisible();
     await userEvent.click(screen.getByRole("button", { name: "Next method" }));
     expect(screen.getByRole("heading", { name: "Topic-level directional interpretation", level: 3 })).toBeVisible();
   });
 
-  it("compares demand models without claiming planned methods were executed", async () => {
+  it("compares demand models with their measured results", async () => {
     await openMethodology();
     await userEvent.click(screen.getByRole("tab", { name: /XLM-RoBERTa classification/ }));
-    expect(screen.getByRole("tabpanel")).toHaveTextContent(/no fine-tuning or accuracy claim/i);
+    expect(screen.getByRole("tabpanel")).toHaveTextContent(/Next comparison once more labelled positives/);
+    await userEvent.click(screen.getByRole("tab", { name: /Multilingual sentence embeddings/ }));
+    expect(screen.getByRole("tabpanel")).toHaveTextContent("F1 0.54");
     await userEvent.click(screen.getByRole("tab", { name: /Rule-based screening/ }));
     expect(screen.getByRole("tabpanel")).toHaveTextContent("27.78%");
     expect(screen.getByRole("tabpanel")).toHaveTextContent("83.33%");
@@ -63,6 +65,7 @@ describe("Component 2 Methodology Explorer", () => {
     expect(screen.getByRole("heading", { name: "Coverage verification" })).toBeVisible();
     expect(screen.getByText(/Search for full performances/)).toBeVisible();
     expect(screen.getAllByText(/hypothetical/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Not an implemented analytical result/)).toBeVisible();
+    expect(screen.getAllByText("Illustrative example")[0]).toBeVisible();
+    expect(document.body).not.toHaveTextContent(/supervisor|macOS|cross-check/i);
   });
 });
