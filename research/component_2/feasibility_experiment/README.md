@@ -114,3 +114,21 @@ New review templates follow
 text in `raw_comment_text`, retain NFC text separately in `normalized_text`, and
 define evidence spans against the raw field. The legacy 300-comment portal
 taxonomy is not automatically migrated into the refined eight-class schema.
+
+## Experiment 2B development-only TF-IDF retrieval
+
+Experiment 2B compares word unigram/bigram TF-IDF, character `char_wb` 3-5
+gram TF-IDF, and an equally weighted combined representation. It uses the six
+researcher-reviewed actionable calibration comments only as retrieval queries
+and fits every representation exclusively on the frozen 1,293-comment
+development pool. The held-out partition remains protected.
+
+```bash
+.venv/bin/python -m research.component_2.feasibility_experiment.prepare_experiment_2b
+```
+
+Private outputs are written under `outputs/experiment_2b/` and remain ignored.
+The new blinded 60-row review queue excludes the existing Experiment 2A.2
+candidate/control queue and hides similarity scores, representation names and
+baseline predictions. See [`experiment_2b_protocol.md`](experiment_2b_protocol.md)
+for the scientific scope, deferred methods and interpretation limits.

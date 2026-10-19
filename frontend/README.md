@@ -106,11 +106,13 @@ Layout and design (AURA template style): a white left sidebar (Growth Intelligen
 
 # Component 2 research progress
 
-Open `/component-2` or choose **Component 2 · Demand Mining** in the shared
+Open `/component-2` or choose **Quantified Audience Demand Mining and
+Content-Gap Divergence** in the shared
 sidebar. This page uses the existing shell, cards, badges and expandable sections,
 but loads independently of the live Component 3 API and snapshot selectors.
-It presents the six requested areas: overview, nine research stages, minimized
-examples, methodology comparison, future pipeline and viva explanations.
+It presents six research areas: study overview, nine development stages,
+annotated examples, design comparisons, the planned analytical pipeline and
+research methodology questions and answers.
 
 Curated content lives in `src/features/component_2/researchData.ts`; presentation
 and scoped styles live alongside it. Update metrics only after checking the
@@ -118,6 +120,18 @@ and scoped styles live alongside it. Update metrics only after checking the
 private research CSVs, volunteer exports or credentials into frontend assets.
 Prepared/unlabelled datasets, calibration diagnostics and future plans must retain
 their explicit statuses. The Streamlit annotation portal is a separate tool.
+
+## Component 2 Methodology Explorer
+
+Open `/component-2/methodology` or choose **Methodology Explorer** in the shared
+sidebar. This route is intentionally separate from Research Progress: it explains
+the complete proposed demand/supply methodology, alternative model choices,
+topic alignment, Jensen-Shannon Divergence and evidence verification. Planned
+stages are never presented as completed research.
+
+The JSD calculator uses pure functions in `src/features/component_2/jsd.ts` and
+hypothetical user-adjustable distributions. Methodology content lives in
+`methodologyData.ts`, separate from the React presentation and scoped styles.
 
 The locked frontend test dependencies require a recent Node runtime (Node 24.22.0
 was used for this integration). Run `npm ci`, `npm run build` and `npm test`.

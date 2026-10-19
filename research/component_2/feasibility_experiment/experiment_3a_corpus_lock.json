@@ -1,0 +1,38 @@
+{
+  "lock_version": "component2.experiment-3a.corpus-lock.v2",
+  "fingerprint_algorithm": "sha256-canonical-partition-v2-expanded",
+  "manifest_fingerprint": "92ea296c88bdce58d5c0a6cf260801f32b8c31e5a0bdb213572272ae46a3e531",
+  "v1_manifest_fingerprint": "fbc2bdaca6ff73987e257a3408d23ea405e062168a4a535218f5ac4117a46f9f",
+  "split_seed": 20261020,
+  "expanded_heldout_fraction": 0.15,
+  "comment_count": 84002,
+  "video_count": 1970,
+  "comment_role_counts": {
+    "calibration_only": 396,
+    "calibration_quarantine": 1217,
+    "development_pool": 1293,
+    "expanded_development_pool": 68891,
+    "expanded_heldout_evaluation": 11399,
+    "held_out_evaluation": 311,
+    "heldout_quarantine": 495
+  },
+  "video_role_counts": {
+    "calibration_only": 37,
+    "calibration_quarantine": 18,
+    "development_pool": 175,
+    "expanded_development_pool": 1510,
+    "expanded_heldout_evaluation": 256,
+    "held_out_evaluation": 43,
+    "heldout_quarantine": 14
+  },
+  "training_roles": [
+    "development_pool",
+    "expanded_development_pool"
+  ],
+  "input_sha256": {
+    "pilot_comments": "481acece343115e4a00163b95df558f3d3a99775b07eab5e1513d41c54256965",
+    "pilot_videos": "b11ad9809aecd4500aebfb739ebbfe78c60777e20ae7aa450f0926d5935dbb84",
+    "expansion_comments": "865c01bfd88f44a5fc0a794fae03db108ba55d51917da8882fef9ec2b0c78e71",
+    "expansion_videos": "0d213edba61bfa9a7ebe3d981116b12227693e6939cee7ac75ff6c1b7f703a4f"
+  }
+}
