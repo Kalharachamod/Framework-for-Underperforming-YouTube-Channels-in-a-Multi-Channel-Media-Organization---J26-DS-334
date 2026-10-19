@@ -7,6 +7,7 @@ import {
   ComponentDashboardShell,
   type DashboardNavItem,
 } from "../components/layout/ComponentDashboardShell";
+import { TrendoraAIChatbot } from "../features/ai/TrendoraAIChatbot";
 
 // Component 1 Pages
 const GrowthPredictionPage = lazy(() =>
@@ -252,6 +253,7 @@ export function AppRoutes() {
           {/* Catch-all */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        <TrendoraAIChatbot />
       </Suspense>
     </ResearchProvider>
   );
