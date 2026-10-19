@@ -1,5 +1,5 @@
 /** Curated public-safe evidence, verified on 18 October 2026. Never import research CSVs here. */
-export const COMPONENT_TITLE = "Component 2 — Quantified Audience Demand Mining and Content-Gap Divergence";
+export const COMPONENT_TITLE = "Quantified Audience Demand Mining and Content-Gap Divergence";
 export const EVIDENCE_DATE = "18 October 2026";
 export const REPO_URL = "https://github.com/Kalharachamod/Framework-for-Underperforming-YouTube-Channels-in-a-Multi-Channel-Media-Organization---J26-DS-334";
 export const evidenceUrl = `${REPO_URL}/blob/component-2/docs/research/component2_evidence_register.md`;
@@ -163,7 +163,7 @@ export const futurePipeline = [
   { name: "Evidence-supported content opportunities", status: "Planned", detail: "Validate plausible undersupplied topics against catalogue, temporal and programme evidence." },
 ];
 
-export const vivaQuestions = [
+export const researchQuestions = [
   ["What problem does Component 2 solve?", "Channels receive many reactions but need to know which comments express genuine content requests. The approved goal is to identify that demand, align it with content supply in a shared semantic topic space, and quantify potential gaps."],
   ["Why use multilingual NLP?", "The pilot includes Sinhala, Singlish, English, mixed scripts and emoji. Meaning depends on code-mixing and context, so preprocessing preserves the language. Script flags are not language labels; multilingual model coverage still needs validation."],
   ["Why was the initial annotation approach insufficient?", "DEMAND/NON_DEMAND/UNCLEAR does not explain whether a viewer is reacting, asking a factual question, requesting a re-upload or expressing a storyline preference. The refined schema separates eight primary signals from actionability and structured request details."],

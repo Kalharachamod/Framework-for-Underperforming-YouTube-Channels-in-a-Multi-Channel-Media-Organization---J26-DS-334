@@ -21,8 +21,13 @@ describe("Component 2 research evidence", () => {
   it("loads the deep link and shared navigation without making any API requests", async () => {
     await openPage("/component-2/");
     expect(fetch).not.toHaveBeenCalled();
-    expect(screen.getByRole("navigation", { name: "Component 2 sections" })).toBeInTheDocument();
-    expect(within(screen.getByRole("navigation", { name: "Primary" })).getByRole("link", { name: "Component 2 · Demand Mining" })).toHaveAttribute("aria-current", "page");
+    const sectionNav = screen.getByRole("navigation", { name: "Component 2 sections" });
+    expect(sectionNav).toBeInTheDocument();
+    expect(within(sectionNav).getByRole("link", { name: "Annotated examples" })).toHaveAttribute("href", "#c2-examples");
+    expect(within(sectionNav).getByRole("link", { name: "Research Q&A" })).toHaveAttribute("href", "#c2-questions");
+    expect(sectionNav).not.toHaveTextContent(/viva/i);
+    expect(within(screen.getByRole("navigation", { name: "Primary" })).getByRole("link", { name: COMPONENT_TITLE })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: /Open Methodology Explorer/ })).toHaveAttribute("href", "/component-2/methodology");
     expect(screen.getByText("111 passing")).toBeVisible();
     expect(screen.getByText(/not classifier accuracy/)).toBeVisible();
   });
@@ -72,7 +77,7 @@ describe("Component 2 research evidence", () => {
   it("filters real examples and preserves UNCLEAR and illustrative provenance", async () => {
     await openPage();
     await userEvent.selectOptions(screen.getByLabelText("Example type"), "Ambiguous");
-    const examples = screen.getByRole("region", { name: "Read the meaning beyond the keyword" });
+    const examples = screen.getByRole("region", { name: "Verified examples: what counted as demand and what did not" });
     expect(within(examples).getByText("UNCLEAR")).toBeVisible();
     expect(within(examples).getByText("Candidate · CONTENT_CHANGE_PREFERENCE")).toBeVisible();
     expect(within(examples).queryByText("A specific re-upload request")).not.toBeInTheDocument();
@@ -98,7 +103,7 @@ describe("Component 2 research evidence", () => {
     const nav = screen.getByRole("navigation", { name: "Primary" });
     await userEvent.click(within(nav).getByRole("link", { name: /^Overview$/ }));
     await screen.findByLabelText("Snapshot");
-    await userEvent.click(within(screen.getByRole("navigation", { name: "Primary" })).getByRole("link", { name: "Component 2 · Demand Mining" }));
+    await userEvent.click(within(screen.getByRole("navigation", { name: "Primary" })).getByRole("link", { name: COMPONENT_TITLE }));
     expect(await screen.findByRole("heading", { name: COMPONENT_TITLE })).toBeVisible();
   });
 });

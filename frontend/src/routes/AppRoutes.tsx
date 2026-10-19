@@ -20,6 +20,7 @@ const OverviewPage = lazy(() => import("../features/component_3/pages/OverviewPa
 const StatusPage = lazy(() => import("../features/component_3/pages/StatusPage").then((m) => ({ default: m.StatusPage })));
 const TopicsPage = lazy(() => import("../features/component_3/pages/TopicsPage").then((m) => ({ default: m.TopicsPage })));
 const Component2Page = lazy(() => import("../features/component_2/Component2Page").then((m) => ({ default: m.Component2Page })));
+const MethodologyPage = lazy(() => import("../features/component_2/MethodologyPage").then((m) => ({ default: m.MethodologyPage })));
 
 export const NAV: NavItem[] = [
   { to: "/", label: "Overview", group: "Core workspace", icon: "dashboard" },
@@ -29,7 +30,8 @@ export const NAV: NavItem[] = [
   { to: "/graph", label: "Graph Intelligence", group: "Research models", icon: "graph" },
   { to: "/neural", label: "Neural Models", group: "Research models", icon: "neural" },
   { to: "/topics", label: "Topic Intelligence", group: "Research models", icon: "topic" },
-  { to: "/component-2", label: "Component 2 · Demand Mining", group: "Research models", icon: "topic" },
+  { to: "/component-2", label: "Quantified Audience Demand Mining and Content-Gap Divergence", group: "Research models", icon: "topic" },
+  { to: "/component-2/methodology", label: "Methodology Explorer", group: "Research models", icon: "flow" },
   { to: "/evaluation", label: "Baselines & Evaluation", group: "Validation", icon: "evaluation" },
   { to: "/explainability", label: "Explainability", group: "Validation", icon: "explain" },
   { to: "/experiments", label: "Experiments", group: "Validation", icon: "overview" },
@@ -88,11 +90,15 @@ function Component3Workspace() {
 /** Historical Component 2 evidence is available even when the live Component 3 API is offline. */
 export function AppRoutes() {
   const { pathname } = useLocation();
-  if (/^\/component-2\/?$/.test(pathname)) {
+  if (/^\/component-2(?:\/methodology)?\/?$/.test(pathname)) {
+    const methodology = /^\/component-2\/methodology\/?$/.test(pathname);
     return (
-      <AppShell nav={NAV} header={<div className="c2-static-header"><strong>Component 2 · Demand Mining</strong><span>Research evidence · 18 October 2026</span><span>Static research snapshot</span></div>}>
+      <AppShell nav={NAV} header={<div className="c2-static-header"><strong>{methodology ? "Methodology Explorer" : "Quantified Audience Demand Mining and Content-Gap Divergence"}</strong></div>}>
         <Suspense fallback={<Loading variant="block" label="Loading Component 2…" />}>
-          <Routes><Route path="/component-2" element={<Component2Page />} /></Routes>
+          <Routes>
+            <Route path="/component-2" element={<Component2Page />} />
+            <Route path="/component-2/methodology" element={<MethodologyPage />} />
+          </Routes>
         </Suspense>
       </AppShell>
     );

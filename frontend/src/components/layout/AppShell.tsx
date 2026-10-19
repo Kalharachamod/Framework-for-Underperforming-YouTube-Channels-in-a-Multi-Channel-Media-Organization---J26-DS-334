@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { NavLink } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Icon } from "../common/Icon";
 
 export interface NavItem {
@@ -17,6 +17,8 @@ export function AppShell({ nav, header, children }: {
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const { pathname } = useLocation();
+  const currentPath = pathname.replace(/\/+$/, "") || "/";
   useEffect(() => {
     if (!open) return undefined;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
@@ -29,10 +31,10 @@ export function AppShell({ nav, header, children }: {
       <a className="skip-link" href="#main">Skip to content</a>
       <aside className={`sidebar${open ? " sidebar--open" : ""}`}>
         <div className="sidebar__top">
-          <NavLink to="/" className="sidebar__brand" aria-label="Growth Intelligence, overview">
+          <Link to="/" className="sidebar__brand" aria-label="Growth Intelligence, overview">
             <span className="sidebar__mark"><img src="/brand/logo-mark.png" alt="Growth Intelligence" width={30} height={30} /></span>
             <span className="sidebar__word"><strong>Growth Intelligence</strong><span>Audience intelligence research</span></span>
-          </NavLink>
+          </Link>
           <button type="button" className="button nav-toggle" aria-expanded={open} aria-controls="primary-nav" onClick={() => setOpen((o) => !o)}>
             <Icon name="overview" size={16} /> {open ? "Close" : "Menu"}
           </button>
@@ -44,10 +46,10 @@ export function AppShell({ nav, header, children }: {
               <ul className="nav">
                 {nav.filter((item) => (item.group ?? "") === g).map((item) => (
                   <li key={item.to}>
-                    <NavLink to={item.to} end={item.to === "/"} className="nav__link" onClick={() => setOpen(false)}>
+                    <Link to={item.to} className={`nav__link${currentPath === item.to ? " active" : ""}`} aria-current={currentPath === item.to ? "page" : undefined} onClick={() => setOpen(false)}>
                       {item.icon && <Icon name={item.icon} />}
                       <span>{item.label}</span>
-                    </NavLink>
+                    </Link>
                   </li>
                 ))}
               </ul>
