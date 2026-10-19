@@ -51,3 +51,16 @@ def get_trajectories(
 ):
     """Retrieve weekly topic prevalence trajectories across channels."""
     return service.get_topic_trajectories(channel_id=channel_id, topic_id=topic_id)
+
+
+@router.get("/cannibalization-shield", summary="Multi-channel cannibalization prevention & allocation")
+def get_cannibalization_shield(service: Annotated[Component4Service, Depends(get_service)]):
+    """Calculate channel fit and allocate production rights across the 52 network channels."""
+    return service.get_cannibalization_shield()
+
+
+@router.get("/sensitivity-heatmap", summary="BOCPD hyperparameter sensitivity grid")
+def get_sensitivity_heatmap(service: Annotated[Component4Service, Depends(get_service)]):
+    """Return 2D grid of detection delay and false alarm rate across lambda and kappa."""
+    return service.get_sensitivity_heatmap()
+

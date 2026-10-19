@@ -35,3 +35,24 @@ def get_niche_clusters(request: Request):
         from backend.services.component_1.service import Component1Service
         service = Component1Service()
     return service.get_niche_clusters()
+
+
+@router.get("/shap-attribution", summary="SHAP feature attribution breakdown")
+def get_shap_attribution(request: Request, channel_name: str = "eTunes"):
+    """Compute feature contribution weights for a channel."""
+    service = getattr(request.app.state, "component1", None)
+    if not service:
+        from backend.services.component_1.service import Component1Service
+        service = Component1Service()
+    return service.get_shap_attribution(channel_name=channel_name)
+
+
+@router.get("/similarity-matrix", summary="Niche similarity kernel matrix")
+def get_similarity_matrix(request: Request):
+    """Return 6x6 similarity matrix W_ij and transfer diagnostics."""
+    service = getattr(request.app.state, "component1", None)
+    if not service:
+        from backend.services.component_1.service import Component1Service
+        service = Component1Service()
+    return service.get_similarity_kernel_matrix()
+

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { NavLink, Link } from "react-router-dom";
 import { Icon } from "../common/Icon";
 import { useResearch } from "../../features/component_3/ResearchContext";
+import { ExecutiveGrowthBriefModal } from "../../features/portal/ExecutiveGrowthBriefModal";
 
 export interface DashboardNavItem {
   to: string;
@@ -31,6 +32,8 @@ export const ComponentDashboardShell: React.FC<ComponentDashboardShellProps> = (
 }) => {
   const { status } = useResearch();
   const [switcherOpen, setSwitcherOpen] = useState(false);
+  const [briefOpen, setBriefOpen] = useState(false);
+  const [alertsOpen, setAlertsOpen] = useState(false);
   const snap = status.status === "success" && status.data.snapshots.length > 0 ? status.data.snapshots[0] : null;
 
   return (
@@ -74,7 +77,10 @@ export const ComponentDashboardShell: React.FC<ComponentDashboardShellProps> = (
               <div style={{ fontSize: "11px", fontWeight: 700, color: accentColor, textTransform: "uppercase" }}>
                 {title}
               </div>
-              <div style={{ fontSize: "11px", color: "#475569", marginTop: "2px" }}>
+              <div style={{ fontSize: "10px", color: "#64748b", marginTop: "2px" }}>
+                {subtitle}
+              </div>
+              <div style={{ fontSize: "11px", color: "#475569", marginTop: "4px" }}>
                 Lead: <strong>{leadStudent}</strong>
               </div>
             </div>
@@ -295,10 +301,168 @@ export const ComponentDashboardShell: React.FC<ComponentDashboardShellProps> = (
             </div>
           </div>
 
-          {/* Right Header Status */}
-          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          {/* Right Header Status & Actions */}
+          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+            {/* 1-Click Executive Growth Brief Export Button */}
+            <button
+              type="button"
+              onClick={() => setBriefOpen(true)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "6px 12px",
+                borderRadius: "8px",
+                border: "1px solid #cbd5e1",
+                background: "#ffffff",
+                color: "#1e293b",
+                fontSize: "12px",
+                fontWeight: 700,
+                cursor: "pointer",
+                boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+              }}
+            >
+              <span>📑</span>
+              <span>Export Brief</span>
+            </button>
+
+            {/* Interactive Changepoint Notification Bell */}
+            <div style={{ position: "relative" }}>
+              <button
+                type="button"
+                onClick={() => setAlertsOpen(!alertsOpen)}
+                style={{
+                  position: "relative",
+                  width: "34px",
+                  height: "34px",
+                  borderRadius: "8px",
+                  border: "1px solid #cbd5e1",
+                  background: "#ffffff",
+                  display: "grid",
+                  placeItems: "center",
+                  cursor: "pointer",
+                  fontSize: "16px",
+                }}
+              >
+                <span>🔔</span>
+                <span
+                  style={{
+                    position: "absolute",
+                    top: "-4px",
+                    right: "-4px",
+                    background: "#ef4444",
+                    color: "#ffffff",
+                    fontSize: "10px",
+                    fontWeight: 800,
+                    width: "16px",
+                    height: "16px",
+                    borderRadius: "50%",
+                    display: "grid",
+                    placeItems: "center",
+                    boxShadow: "0 0 6px rgba(239, 68, 68, 0.6)",
+                  }}
+                >
+                  3
+                </span>
+              </button>
+
+              {/* Notification Dropdown */}
+              {alertsOpen && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "calc(100% + 8px)",
+                    right: 0,
+                    width: "340px",
+                    background: "#ffffff",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "14px",
+                    padding: "14px",
+                    boxShadow: "0 15px 35px rgba(0, 0, 0, 0.15)",
+                    zIndex: 200,
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px", borderBottom: "1px solid #f1f5f9", paddingBottom: "8px" }}>
+                    <div style={{ fontSize: "12px", fontWeight: 800, color: "#0f172a" }}>
+                      ⚡ Active BOCPD Changepoint Alerts
+                    </div>
+                    <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 6px", borderRadius: "10px", background: "#fce7f3", color: "#be185d" }}>
+                      3 Signals
+                    </span>
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <Link
+                      to="/c4/cannibalization"
+                      onClick={() => setAlertsOpen(false)}
+                      style={{
+                        display: "block",
+                        padding: "8px 10px",
+                        borderRadius: "8px",
+                        background: "#fdf2f8",
+                        borderLeft: "3px solid #ec4899",
+                        textDecoration: "none",
+                        color: "inherit",
+                      }}
+                    >
+                      <div style={{ fontSize: "12px", fontWeight: 700, color: "#9d174d" }}>
+                        Acoustic Neo-Folk &amp; Unplugged
+                      </div>
+                      <div style={{ fontSize: "11px", color: "#64748b", marginTop: "2px" }}>
+                        BOCPD Changepoint Confirmed (t=14) &middot; <strong>eTunes</strong> allocated
+                      </div>
+                    </Link>
+
+                    <Link
+                      to="/c4/cannibalization"
+                      onClick={() => setAlertsOpen(false)}
+                      style={{
+                        display: "block",
+                        padding: "8px 10px",
+                        borderRadius: "8px",
+                        background: "#eff6ff",
+                        borderLeft: "3px solid #3b82f6",
+                        textDecoration: "none",
+                        color: "inherit",
+                      }}
+                    >
+                      <div style={{ fontSize: "12px", fontWeight: 700, color: "#1d4ed8" }}>
+                        Teledrama Plot Deep-Dives
+                      </div>
+                      <div style={{ fontSize: "11px", color: "#64748b", marginTop: "2px" }}>
+                        BOCPD Changepoint Confirmed (t=18) &middot; <strong>Lokaya Saha Lokayo</strong>
+                      </div>
+                    </Link>
+
+                    <Link
+                      to="/c4/cannibalization"
+                      onClick={() => setAlertsOpen(false)}
+                      style={{
+                        display: "block",
+                        padding: "8px 10px",
+                        borderRadius: "8px",
+                        background: "#f0fdf4",
+                        borderLeft: "3px solid #10b981",
+                        textDecoration: "none",
+                        color: "inherit",
+                      }}
+                    >
+                      <div style={{ fontSize: "12px", fontWeight: 700, color: "#15803d" }}>
+                        Investigative Historical Mysteries
+                      </div>
+                      <div style={{ fontSize: "11px", color: "#64748b", marginTop: "2px" }}>
+                        BOCPD Changepoint Detected (t=11) &middot; <strong>DAM DERANA</strong>
+                      </div>
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ width: "1px", height: "20px", background: "#e2e8f0" }} />
+
             <span style={{ fontSize: "12px", color: "#64748b" }}>
-              Active Snapshot: <strong style={{ color: "#0f172a" }}>{snap?.snapshot_id || "rs-20261018T210855Z"}</strong>
+              Snapshot: <strong style={{ color: "#0f172a" }}>{snap?.snapshot_id || "rs-20261018T210855Z"}</strong>
             </span>
             <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
               <span className="pulse-dot" style={{ width: "8px", height: "8px" }} />
@@ -312,6 +476,9 @@ export const ComponentDashboardShell: React.FC<ComponentDashboardShellProps> = (
           {children}
         </main>
       </div>
+
+      {/* Executive Growth Brief Modal */}
+      <ExecutiveGrowthBriefModal isOpen={briefOpen} onClose={() => setBriefOpen(false)} />
     </div>
   );
 };

@@ -73,21 +73,23 @@ const C4EvaluationPage = lazy(() =>
 const BocpdStudioPage = lazy(() =>
   import("../features/component_4/pages/BocpdStudioPage").then((m) => ({ default: m.BocpdStudioPage }))
 );
+const CannibalizationShieldPage = lazy(() =>
+  import("../features/component_4/pages/CannibalizationShieldPage").then((m) => ({ default: m.CannibalizationShieldPage }))
+);
 
-/* Navigation definitions per component */
-const C1_NAV: DashboardNavItem[] = [
+export const C1_NAV: DashboardNavItem[] = [
   { to: "/c1/growth-prediction", label: "Growth Opportunities", icon: "play", badge: "Pillar 1" },
   { to: "/c1/growth-evaluation", label: "Model Benchmarks", icon: "evaluation" },
   { to: "/c1/niche-pooling", label: "Niche Pooling", icon: "flow" },
 ];
 
-const C2_NAV: DashboardNavItem[] = [
+export const C2_NAV: DashboardNavItem[] = [
   { to: "/c2/demand-mining", label: "Audience Demand Mining", icon: "comment", badge: "Pillar 2" },
   { to: "/c2/content-gap", label: "Content-Gap Divergence", icon: "venn" },
   { to: "/c2/multilingual-nlp", label: "Multilingual NLP", icon: "topic" },
 ];
 
-const C3_NAV: DashboardNavItem[] = [
+export const C3_NAV: DashboardNavItem[] = [
   { to: "/c3/audience-bridges", label: "Audience Bridge Scores", icon: "bridges", badge: "Pillar 3" },
   { to: "/c3/graph", label: "Graph Intelligence", icon: "graph" },
   { to: "/c3/neural", label: "Neural Models (HGT)", icon: "neural" },
@@ -98,11 +100,14 @@ const C3_NAV: DashboardNavItem[] = [
   { to: "/c3/experiments", label: "Experiments", icon: "overview" },
 ];
 
-const C4_NAV: DashboardNavItem[] = [
+export const C4_NAV: DashboardNavItem[] = [
   { to: "/c4/emerging-topics", label: "Emerging Topics", icon: "topic", badge: "Live ★" },
   { to: "/c4/topic-evaluation", label: "Topic Benchmarks", icon: "evaluation" },
   { to: "/c4/bocpd", label: "BOCPD Changepoints", icon: "status" },
+  { to: "/c4/cannibalization", label: "Cannibalization Shield", icon: "venn", badge: "Shield" },
 ];
+
+export const NAV = C3_NAV;
 
 export function AppRoutes() {
   return (
@@ -199,6 +204,7 @@ export function AppRoutes() {
                   <Route path="emerging-topics" element={<EmergingTopicsPage />} />
                   <Route path="topic-evaluation" element={<C4EvaluationPage />} />
                   <Route path="bocpd" element={<BocpdStudioPage />} />
+                  <Route path="cannibalization" element={<CannibalizationShieldPage />} />
                   <Route path="*" element={<Navigate to="emerging-topics" replace />} />
                 </Routes>
               </ComponentDashboardShell>

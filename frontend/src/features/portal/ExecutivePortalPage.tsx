@@ -1,7 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { useResearch } from "../component_3/ResearchContext";
-import { Icon } from "../../components/common/Icon";
 
 export const ExecutivePortalPage: React.FC = () => {
   const { status } = useResearch();

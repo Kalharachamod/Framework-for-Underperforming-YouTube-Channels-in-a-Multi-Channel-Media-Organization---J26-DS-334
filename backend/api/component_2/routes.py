@@ -35,3 +35,35 @@ def get_language_stats(request: Request):
         from backend.services.component_2.service import Component2Service
         service = Component2Service()
     return service.get_language_stats()
+
+
+@router.post("/classify-comment", summary="Classify code-switched comment live")
+def classify_comment(request: Request, body: dict):
+    """Classify input text into intent, language script, and sentiment."""
+    text = body.get("text", "me sinduwe acoustic version ekak karannako please")
+    service = getattr(request.app.state, "component2", None)
+    if not service:
+        from backend.services.component_2.service import Component2Service
+        service = Component2Service()
+    return service.classify_tanglish_comment(text=text)
+
+
+@router.get("/critique-breakdown", summary="Constructive critique distribution")
+def get_critique_breakdown(request: Request):
+    """Return granular breakdown of constructive criticism across 3,924 comments."""
+    service = getattr(request.app.state, "component2", None)
+    if not service:
+        from backend.services.component_2.service import Component2Service
+        service = Component2Service()
+    return service.get_critique_breakdown()
+
+
+@router.get("/unmet-demand", summary="Unmet audience demand topic divergence")
+def get_unmet_demand(request: Request):
+    """Return high-divergence topics with severe supply-demand gaps."""
+    service = getattr(request.app.state, "component2", None)
+    if not service:
+        from backend.services.component_2.service import Component2Service
+        service = Component2Service()
+    return service.get_unmet_demand_topics()
+
