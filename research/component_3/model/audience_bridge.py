@@ -298,14 +298,38 @@ def embeddings_for(graph: hg.HeteroGraph, source: str, *, m2v_config=None, hgt_c
 
 def run(snapshot_id: str, config: BridgeConfig = BridgeConfig(), *, encoder=None, ppr_config=None,
         topic_config=None, inp: bl.BaselineInput | None = None, embeddings: m2v.EmbeddingResult | None = None,
-        m2v_config=None, hgt_config=None) -> BridgeResult:
-    """Compute the components on the snapshot (same graph, same as_of) and score."""
+        m2v_config=None, hgt_config=None, topic: ts.TopicResult | None = None) -> BridgeResult:
+    """Compute the components on the snapshot (same graph, same as_of) and score.
+
+    ``topic`` (optional) is a topic run to use as is; otherwise topic similarity is computed in memory
+    (the evaluation does this on its subsampled data, where nothing must be saved)."""
     inp = inp or bl.load_input(snapshot_id)
     diffusion = ppr.run_diffusion(inp.graph, ppr_config or ppr.PPRConfig())
-    topic = ts.run(inp.snapshot_id, topic_config or ts.TopicConfig(), as_of=inp.as_of, encoder=encoder)
+    if topic is None:
+        topic = ts.run(inp.snapshot_id, topic_config or ts.TopicConfig(), as_of=inp.as_of, encoder=encoder)
     if config.uses_embeddings and embeddings is None:
         embeddings = embeddings_for(inp.graph, config.embedding_source, m2v_config=m2v_config, hgt_config=hgt_config)
     return score(inp, diffusion, topic, config, embeddings)
+
+
+def saved_or_new_topic_run(inp: bl.BaselineInput, backend: str = "e5", *, encoder=None) -> ts.TopicResult:
+    """The topic run this score cites must exist on disk: reuse the newest saved run of the same snapshot,
+    as_of and backend (topic clusters do not change the similarity values), otherwise compute and save one."""
+    root = ts.topics_dir(inp.snapshot_id, "x").parent
+    saved = []
+    for d in sorted(root.glob("top-*")) if root.is_dir() else []:
+        try:
+            meta = json.loads((d / "topic_run.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        same_time = datetime.fromisoformat(str(meta.get("as_of")).replace("Z", "+00:00")) == inp.as_of
+        if same_time and (meta.get("config") or {}).get("backend") == backend:
+            saved.append((str(meta.get("created_at", "")), d))
+    if saved:
+        return ts.load(max(saved)[1])
+    result = ts.run(inp.snapshot_id, ts.TopicConfig(backend=backend), as_of=inp.as_of, encoder=encoder)
+    ts.save(result)
+    return result
 
 
 def score_channels(ctx) -> tuple[pd.DataFrame, str]:
@@ -402,7 +426,8 @@ def main(argv: list[str] | None = None) -> int:
         config = BridgeConfig(w_diffusion=wd, w_embedding=we, w_topic=wt, embedding_source=args.embedding_source,
                               confidence_k=args.confidence_k)
         sid = args.snapshot or snapshots.latest_research_snapshot().snapshot_id
-        r = run(sid, config, topic_config=ts.TopicConfig(backend=args.topic_backend))
+        inp = bl.load_input(sid)
+        r = run(sid, config, inp=inp, topic=saved_or_new_topic_run(inp, args.topic_backend))
         out = save(r)
     except (BridgeError, FileExistsError, snapshots.SnapshotNotFoundError, hg.GraphBuildError,
             m2v.MetaPathError) as exc:
