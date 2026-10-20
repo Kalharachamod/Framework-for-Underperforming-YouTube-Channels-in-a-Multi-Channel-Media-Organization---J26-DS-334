@@ -143,12 +143,13 @@ flowchart LR
 
 - Commenter-video-channel-topic graph
 - metapath2vec (primary) and HGT embeddings
-- Personalized PageRank diffusion
+- Personalized PageRank diffusion and multilingual topic similarity
+- Evidence-based confidence weighting
 - Louvain and node2vec baselines
 
-**Output:** Audience Bridge Score, confidence, explanation
+**Output:** directional Audience Bridge Score, confidence, explanation (potential bridges, not migration)
 <br/>
-[`research/component_3`](research/component_3/README.md)
+[`research/component_3`](research/component_3/README.md) · [research docs](docs/research/component3_documentation_index.md)
 
 </td>
 <td width="50%" valign="top">
@@ -183,7 +184,7 @@ The data formats exchanged between components are defined in [`docs/contracts`](
 | **Privacy by design** | Commenter IDs are hashed with a secret salt before storage and never shown in outputs. |
 | **Retention** | Raw data follows a 30-day retention rule and is refreshed through weekly snapshots. |
 | **Nothing sensitive in git** | Data, models, notebook outputs with comment text, and `.env` are git-ignored. |
-| **Compliance** | Use complies with the YouTube API Services Terms of Service. |
+| **Compliance** | Use is intended to follow the YouTube API Services Terms of Service (not independently audited). |
 
 ---
 
