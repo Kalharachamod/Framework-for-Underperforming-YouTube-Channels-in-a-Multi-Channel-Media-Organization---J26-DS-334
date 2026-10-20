@@ -10,6 +10,7 @@ import { useApi } from "../../../hooks/useApi";
 import { date, int, label, num, pct } from "../../../utils/format";
 import { component3Api } from "../api";
 import { Provenance } from "../ContextBar";
+import { QuickSkipNotice, useQuickSnapshot } from "../QuickAnalysis";
 import { useResearch } from "../ResearchContext";
 import type { EpochRecord, HgtModel, Metapath2VecModel, Scalar } from "../types";
 
@@ -181,6 +182,7 @@ const TITLES: Record<string, string> = { graph: "Research graph (input)", m2v: "
 
 export function NeuralPage() {
   const { snapshotId } = useResearch();
+  const { quick } = useQuickSnapshot();
   const [params, setParams] = useSearchParams();
   const selected = params.get("model") ?? "";
   const nm = useApi((s) => component3Api.neuralModels({ snapshotId }, s), [snapshotId]);
@@ -205,7 +207,7 @@ export function NeuralPage() {
                 <p>HGT and metapath2vec learn channel embeddings from the research graph; they feed the score's embedding component.</p>
                 <ul className="gx__legend nm-status">
                   <li><span className={`gstatus gstatus--${toneOf(m2v)}`}>metapath2vec · {STATUS[toneOf(m2v)]}</span></li>
-                  <li><span className={`gstatus gstatus--${toneOf(hgt)}`}>HGT · {STATUS[toneOf(hgt)]}</span></li>
+                  <li><span className={`gstatus gstatus--${toneOf(hgt)}`}>HGT · {quick && hgt.status === "missing" ? "skipped (quick analysis)" : STATUS[toneOf(hgt)]}</span></li>
                   {hgt.duration_seconds ? <li>HGT trained in {num(hgt.duration_seconds, 1)} s</li> : null}
                 </ul>
               </div>
@@ -222,7 +224,7 @@ export function NeuralPage() {
 
             <Block title="HGT neural network" hint="The trained graph neural network behind the embedding component, with our recorded input features and layer sizes."
               action={hgt.status === "available" ? <Badge tone={hgt.validation_passed ? "ok" : "warn"}>{hgt.validation_passed ? "validated run" : "not validated"}</Badge> : undefined}>
-              {hgt.status === "missing" ? <EmptyState title="No HGT run is stored for this snapshot." /> : (
+              {hgt.status === "missing" ? <QuickSkipNotice what="HGT" fallback={<EmptyState title="No HGT run is stored for this snapshot." />} /> : (
                 <HgtRadial features={hgt.node_features ?? {}} hidden={asNum(cfg.hidden)} layers={asNum(cfg.layers) ?? 1}
                   heads={asNum(cfg.heads) ?? 1} dropout={asNum(cfg.dropout)} dims={hgt.dimensions ?? null} />
               )}

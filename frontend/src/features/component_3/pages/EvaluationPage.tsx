@@ -7,6 +7,7 @@ import { useApi } from "../../../hooks/useApi";
 import { date, int, label, num, scalar } from "../../../utils/format";
 import { component3Api } from "../api";
 import { Provenance } from "../ContextBar";
+import { QuickSkipNotice } from "../QuickAnalysis";
 import { channelName, useResearch } from "../ResearchContext";
 import type { Scalar } from "../types";
 
@@ -138,9 +139,10 @@ export function EvaluationPage() {
       </section>
 
       {runs.data.items.length === 0 ? (
-        <EmptyState title="No evaluation has been run for this snapshot">
-          <p>Run python -m research.component_3.evaluation.evaluate to produce evaluation results.</p>
-        </EmptyState>
+        <QuickSkipNotice what="The evaluation" fallback={
+          <EmptyState title="No evaluation has been run for this snapshot">
+            <p>Run python -m research.component_3.evaluation.evaluate to produce evaluation results.</p>
+          </EmptyState>} />
       ) : (
         <>
           <div className="ev-bar">
