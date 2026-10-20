@@ -52,6 +52,7 @@ def export_snapshot_day(
 
 
 def export_research_snapshot(conn: psycopg.Connection, *, scope: Mapping[str, Sequence[str]] | None = None,
+                             channel_ids: Sequence[str] | None = None,
                              source: str = "supabase_postgresql",
                              details: Mapping[str, Any] | None = None) -> ResearchSnapshotInfo:
     """Freeze the current channels / videos / comments as a research snapshot.
@@ -63,6 +64,9 @@ def export_research_snapshot(conn: psycopg.Connection, *, scope: Mapping[str, Se
     ``scope`` optionally restricts the export to given ids per dataset, e.g.
     ``{"channels": [...], "videos": [...], "comments": [...]}`` for a pilot; datasets
     not named in ``scope`` are exported in full. The scope is recorded in the manifest.
+
+    ``channel_ids`` optionally restricts all three datasets to those channels (their videos and
+    comments), so data of other organizations stored in the same database never enters the snapshot.
     """
     scope = {k: sorted(set(v)) for k, v in (scope or {}).items()}
     unknown = sorted(set(scope) - set(DATASETS))
@@ -73,7 +77,8 @@ def export_research_snapshot(conn: psycopg.Connection, *, scope: Mapping[str, Se
     conn.isolation_level, conn.read_only = IsolationLevel.REPEATABLE_READ, True
     try:
         extracted_at = datetime.now(timezone.utc)
-        frames = {name: _read_table(conn, name, scope.get(name)) for name in DATASETS}
+        channels = sorted(set(channel_ids)) if channel_ids is not None else None
+        frames = {name: _read_table(conn, name, scope.get(name), channels) for name in DATASETS}
         conn.commit()
     finally:
         conn.rollback()
@@ -83,13 +88,22 @@ def export_research_snapshot(conn: psycopg.Connection, *, scope: Mapping[str, Se
         details={"database_schema": "research", "isolation": "repeatable_read",
                  "tables": {name: f"research.{name}" for name in DATASETS},
                  "scope": {name: len(ids) for name, ids in scope.items()} or "full tables",
+                 **({"channel_filter": len(channels)} if channels is not None else {}),
                  **dict(details or {})})
 
 
-def _read_table(conn: psycopg.Connection, dataset: str, ids: Sequence[str] | None = None) -> pd.DataFrame:
+def _read_table(conn: psycopg.Connection, dataset: str, ids: Sequence[str] | None = None,
+                channel_ids: Sequence[str] | None = None) -> pd.DataFrame:
     spec = get_spec(dataset)
     columns = list(spec.model.DTYPES)
-    where, params = ("", []) if ids is None else (f" WHERE {spec.key} = ANY(%s)", [list(ids)])
+    clauses, params = [], []
+    if ids is not None:
+        clauses.append(f"{spec.key} = ANY(%s)")
+        params.append(list(ids))
+    if channel_ids is not None:  # every research table carries channel_id
+        clauses.append("channel_id = ANY(%s)")
+        params.append(list(channel_ids))
+    where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
     rows = conn.execute(f"SELECT {', '.join(columns)} FROM research.{spec.name}{where} ORDER BY {spec.key}",
                         params).fetchall()
     return pd.DataFrame(rows, columns=columns).astype(spec.model.DTYPES)

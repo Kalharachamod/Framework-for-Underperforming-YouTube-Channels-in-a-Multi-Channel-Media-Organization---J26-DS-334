@@ -378,10 +378,14 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         if args.extract:
+            from shared.data_collection.channel_config import load_channels
             from shared.database.connection import connect
             from shared.database.snapshot_export import export_research_snapshot
+            # only the configured research channels: organizations analysed separately from the
+            # dashboard share the database but must never enter the research snapshot
+            research_ids = [c.channel_id for c in load_channels()]
             with connect() as conn:
-                info = export_research_snapshot(conn)
+                info = export_research_snapshot(conn, channel_ids=research_ids)
             print(f"Created research snapshot {info.snapshot_id}: {info.row_counts}")
             sid = info.snapshot_id
         else:
