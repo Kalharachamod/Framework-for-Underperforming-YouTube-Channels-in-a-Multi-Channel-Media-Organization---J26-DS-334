@@ -97,7 +97,8 @@ class Component3Service:
         snaps = self.store.list_snapshots()
         summary = [{"snapshot_id": s.snapshot_id, "created_at": s.created_at, "extracted_at": s.extracted_at,
                     "channels": s.row_counts.get("channels", 0), "videos": s.row_counts.get("videos", 0),
-                    "comments": s.row_counts.get("comments", 0)} for s in snaps]
+                    "comments": s.row_counts.get("comments", 0), "organization": s.organization,
+                    "quick_analysis": s.quick_analysis} for s in snaps]
         if not snaps:
             if snapshot_id is not None:
                 raise NotFound(f"research snapshot {snapshot_id} does not exist")

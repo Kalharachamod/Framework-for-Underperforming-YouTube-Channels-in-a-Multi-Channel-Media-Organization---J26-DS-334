@@ -18,6 +18,7 @@ import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +27,7 @@ import pandas as pd
 
 from shared.utils import snapshots
 from shared.utils.duckdb_query import MEMORY, duckdb_connection
+from shared.utils.parquet_io import read_dataset
 from shared.utils.paths import component_dir
 
 GRAPH_DIR, FEATURES_DIR, DIFFUSION_DIR, TOPICS_DIR = "graph", "features", "diffusion", "topics"
@@ -49,6 +51,12 @@ class SnapshotRef:
     created_at: datetime
     extracted_at: datetime | None
     row_counts: dict[str, int]
+    source: str = ""
+    organization: str | None = None    # labelled by a quick analysis, or inferred from config/organizations
+
+    @property
+    def quick_analysis(self) -> bool:
+        return self.source == "supabase_postgresql_analysis"
 
     @property
     def as_of(self) -> datetime:
@@ -178,9 +186,35 @@ class Component3Store:
 def _ref(info) -> SnapshotRef:
     m = info.manifest
     ext = m.get("extracted_at")
+    org = (m.get("details") or {}).get("organization")
     return SnapshotRef(info.snapshot_id, info.created_at,
                        datetime.fromisoformat(ext.replace("Z", "+00:00")).astimezone(timezone.utc) if ext else None,
-                       dict(info.row_counts))
+                       dict(info.row_counts), str(m.get("source") or ""),
+                       org if isinstance(org, str) else _infer_organization(info.snapshot_id))
+
+
+@lru_cache(maxsize=256)
+def _infer_organization(snapshot_id: str) -> str | None:
+    """Organization whose confirmed channel list (config/organizations/*.json) covers most of the snapshot's
+    channels (at least half). Snapshots are immutable, so the answer is cached per id."""
+    from shared.utils.paths import PROJECT_ROOT
+
+    try:
+        ids = set(read_dataset(snapshots.research_dataset_path(snapshot_id, "channels"), columns=["channel_id"])
+                  ["channel_id"].dropna().astype(str))
+    except Exception:  # noqa: BLE001 - a label is optional
+        return None
+    best, share = None, 0.0
+    for f in sorted((PROJECT_ROOT / "config" / "organizations").glob("*.json")):
+        try:
+            data = json.loads(f.read_text(encoding="utf-8"))
+        except ValueError:
+            continue
+        org_ids = {c.get("channel_id") for c in data.get("channels", [])}
+        s = len(ids & org_ids) / len(ids) if ids else 0.0
+        if s > share:
+            best, share = data.get("organization"), s
+    return best if share >= 0.5 else None
 
 
 def _ident(name: str) -> str:

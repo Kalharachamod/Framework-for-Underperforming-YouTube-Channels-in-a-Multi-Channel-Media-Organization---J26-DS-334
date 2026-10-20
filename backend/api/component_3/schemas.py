@@ -50,6 +50,9 @@ class SnapshotSummary(_Model):
     channels: int
     videos: int
     comments: int
+    organization: str | None = Field(None, description="Organization of the snapshot's channels (labelled by a "
+                                                          "quick analysis, or inferred from the confirmed lists).")
+    quick_analysis: bool = Field(False, description="True for an exploratory quick-analysis snapshot (small sample).")
 
 
 class ArtifactStatus(_Model):
