@@ -2,7 +2,8 @@
  * Central HTTP client for the backend API.
  *
  * - Base URL from VITE_API_URL (no secrets are ever read from the frontend environment).
- * - GET only; identical in-flight requests are shared (no duplicate calls).
+ * - GET for research results (identical in-flight requests are shared); POST only for the
+ *   organization-analysis endpoints (search, start a job), never shared or retried automatically.
  * - Every failure becomes an ApiError; failed requests are never replaced by fallback data.
  * - Responses are checked for the expected shape and refused if they contain commenter
  *   identifiers (defence in depth; the backend never sends them).
@@ -22,6 +23,9 @@ export type ApiErrorCode =
   | "aborted"
   | "rate_limited"
   | "unauthorized"
+  | "conflict"
+  | "forbidden"
+  | "upstream_error"
   | "http_error";
 
 export class ApiError extends Error {
@@ -46,6 +50,7 @@ export class ApiError extends Error {
 function messageForStatus(status: number): [ApiErrorCode, string] {
   if (status === 429) return ["rate_limited", "Research API rate limit reached. Please retry later."];
   if (status === 401 || status === 403) return ["unauthorized", "You are not authorised to read this research data."];
+  if (status === 409) return ["conflict", "The request conflicts with work that is already running."];
   if (status === 400 || status === 422) return ["invalid_parameter", "The request was not accepted: a selection or filter value is invalid."];
   if (status === 404) return ["not_found", "The requested research resource does not exist."];
   if (status === 504 || status === 408) return ["timeout", "The research API did not respond in time."];
@@ -66,6 +71,9 @@ const KNOWN_CODES = new Set<ApiErrorCode>([
   "storage_unavailable",
   "timeout",
   "internal_error",
+  "conflict",
+  "forbidden",
+  "upstream_error",
 ]);
 const IDENTIFIER_PATTERN = /anon_[0-9a-f]{8,}|commenter:/;
 const inFlight = new Map<string, Promise<unknown>>();
@@ -84,12 +92,15 @@ export function buildUrl(path: string, params: Params = {}, base: string = API_B
   return `${base}${path}${qs ? `?${qs}` : ""}`;
 }
 
-async function fetchJson(url: string): Promise<unknown> {
+async function fetchJson(url: string, init?: { method: "POST"; body: unknown; timeoutMs?: number }): Promise<unknown> {
   let response: Response;
   const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
-  const timer = controller ? setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS) : null;
+  const timer = controller ? setTimeout(() => controller.abort(), init?.timeoutMs ?? REQUEST_TIMEOUT_MS) : null;
   try {
-    response = await fetch(url, { headers: { Accept: "application/json" }, signal: controller?.signal });
+    response = await fetch(url, init
+      ? { method: init.method, headers: { Accept: "application/json", "Content-Type": "application/json" },
+          body: JSON.stringify(init.body), signal: controller?.signal }
+      : { headers: { Accept: "application/json" }, signal: controller?.signal });
   } catch {
     if (controller?.signal.aborted) throw new ApiError("timeout", "The research API did not respond in time.");
     throw new ApiError("network_error", "The research API could not be reached. Is the backend running?");
@@ -129,6 +140,13 @@ export async function getJson<T>(path: string, params: Params, validate: Validat
     inFlight.set(url, shared);
   }
   const data = await abortable(shared, signal);
+  if (!validate(data)) throw new ApiError("invalid_response", "The API response did not have the expected structure.");
+  return data;
+}
+
+/** POST a JSON body (organization analysis only). Not shared between callers and never retried automatically. */
+export async function postJson<T>(path: string, body: unknown, validate: Validator<T>, timeoutMs?: number): Promise<T> {
+  const data = await fetchJson(buildUrl(path), { method: "POST", body, timeoutMs });
   if (!validate(data)) throw new ApiError("invalid_response", "The API response did not have the expected structure.");
   return data;
 }
