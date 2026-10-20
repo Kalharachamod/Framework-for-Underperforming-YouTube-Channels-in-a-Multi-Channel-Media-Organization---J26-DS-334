@@ -52,7 +52,9 @@ outside scope; no script reads or writes them.
 
 Separate owner and runtime roles, no SECURITY DEFINER, invoker triggers with a
 fixed catalog search path, PUBLIC revoked on all C1 tables, views and functions,
-column-level UPDATE grants only, no DELETE/TRUNCATE grants, history insert-only,
+column-level UPDATE grants only, no DELETE/TRUNCATE grants, history append-only
+for every role (`guard_history` blocks UPDATE/TRUNCATE; DELETE only inside a
+retention purge with `SET LOCAL c1.retention_purge = 'on'`; see the design doc),
 staged responses immutable, every collector INSERT/UPDATE gated by RLS on an
 approved and enabled cohort. Entity rows (channels, videos) pass the gate when
 their channel belongs to such a cohort; history rows additionally require their

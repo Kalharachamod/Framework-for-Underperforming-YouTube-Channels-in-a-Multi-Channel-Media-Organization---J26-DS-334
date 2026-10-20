@@ -51,7 +51,9 @@ class C1SQLStaticTests(unittest.TestCase):
         self.assertNotIn('SECURITY DEFINER', joined.upper())
         # Keywords only: channel names such as "5 Million Money Drop" are literals.
         keywords = re.sub(r"'(?:[^']|'')*'", "''", joined)
-        self.assertNotRegex(keywords, r'(?i)\b(?:PASSWORD|ALTER ROLE|DROP|TRUNCATE|DELETE FROM)\b')
+        self.assertNotRegex(keywords, r'(?i)\b(?:PASSWORD|ALTER ROLE|DROP|DELETE FROM)\b')
+        # TRUNCATE may appear only as a trigger event, never as a statement.
+        self.assertNotRegex(keywords, r'(?im)(?:^|;)\s*TRUNCATE\b')
         self.assertIn('REVOKE ALL ON ALL FUNCTIONS IN SCHEMA c1 FROM PUBLIC;', joined)
         self.assertEqual(len(re.findall(r'CREATE ROLE ', self.roles)), 2)
         self.assertIn('NOBYPASSRLS', self.roles)
@@ -99,6 +101,30 @@ class C1SQLStaticTests(unittest.TestCase):
                         'guard_channels BEFORE UPDATE ON c1.channels',
                         'guard_videos BEFORE UPDATE ON c1.videos'):
             self.assertIn(f'CREATE TRIGGER {trigger}', self.schema)
+
+    def test_history_append_only_except_retention_purge(self):
+        schema = code(self.schema)
+        for table in ('channel_stats_history', 'video_stats_history'):
+            self.assertRegex(schema, rf'CREATE TRIGGER \w+ BEFORE UPDATE OR DELETE ON c1\.{table}\s+'
+                                     r'FOR EACH ROW EXECUTE FUNCTION c1\.guard_history\(\);')
+            self.assertRegex(schema, rf'CREATE TRIGGER \w+ BEFORE TRUNCATE ON c1\.{table}\s+'
+                                     r'FOR EACH STATEMENT EXECUTE FUNCTION c1\.guard_history\(\);')
+        guard = schema.split('CREATE FUNCTION c1.guard_history()')[1].split('END; $$;')[0]
+        self.assertIn('SECURITY INVOKER', guard)
+        self.assertIn('SET search_path = pg_catalog', guard)
+        # DELETE is the only operation with an exit, and only under the purge setting.
+        self.assertIn("IF TG_OP = 'DELETE' AND current_setting('c1.retention_purge', true) = 'on' THEN", guard)
+        self.assertEqual(re.findall(r'\bRETURN\b[^;]*;', guard), ['RETURN OLD;'])
+        self.assertIn('RAISE EXCEPTION', guard)
+        self.assertLess(schema.index('c1.guard_history()'),
+                        schema.index('REVOKE ALL ON ALL FUNCTIONS IN SCHEMA c1 FROM PUBLIC;'))
+        self.assertIn("SET LOCAL c1.retention_purge = 'on'", self.schema)
+        # No shipped script turns the purge on.
+        sources = (self.schema, self.access, self.roles, self.membership, self.reader,
+                   self.bootstrap, self.revoke, self.preflight, self.audit)
+        joined = '\n'.join(code(s) for s in sources)
+        self.assertNotRegex(joined, r'(?i)\bSET\s+(?:LOCAL\s+|SESSION\s+)?c1\.retention_purge\b')
+        self.assertNotRegex(joined, r"(?i)set_config\s*\(\s*'c1\.retention_purge'")
 
     def test_model_views_are_owner_rights_barriers_with_opposite_holdout_filters(self):
         training = view_body(self.schema, 'training_observations')

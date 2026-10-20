@@ -286,6 +286,28 @@ CREATE TRIGGER guard_run_identity BEFORE UPDATE ON c1.collection_runs
 CREATE TRIGGER guard_work_identity BEFORE UPDATE ON c1.collection_work
   FOR EACH ROW EXECUTE FUNCTION c1.guard_operational_identity();
 
+-- History is append-only for every role, including c1_owner: UPDATE and TRUNCATE
+-- always fail. The only way to delete history is a deliberate retention purge
+-- (ethics policy: data deleted or made private on YouTube must be purged), run by
+-- a role with DELETE privilege inside one transaction that first issues
+-- SET LOCAL c1.retention_purge = 'on'. The setting grants nothing by itself.
+CREATE FUNCTION c1.guard_history() RETURNS trigger LANGUAGE plpgsql SECURITY INVOKER
+SET search_path = pg_catalog AS $$
+BEGIN
+  IF TG_OP = 'DELETE' AND current_setting('c1.retention_purge', true) = 'on' THEN
+    RETURN OLD;
+  END IF;
+  RAISE EXCEPTION 'C1 history is append-only; % blocked', TG_OP;
+END; $$;
+CREATE TRIGGER guard_channel_history BEFORE UPDATE OR DELETE ON c1.channel_stats_history
+  FOR EACH ROW EXECUTE FUNCTION c1.guard_history();
+CREATE TRIGGER guard_channel_history_truncate BEFORE TRUNCATE ON c1.channel_stats_history
+  FOR EACH STATEMENT EXECUTE FUNCTION c1.guard_history();
+CREATE TRIGGER guard_video_history BEFORE UPDATE OR DELETE ON c1.video_stats_history
+  FOR EACH ROW EXECUTE FUNCTION c1.guard_history();
+CREATE TRIGGER guard_video_history_truncate BEFORE TRUNCATE ON c1.video_stats_history
+  FOR EACH STATEMENT EXECUTE FUNCTION c1.guard_history();
+
 -- Model-facing views. Owner-rights (security_invoker = false) so readers need
 -- SELECT on the view only and never on base tables; security_barrier stops
 -- reader-supplied predicates from seeing rows before the holdout filter.

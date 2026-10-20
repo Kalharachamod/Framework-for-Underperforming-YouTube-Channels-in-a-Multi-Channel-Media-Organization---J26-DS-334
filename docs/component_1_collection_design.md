@@ -69,7 +69,7 @@ The runtime allowlist is:
 | Schema `c1` | `USAGE`, no `CREATE` |
 | `c1.cohorts` | `SELECT` only |
 | `c1.channels`, `c1.videos` | `SELECT`, `INSERT`; column-level `UPDATE` only for mutable metadata, latest-success timestamp and discovery state; no changes to IDs, cohort/version, ownership or original admission fields |
-| Both C1 history tables | `SELECT`, `INSERT`; no `UPDATE` or `DELETE` |
+| Both C1 history tables | `SELECT`, `INSERT`; no `UPDATE` or `DELETE`. Trigger `c1.guard_history` also blocks UPDATE and TRUNCATE for every role, and DELETE outside a retention purge (see Monitoring and storage) |
 | `c1.collection_runs` | `SELECT`, `INSERT`; column-level `UPDATE` for phase, heartbeat/end, counters and outcomes; immutable identity, schedule and cohort/hash |
 | `c1.collection_work` | `SELECT`, `INSERT`; column-level `UPDATE` for cursors, response staging, leases, retries, attempt counters and outcomes; immutable task identity and selected-ID definition |
 | `c1.collection_coordination` | `SELECT`; column-level `UPDATE` for active run, lease/fence, inventory revision and discovery rotation; no INSERT/DELETE |
@@ -315,9 +315,20 @@ There is no approved retention duration. Decide retention/refresh requirements
 for API payloads, derived statistics, metadata, unavailable IDs, inventory
 provenance, work outcomes, logs, backups and reproducible research exports with
 the responsible supervisor. Stable inventory does not authorize indefinite
-retention. No deletion, purge, TTL, partition drop, automatic cleanup or approved
-policy is defined here. Persistent staging cannot be activated without an agreed
+retention. No TTL, partition drop, automatic cleanup or approved retention
+duration is defined here. Persistent staging cannot be activated without an agreed
 retention and capacity plan; numeric scenarios are not policy recommendations.
+
+History rows are append-only. `c1.guard_history` rejects every UPDATE and
+TRUNCATE on `c1.channel_stats_history` and `c1.video_stats_history`, for every
+role including `c1_owner`. The ethics policy requires purging data that was
+deleted or made private on YouTube, so DELETE has exactly one path, and it is
+the only way to delete history: a deliberate retention purge, run by a role that
+holds DELETE (the owner path; the collector and model reader have none), in one
+transaction that issues `SET LOCAL c1.retention_purge = 'on'` before its DELETE
+statements. `SET LOCAL` ends with the transaction, so the purge cannot leak into
+later work. The setting grants no privilege by itself, and no shipped script or
+runtime code sets it. Each purge is a separately reviewed operator action.
 
 ## Approval gates and staged validation
 
@@ -415,7 +426,9 @@ Role belongs to cohort membership (`c1.cohort_channels.role`: `owned`,
 triggers. Channels and videos are one row per entity, and history is keyed by
 `(channel_id, observed_at)` / `(video_id, observed_at)` only, with cohort/run as
 provenance. Adding channels or a new cohort version never splits a series, and
-the same channel is never stored twice for one observation. Full table, trigger
+the same channel is never stored twice for one observation. History is
+append-only (`c1.guard_history`); the only delete path is the retention purge in
+"Monitoring and storage". Full table, trigger
 and grant details are in `research/component_1/sql/README.md`.
 
 `organizations.is_holdout` has no default and is locked by trigger. Model code
@@ -489,6 +502,17 @@ cap is 2% of the default 10,000 daily units.
 ## Validation status
 
 Offline: SQL text checks, manifest/bootstrap consistency (including the
-canonical-JSON hash) and the mocked collector suite under Node and Deno. The SQL
-has not been executed anywhere since this revision; the database test files are
-updated but marked not re-validated.
+canonical-JSON hash) and the mocked collector suite under Node and Deno.
+
+Local database (2026-10-20): scripts 000, 002a, 002a2, 002a1, 001, 002b, 004 and
+then 005 ran cleanly in a disposable PostgreSQL 17.11 container, as a
+Supabase-like non-superuser `postgres` (CREATEROLE, CREATEDB, database CREATE),
+and 003 ran as `c1_collector`. Checked: seed counts; pending-cohort RLS blocks
+collector writes and opens once approved/enabled; collector cannot read the
+model views; the model reader reads only the views, with a correct holdout split;
+`is_holdout` is locked; history UPDATE/TRUNCATE fail for every role, and DELETE
+fails unless `c1.retention_purge` is set locally; `research`/`annotation` are
+untouched. The only warning is that 002b's `GRANT CONNECT` grants nothing when
+`postgres` does not own the database (PUBLIC CONNECT still applies). This does
+not validate Supabase itself; `tests/component_1/test_c1_postgres_local.ps1`
+remains not re-validated.
