@@ -18,12 +18,14 @@ const NeuralPage = lazy(() => import("../features/component_3/pages/NeuralPage")
 const PipelinePage = lazy(() => import("../features/component_3/pages/PipelinePage").then((m) => ({ default: m.PipelinePage })));
 const OverviewPage = lazy(() => import("../features/component_3/pages/OverviewPage").then((m) => ({ default: m.OverviewPage })));
 const StatusPage = lazy(() => import("../features/component_3/pages/StatusPage").then((m) => ({ default: m.StatusPage })));
+const AnalyzePage = lazy(() => import("../features/component_3/pages/AnalyzePage").then((m) => ({ default: m.AnalyzePage })));
 const TopicsPage = lazy(() => import("../features/component_3/pages/TopicsPage").then((m) => ({ default: m.TopicsPage })));
 
 export const NAV: NavItem[] = [
   { to: "/", label: "Overview", group: "Core workspace", icon: "dashboard" },
   { to: "/bridges", label: "Audience Bridges", group: "Core workspace", icon: "bridges" },
   { to: "/channels", label: "Channel Explorer", group: "Core workspace", icon: "channels" },
+  { to: "/analyze", label: "Analyze Organization", group: "Core workspace", icon: "search" },
   { to: "/pipeline", label: "Pipeline Graph", group: "Research models", icon: "flow" },
   { to: "/graph", label: "Graph Intelligence", group: "Research models", icon: "graph" },
   { to: "/neural", label: "Neural Models", group: "Research models", icon: "neural" },
@@ -75,6 +77,7 @@ export function AppRoutes() {
           <Route path="/topics" element={<TopicsPage />} />
           <Route path="/experiments" element={<ExperimentsPage />} />
           <Route path="/status" element={<StatusPage />} />
+          <Route path="/analyze" element={<AnalyzePage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         </Suspense>
