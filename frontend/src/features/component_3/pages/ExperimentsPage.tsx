@@ -59,11 +59,17 @@ function RunMeta({ title, run }: { title: string; run: CompareRun | null }) {
 }
 
 /** Pair-level change between an older snapshot and the selected one. The backend decides compatibility. */
-function SnapshotComparison({ current, options }: { current: string; options: { id: string; when: string | null }[] }) {
+function SnapshotComparison({ current, options, organization }: { current: string; options: { id: string; when: string | null }[]; organization?: string | null }) {
   const older = options.filter((o) => o.id !== current);
   const [base, setBase] = useState(older[0]?.id ?? "");
   const cmp = useApi((s) => component3Api.compare(base, current, s), [base, current], base !== "");
-  if (older.length === 0) return <EmptyState title="Snapshot comparison unavailable for this selection."><p>Only one snapshot is stored.</p></EmptyState>;
+  if (older.length === 0) return (
+    <EmptyState title="Snapshot comparison unavailable for this selection.">
+      <p>{organization
+        ? `No earlier snapshot of ${organization} is stored. Analyse ${organization} again later to compare its rankings over time.`
+        : "Only one snapshot is stored."}</p>
+    </EmptyState>
+  );
   return (
     <>
       <div className="cmp-pick">
@@ -147,6 +153,8 @@ export function ExperimentsPage() {
   // only older snapshots can be the comparison base; newest first
   const olderSnapshots = snapshots
     .filter((s) => s.snapshot_id !== current && (!currentWhen || (s.extracted_at ?? s.created_at ?? "") < currentWhen))
+    // rankings are only comparable within one organization's channel set
+    .filter((s) => !currentMeta?.organization || s.organization === currentMeta.organization)
     .reverse()
     // likely-compatible snapshots (same channel count) first; the backend still verifies compatibility
     .sort((a, b) => Number(b.channels === currentMeta?.channels) - Number(a.channels === currentMeta?.channels))
@@ -235,7 +243,7 @@ export function ExperimentsPage() {
 
       <Card title="Snapshot comparison" info="Compares stored scores of the same directed pairs in two snapshots. Enabled only when both snapshots cover the same channel set and have a scoring run.">
         {status.status === "loading" ? <Loading variant="table" rows={3} /> : current ? (
-          <SnapshotComparison key={current} current={current} options={olderSnapshots} />
+          <SnapshotComparison key={current} current={current} options={olderSnapshots} organization={currentMeta?.organization} />
         ) : <EmptyState title="Snapshot comparison unavailable for this selection." />}
       </Card>
 
