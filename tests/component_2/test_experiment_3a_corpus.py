@@ -131,5 +131,26 @@ class Experiment3ACorpusTests(unittest.TestCase):
             _check_v2_invariants(roles, v1)
 
 
+class PilotLoaderTests(unittest.TestCase):
+    def test_literal_null_parent_is_a_top_level_comment(self):
+        import tempfile
+        from pathlib import Path
+
+        from research.component_2.feasibility_experiment.build_expanded_corpus import load_pilot_comments
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "pilot.csv"
+            pd.DataFrame(
+                {
+                    "comment_id": ["a", "b"], "channel_id": ["c", "c"], "channel_name": ["Dream Star"] * 2,
+                    "video_id": ["v", "v"], "comment_text": ["x", "y"], "published_at": ["2026-01-01"] * 2,
+                    "edited_at": ["2026-01-01"] * 2, "like_count": ["0", "0"], "parent_comment_id": ["null", "a"],
+                }
+            ).to_csv(path, index=False)
+            pilot = load_pilot_comments(path)
+        self.assertEqual(pilot["is_reply"].tolist(), [False, True])
+        self.assertTrue(pd.isna(pilot.loc[0, "parent_comment_id"]))
+
+
 if __name__ == "__main__":
     unittest.main()

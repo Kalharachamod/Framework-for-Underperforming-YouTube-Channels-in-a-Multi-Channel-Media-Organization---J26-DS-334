@@ -115,14 +115,16 @@ def _read_jsonl(path: Path) -> pd.DataFrame:
 
 def load_pilot_comments(path: Path) -> pd.DataFrame:
     pilot = pd.read_csv(path, dtype={"comment_id": "string", "video_id": "string"}, keep_default_na=False)
+    # The pilot export writes a missing parent as the literal string "null".
+    parent = pilot["parent_comment_id"].str.strip().replace({"": pd.NA, "null": pd.NA, "None": pd.NA})
     return pd.DataFrame(
         {
             "comment_id": pilot["comment_id"],
             "video_id": pilot["video_id"],
             "channel_id": pilot["channel_id"],
             "channel_name": pilot["channel_name"],
-            "parent_comment_id": pilot["parent_comment_id"].replace("", pd.NA),
-            "is_reply": pilot["parent_comment_id"].ne(""),
+            "parent_comment_id": parent,
+            "is_reply": parent.notna(),
             "published_at": pilot["published_at"],
             "like_count": pd.to_numeric(pilot["like_count"], errors="coerce"),
             "author_hash": pd.NA,

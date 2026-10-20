@@ -75,7 +75,8 @@ Generated files are written under:
 
 ```text
 data/processed/component_2/
-data/analysis/component_2/
+data/analysis/component_2/01_pilot_2000_comments/        # notebooks 01-03: pilot validation, EDA, preprocessing
+data/analysis/component_2/02_full_corpus_84002_comments/ # Experiment 3A: full-corpus validation and EDA
 ```
 
 Important outputs:

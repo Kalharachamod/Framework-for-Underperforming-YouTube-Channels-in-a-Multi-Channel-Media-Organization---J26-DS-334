@@ -127,6 +127,37 @@ within a channel, so the next stage should fit a channel-specific topic space
 shared by that channel's video documents and its demand comments. The
 organisation-wide model remains useful for cross-channel description.
 
+## 3A EDA: validation and exploratory analysis of the full corpus
+
+The validation (`src/validation.py`) and EDA (`src/eda.py`) helpers used for the
+2,000-comment pilot were applied unchanged to all 84,002 comments
+(`experiment_3a_eda.py`; outputs in `data/analysis/component_2/02_full_corpus_84002_comments/`; pilot outputs in `01_pilot_2000_comments/`).
+
+| Measure | Pilot (2,000) | Full corpus (84,002) |
+|---|---:|---:|
+| Channels / videos with comments | 5 / 255 | 8 / 1,970 |
+| Duplicate comment IDs | 0 | 0 |
+| Replies | 18.4% | 19.0% |
+| Median comments per video | 7 | 12 |
+| Median length (characters / words) | 26 / 4 | 25 / 4 |
+| Sinhala script / Latin / mixed | 39.0% / 45.8% / 7.4% | 34.5% / 56.3% / 9.3% |
+| Emoji-only | 22.0% | 18.1% |
+| Very short (< 5 characters) | 15.0% | 13.8% |
+
+All commented videos have metadata (0 missing) and no comment is attached to a
+video of another channel. Seven comments have empty text. The text profile of
+the full corpus is close to the pilot, so the preprocessing designed on the
+pilot transfers to the full corpus.
+
+**Correction found by this EDA.** The pilot export stores a missing parent as
+the literal string `null`. The first 3A build therefore marked all 2,000 pilot
+comments as replies. The loader now treats `null` as missing; the rebuilt
+corpus has 15,975 replies (not 17,608). The partition fingerprint is
+unchanged, and no classifier, topic or JSD result used the reply flag. In
+annotation batch 1, some pilot comments were shown with the note "reply;
+parent comment not collected" although they were top-level comments; their
+text and video context were correct.
+
 ## Not done in Experiment 3
 
 No comment was labelled, no demand classifier was trained, no demand topics or
