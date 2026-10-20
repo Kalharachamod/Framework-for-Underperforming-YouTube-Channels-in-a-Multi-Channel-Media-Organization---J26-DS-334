@@ -190,13 +190,32 @@ def test_validation_detects_inconsistent_scores(result):
         ab.validate(bad)
 
 
-def test_cli(sid, monkeypatch, capsys):
-    real = ab.run
+def _fake_encoders(monkeypatch):
+    real, real_topic = ab.run, ab.saved_or_new_topic_run
     monkeypatch.setattr(ab, "run", lambda s, c, **kw: real(s, c, **{**kw, "encoder": FakeEncoder()}))
+    monkeypatch.setattr(ab, "saved_or_new_topic_run",
+                        lambda inp, backend="e5", **kw: real_topic(inp, backend, encoder=FakeEncoder()))
+
+
+def test_cli(sid, monkeypatch, capsys):
+    _fake_encoders(monkeypatch)
     assert ab.main(["--snapshot", sid]) == 0
     assert "provisional" in capsys.readouterr().out
     assert ab.main(["--snapshot", sid, "--weights", "0.5", "0.5", "0.5"]) == 1
     assert ab.main(["--snapshot", sid, "--weights", "0.5", "0", "0.5", "--embedding-source", "none"]) == 0
+
+
+def test_cli_cites_a_topic_run_that_exists(sid, monkeypatch):
+    # the bridge run's provenance must point at a saved topic run (computed and saved on the first run,
+    # reused afterwards), never at an in-memory run that does not exist on disk
+    _fake_encoders(monkeypatch)
+    assert ab.main(["--snapshot", sid]) == 0
+    runs = sorted((ab.bridge_dir(sid, "x").parent).glob("abs-*/bridge_run.json"))
+    cited = json.loads(runs[-1].read_text(encoding="utf-8"))["inputs"]["topic_experiment_id"]
+    from research.component_3.model import topic_similarity as ts
+    assert (ts.topics_dir(sid, cited) / "topic_run.json").is_file()
+    again = ab.saved_or_new_topic_run(bl.load_input(sid), encoder=FakeEncoder())
+    assert again.experiment_id == cited                        # reused, not recomputed under a new id
 
 
 # --- topic layer integration (topic nodes in the graph; diffusion without topic edges) ---------------
