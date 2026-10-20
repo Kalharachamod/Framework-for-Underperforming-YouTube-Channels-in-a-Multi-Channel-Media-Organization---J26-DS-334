@@ -18,7 +18,7 @@ The API **reads stored research artifacts**. It never collects data, trains a mo
 
 ## Configuration
 
-Copy `.env.example` to `.env`. The API needs **no secrets**.
+Copy `.env.example` to `.env`. The read-only endpoints need **no secrets**. The organization-analysis endpoints use the YouTube key, commenter salt and database URL from `.env` through the shared collection code.
 
 | Variable | Default | Meaning |
 |---|---|---|
@@ -26,6 +26,7 @@ Copy `.env.example` to `.env`. The API needs **no secrets**.
 | `API_CORS_ORIGINS` | `http://localhost:5173` | Comma-separated frontend origins. `*` is refused |
 | `API_MAX_PAGE_SIZE` | `100` | Upper bound for `?limit=` |
 | `API_REQUEST_TIMEOUT_SECONDS` | `30` | Longer requests get `504 timeout` |
+| `API_ENABLE_ANALYSIS` | `true` | `false` switches off the organization-analysis endpoints (they answer `403 forbidden`) |
 
 ## Run locally
 
@@ -81,6 +82,18 @@ How selection works:
 | `GET /experiments/runs` | Every stored run of a snapshot (graph, features, diffusion, topics, embeddings, baselines, scoring, explanations, evaluations) with id, time, validation result and recorded configuration |
 | `GET /dashboard/summary`, `/dashboard/channels`, `/dashboard/top-videos`, `/dashboard/views-timeline`, `/dashboard/overlap`, `/dashboard/topics`, `/dashboard/top-bridges` | Snapshot totals and channel-level aggregates for the dashboard (public counts of collected videos; aggregate commenter counts only) |
 
+### Organization analysis (the only endpoints that call YouTube or write data)
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /analysis/config` | Whether analysis is enabled, quick limits, step list, active job |
+| `POST /analysis/discover` `{organization, region_code?}` | Search YouTube for an organization's channels (about 100–150 quota units); candidates with evidence and confidence |
+| `GET /analysis/discover?organization=` | Candidates of an earlier search (no quota) |
+| `POST /analysis/jobs` `{organization, channels: [{channel_id, title}]}` | Start a quick analysis (2–25 confirmed channels): collection → organization snapshot → scoring. `202` with the job |
+| `GET /analysis/jobs`, `GET /analysis/jobs/{job_id}` | Jobs with per-step progress (polled by the dashboard) |
+
+One job runs at a time (`409 conflict` otherwise). Jobs are recorded in `data/raw/analysis_jobs/`; a job that was running when the API stopped is reported as `interrupted`. See [docs/architecture/org_analysis.md](../docs/architecture/org_analysis.md).
+
 The research-view endpoints (`/bridge/pairs`, `/bridge/compare`, `/graph/summary`, `/topics/similarity`, `/experiments/runs`, `/models/neural`) read stored run metadata and Parquet results only. They return counts, channel-level values and run settings, never a commenter or video node identifier; a missing run is reported (`artifact_unavailable`, or `status: missing` inside the graph summary), never filled in.
 
 ### Example
@@ -112,6 +125,9 @@ Every error has the same shape: `{"error": {"code", "message", "details"?}}`.
 | HTTP | `code` | When |
 |---|---|---|
 | 404 | `not_found` | Unknown snapshot, channel, experiment, evaluation or pair |
+| 403 | `forbidden` | Organization analysis is switched off (`API_ENABLE_ANALYSIS=false`) |
+| 409 | `conflict` | An organization analysis is already running |
+| 502 | `upstream_error` | The YouTube Data API failed (quota exceeded, network); the message never contains the key |
 | 404 | `artifact_unavailable` | The artifact hasn't been produced yet (e.g. no STEP 19 run, no evaluation yet) |
 | 422 | `invalid_parameter` | Malformed ID, `limit` out of range, unknown method, a filter the table doesn't support, a self pair |
 | 503 | `storage_unavailable` | Artifacts couldn't be read (missing or corrupt file) |
@@ -122,13 +138,13 @@ A filter that matches nothing returns `200` with an empty `items` list. That's d
 
 ## Security and privacy
 
-- **CORS:** only the configured origins are allowed, for `GET` only and without credentials. A wildcard is rejected at startup.
+- **CORS:** only the configured origins are allowed, for `GET` and `POST` (POST is used only by organization analysis) and without credentials. A wildcard is rejected at startup.
 - **Validated input:** IDs are checked against strict patterns, and filters against the run's own methods. SQL values are bound parameters, and column names come only from code.
 - **Bounded reads:** every list is paged (`limit` ≤ `API_MAX_PAGE_SIZE`), and queries read single Parquet files with projection and `WHERE`/`LIMIT`. No full comment or embedding tables are loaded.
 - **No commenter identifiers:** the schemas have no field for them, and a final guard blocks any response containing a pseudonym (`anon_…`) or commenter node ID, answering with a generic 500.
 - **No sensitive values in responses:** responses and OpenAPI contain no credentials, file paths or stack traces. Evaluation metadata drops local paths and platform details.
-- **Access control:** there's no authentication. The project has none, and the API is read-only over aggregate research results. It's meant for local or trusted-network use. Put it behind an authenticating proxy before exposing it publicly.
-- **Supabase:** the API doesn't connect to Supabase. Supabase is the collection store, while the API serves the immutable research snapshots and artifacts derived from it.
+- **Access control:** there's no authentication. The project has none. Apart from organization analysis (which spends YouTube quota and writes to Supabase and the data folder), the API is read-only over aggregate research results. It's meant for local or trusted-network use: set `API_ENABLE_ANALYSIS=false` or put it behind an authenticating proxy before exposing it.
+- **Supabase:** the read-only endpoints don't connect to Supabase; they serve the immutable research snapshots and artifacts. Only an organization-analysis job writes to Supabase (through the shared collectors), then freezes its own snapshot.
 
 ## Testing
 
