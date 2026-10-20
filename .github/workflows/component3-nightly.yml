@@ -1,0 +1,75 @@
+# Component 3 nightly live results (runs on GitHub's servers; no analyst computer needed).
+#   collect new YouTube data into Supabase -> rolling-window snapshot -> Audience Bridge Score -> publish
+#   aggregate results to research.c3_live_* (see research/component_3/live.py and docs/architecture/live_results.md)
+#
+# One-time setup (repository Settings -> Secrets and variables -> Actions -> New repository secret):
+#   YOUTUBE_API_KEY, COMMENTER_HASH_SALT (the team's salt), SUPABASE_DB_URL
+# and once, from a computer with .env:  python -m shared.database.migrate   (creates the live tables)
+name: Component 3 nightly
+
+on:
+  schedule:
+    - cron: "30 18 * * *"       # 18:30 UTC = 00:00 in Sri Lanka (UTC+05:30)
+  workflow_dispatch:             # "Run workflow" button for a manual run
+    inputs:
+      collect:
+        description: "Collect new YouTube data first"
+        type: boolean
+        default: true
+
+concurrency:
+  group: component3-nightly
+  cancel-in-progress: false      # never run two nightly jobs at once
+
+permissions:
+  contents: read
+
+jobs:
+  nightly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+      COMMENTER_HASH_SALT: ${{ secrets.COMMENTER_HASH_SALT }}
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      DATA_DIR: ${{ github.workspace }}/../c3-data      # temporary; results are published to Supabase
+      HF_HOME: ${{ github.workspace }}/../hf-cache
+      PYTHONUNBUFFERED: "1"
+    steps:
+      # GitHub starts scheduled runs only from the default branch's copy of this file, so the code itself is
+      # taken from the Component 3 branch (override with the repository variable C3_BRANCH).
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ vars.C3_BRANCH || 'component-3' }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies (CPU PyTorch)
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements.txt
+          pip install -e .
+
+      - name: Cache the topic model (multilingual-e5-small, pinned revision)
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/../hf-cache
+          key: hf-e5-small-614241f622f53c4eeff9890bdc4f31cfecc418b3
+
+      - name: Check secrets are configured
+        run: |
+          for v in YOUTUBE_API_KEY COMMENTER_HASH_SALT SUPABASE_DB_URL; do
+            if [ -z "${!v}" ]; then echo "::error::secret $v is not set (Settings -> Secrets and variables -> Actions)"; exit 1; fi
+          done
+
+      - name: Collect, score and publish
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.collect }}" = "false" ]; then
+            python -m research.component_3.live --no-collect
+          else
+            python -m research.component_3.live
+          fi
