@@ -395,8 +395,12 @@ class StageResult:
 
 
 def run_pipeline(snapshot_id: str, config: PilotConfig, *, encoder=None, m2v_config=None, hgt_config=None,
-                 node2vec_config=None) -> tuple[list[StageResult], dict[str, Any]]:
-    """Run each enabled stage on the pilot snapshot; stop at the first failure."""
+                 node2vec_config=None,
+                 on_stage: Callable[[StageResult], None] | None = None) -> tuple[list[StageResult], dict[str, Any]]:
+    """Run each enabled stage on the pilot snapshot; stop at the first failure.
+
+    ``on_stage`` (optional) is called with a ``running`` result before each executed stage and with
+    the final result after it, so callers can report progress."""
     from research.component_3.evaluation import evaluate as ev
     from research.component_3.explainability import explain as ex
     from research.component_3.model import audience_bridge as ab
@@ -538,6 +542,8 @@ def run_pipeline(snapshot_id: str, config: PilotConfig, *, encoder=None, m2v_con
                 "reason": "an earlier stage failed" if failed else f"needs disabled stage(s) {missing}"}))
             continue
         t0 = time.perf_counter()
+        if on_stage:
+            on_stage(StageResult(name, "running"))
         try:
             artifact, details = stages[name]()
             results.append(StageResult(name, "completed", round(time.perf_counter() - t0, 2), artifact, details))
@@ -547,6 +553,8 @@ def run_pipeline(snapshot_id: str, config: PilotConfig, *, encoder=None, m2v_con
             results.append(StageResult(name, "failed", round(time.perf_counter() - t0, 2), error=(
                 f"{type(exc).__name__}: {str(exc).splitlines()[0][:300] if str(exc) else ''} "
                 f"(at {Path(where.filename).name}:{where.lineno})")))
+        if on_stage:
+            on_stage(results[-1])
     return results, st
 
 
@@ -714,7 +722,7 @@ def compare_with_pilot(snapshot_id: str, run: dict[str, Any]) -> dict[str, Any] 
 
 def _md(v) -> str:
     """Markdown table cell: escape '|' (channel names may contain it)."""
-    return str(v).replace("|", "\|")
+    return str(v).replace("|", "\\|")
 
 
 def render_report(run: dict[str, Any]) -> str:
