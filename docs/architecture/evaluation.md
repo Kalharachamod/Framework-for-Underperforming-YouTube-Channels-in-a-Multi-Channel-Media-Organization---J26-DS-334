@@ -64,7 +64,7 @@ Agreement is consistency between methods, **not correctness**.
 - their data differs
 - the later one was extracted later
 
-Otherwise the pair is recorded as `not_comparable` with the reason. If no pair is comparable, every method gets `insufficient_temporal_data`. The current real snapshots (`rs-20261008T093922Z` with about 10 videos per channel and `rs-20261008T191612Z` with about 50) are **not comparable observation windows**. Real temporal evaluation needs repeated daily collection with the same settings.
+Otherwise the pair is recorded as `not_comparable` with the reason. If no pair is comparable, every method gets `insufficient_temporal_data`. `rs-20261008T093922Z` (about 10 videos per channel) and `rs-20261008T191612Z` (about 50) are **not comparable observation windows**. `rs-20261008T191612Z` and `rs-20261010T081534Z` (same 18 channels, same depth) **are comparable**, and the current evaluation run reports temporal stability for that pair. Two snapshots about 1.5 days apart are a short window; stronger temporal evidence needs more repeated collection with the same settings.
 
 **Sparse-data robustness.** These are controlled simulations:
 - **Subsampling:** comments, or whole commenters (`--sparse-unit commenters`), are subsampled at each retain fraction (default 0.75 / 0.5 / 0.25) with fixed seeds (default 0 / 1 / 2). Channels, videos and `as_of` stay unchanged.

@@ -5,7 +5,7 @@ Input: the STEP 13 graph ([hetero_graph.md](hetero_graph.md)); weights consisten
 
 ```
 Heterogeneous graph → graph features → [metapath2vec] → node embeddings
-  → (later) diffusion + topic similarity + confidence → Audience Bridge Score
+  → diffusion + embedding similarity + topic similarity + confidence → Audience Bridge Score
 ```
 
 ## Why metapath2vec
@@ -99,8 +99,8 @@ python -m research.component_3.model.metapath2vec --dim 128 --walks-per-node 20 
 
 ## Limitations
 
-- **Structural only:** embeddings reflect the **structure of the observed sample**. With low collection coverage (STEP 14: about 0.7% of videos per channel) and few shared commenters, they're dominated by within-channel structure.
-- **No topics yet:** topic semantics aren't included until the topic-modelling stage.
+- **Structural only:** embeddings reflect the **structure of the observed sample**. With low collection coverage (a bounded number of recent videos per channel; STEP 14 reports the exact share per snapshot) and few shared commenters, they're dominated by within-channel structure.
+- **Topics only via VTV:** topic semantics enter only through the `VTV` metapath, and only when STEP 18 topic clusters were written to the graph (`has_topic` edges).
 - **Not tuned:** hyperparameters are defaults, not tuned values.
 
 metapath2vec captures **graph-based structural relationships**. It does **not** prove audience migration, causality, subscriber movement, influence or conversion. Commenters appear only as pseudonyms.

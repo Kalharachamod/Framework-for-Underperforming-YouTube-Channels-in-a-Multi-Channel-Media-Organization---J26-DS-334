@@ -31,7 +31,7 @@ python -m research.component_3.model.hgt --hidden 64 --layers 2 --heads 2 --epoc
 | Node type | Present |
 |---|---|
 | `commenter`, `video`, `channel` | Yes |
-| `topic` | Only when topic nodes exist (none yet; never fabricated) |
+| `topic` | Only when topic nodes exist in the graph (from STEP 18 clustering; never fabricated) |
 
 | Relation (message passing) | Notes |
 |---|---|
@@ -140,7 +140,8 @@ Hyperparameters are intentionally **not** forced to match, since the architectur
 
 ## Limitations
 
-- **Small, sparse sample:** about 0.7% video coverage, few shared commenters, and mostly cold-start later edges. Link-prediction metrics on it are unstable.
-- **No real temporal validation yet:** the random fallback is used on the current data.
-- **No edge attributes** in `HGTConv`, and **no topic semantics** yet.
+- **Small, sparse sample:** low video coverage, few shared commenters, and mostly cold-start later edges. Link-prediction metrics on it are unstable.
+- **Small temporal validation set:** on the earliest snapshot (`rs-20261008T093922Z`) the random fallback was used. The current run (`rs-20261010T081534Z`) uses the temporal split, but with only 41 warm validation edges (7,235 training edges), so metrics are noisy.
+- **No edge attributes** in `HGTConv`, and topic semantics only when topic nodes exist.
 - **Default hyperparameters**, untuned.
+- **Channel collapse:** channel embeddings are nearly identical (cosine median 0.978 on `rs-20261010T081534Z`, 0.989 on `rs-20261015T174938Z`), so HGT barely distinguishes channels. This is a documented negative result ([Finding 3](../research/component3_known_findings_and_limitations.md)); the Audience Bridge Score uses metapath2vec by default.
