@@ -23,7 +23,7 @@ export function ContextBar() {
         disabled={!snaps.length}
         options={[...snaps].reverse().map((s) => ({
           value: s.snapshot_id,
-          label: `${s.snapshot_id} (${date(s.extracted_at ?? s.created_at)})`,
+          label: `${s.organization ? `${s.organization}${s.quick_analysis ? " (quick)" : ""} · ` : ""}${s.snapshot_id} (${date(s.extracted_at ?? s.created_at)})`,
         }))}
       />
       <Select
