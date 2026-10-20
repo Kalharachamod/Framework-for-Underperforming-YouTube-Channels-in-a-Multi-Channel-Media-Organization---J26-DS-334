@@ -25,7 +25,7 @@ pip install -e .
 cd frontend; npm install; cd ..
 ```
 
-`requirements.txt` gives lower bounds only. To match the reported runs, install the versions recorded in [component3_experimental_setup.md](component3_experimental_setup.md) (each experiment manifest also lists them). The first topic run downloads `intfloat/multilingual-e5-small` (~470 MB) at the pinned revision.
+`requirements.txt` gives minimum versions. For an **exact** reproduction of the reported runs, install the pinned versions instead: `pip install -r requirements-lock.txt` and then `pip install -e .` (Python 3.13.2; the file includes PyTorch's CPU package index). Each experiment manifest also records its versions. The first topic run downloads `intfloat/multilingual-e5-small` (~470 MB) at the pinned revision.
 
 ## 3. Configuration
 

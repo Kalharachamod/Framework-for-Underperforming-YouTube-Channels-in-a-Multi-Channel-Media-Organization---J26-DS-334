@@ -46,6 +46,7 @@ Weights are 1/3 each. The two-part form is the `w_e = 0` ablation.
 
 - Louvain (Jaccard projection)
 - node2vec (type-agnostic embeddings)
+- Shared commenters (simple overlap; evaluation version 1.2)
 
 ## Evaluation
 
@@ -67,6 +68,7 @@ All from `eval-60ac93319497`:
 - Temporal stability is 0.946 over 1.5 days, largely reflecting shared data.
 - Confidence is the most influential factor for the top-1 destination: removing it changes 9 of 18.
 - **Negative result:** HGT channel embeddings collapse (cosine median 0.978).
+- **The score closely follows a simple shared-commenter count** (Spearman 0.99 over all pairs, ≈0.8 among pairs with evidence; different top bridge for 3–4 of 13 channels). Its added value over counting is modest on this data (Finding 6).
 
 ## Limitations
 
@@ -99,7 +101,7 @@ See [ethics_and_privacy](component3_ethics_and_privacy.md).
 - pinned E5 revision
 - reproduction guide
 
-**Gap:** `requirements.txt` has lower bounds only.
+Exact package versions are pinned in `requirements-lock.txt`.
 
 ## Dashboard Status
 
@@ -124,6 +126,7 @@ See [known_findings_and_limitations](component3_known_findings_and_limitations.m
 - Examiners may challenge validation without labels.
 - Longer temporal data may show lower stability.
 - The score may be seen as "engineering" rather than method.
+- **Examiners may ask why not just count shared commenters.** The current evidence shows only modest added value over counting; it must be re-tested with more data and labels.
 
 ## Final Readiness
 
@@ -134,5 +137,4 @@ The research pipeline, results and documentation are complete and consistent, an
 **Remaining issues** (none critical; all documented):
 - The newest snapshot is incomplete.
 - Zero-evidence rows still show ranks in the dashboard.
-- There is no dependency lock file.
 - A systematic literature review must precede thesis submission.

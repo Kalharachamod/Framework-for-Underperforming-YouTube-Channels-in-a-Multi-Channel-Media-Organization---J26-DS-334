@@ -54,7 +54,7 @@ ABS(s → d) = [ w_d·norm_PPR(s→d) + w_e·norm_emb(s,d) + w_t·norm_topic(s,d
 7. **Relative scores:** per-source min-max means scores are not calibrated across sources.
 8. **Untuned defaults:** all hyperparameters and weights are documented defaults, not tuned values.
 9. **Noisy HGT validation:** HGT validation rests on 41 temporal edges.
-10. **Unpinned dependencies:** `requirements.txt` uses lower bounds only; exact versions are recorded per run.
+10. **Dependencies:** `requirements.txt` uses minimum versions; the exact environment is pinned in `requirements-lock.txt` and recorded per run.
 11. **Commenters are not viewers:** they are a self-selected subset.
 
 ## Safe claims
@@ -80,7 +80,7 @@ ABS(s → d) = [ w_d·norm_PPR(s→d) + w_e·norm_emb(s,d) + w_t·norm_topic(s,d
 - A systematic literature search may find a close prior formulation, which would reduce novelty to an application contribution.
 - Examiners may question the validation because there are no labels. Mitigation: present the work as a consistency and robustness evaluation, and propose expert labelling as future work.
 - More snapshots may show lower stability than the single short-window pair suggests.
-- A fresh environment may install newer library versions. Mitigation: export a lock file.
+- A fresh environment may install newer library versions. Mitigation: install from `requirements-lock.txt`.
 
 ## Corrections made in STEP 33 (documentation and wording only)
 

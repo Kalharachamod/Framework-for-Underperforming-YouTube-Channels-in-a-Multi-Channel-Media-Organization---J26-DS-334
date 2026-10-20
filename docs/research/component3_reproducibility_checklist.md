@@ -16,7 +16,7 @@
 | Configuration stored with results | ✅ | `experiment.json` / manifest per run |
 | Library versions stored with results | ✅ | Python, numpy, pandas, gensim, torch, torch_geometric, networkx versions in manifests |
 | Pinned pretrained model | ✅ | `intfloat/multilingual-e5-small` at a pinned revision |
-| Pinned dependency versions | ⚠️ Partial | `requirements.txt` uses `>=` lower bounds. Exact versions are recorded per run, but a fresh install may differ. Recommended: export a lock file (`pip freeze`) for the thesis appendix |
+| Pinned dependency versions | ✅ | `requirements-lock.txt` pins the exact versions of the environment used for the reported runs (`pip freeze`, Python 3.13.2, CPU). `requirements.txt` keeps minimum versions for development; exact versions are also recorded per run |
 | Secrets outside the repo | ✅ | `.env` only (API key, Supabase, `COMMENTER_HASH_SALT`) |
 | Pseudonymisation reproducible | ✅ | same salt → same `anon_` IDs; different salt → unlinkable |
 | Tests without external services | ✅ | no real YouTube API or production Supabase in tests |

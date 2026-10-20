@@ -42,6 +42,6 @@ All of `data/` is git-ignored.
 
 - **Inputs:** an analysis is fully determined by the snapshot ID, the salt (`.env`), the configuration and the seeds. Each experiment ID is a hash of these.
 - **Determinism:** fixed seeds and single-worker training make metapath2vec, node2vec, PPR, topic similarity, the score and Louvain reproducible. HGT is seeded on CPU.
-- **Versions:** library versions are recorded in every experiment manifest. `requirements.txt` gives lower bounds only.
+- **Versions:** library versions are recorded in every experiment manifest. `requirements-lock.txt` pins the exact versions; `requirements.txt` gives minimum versions.
 - **Pinned model:** the topic encoder is pinned to a model revision.
 - **Raw data:** it is not redistributed (YouTube terms and privacy). Code, configuration and snapshot IDs are.
