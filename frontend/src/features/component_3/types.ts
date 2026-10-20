@@ -17,6 +17,8 @@ export interface SnapshotSummary {
   channels: number;
   videos: number;
   comments: number;
+  organization?: string | null;
+  quick_analysis?: boolean;
 }
 
 export interface ArtifactStatus {
