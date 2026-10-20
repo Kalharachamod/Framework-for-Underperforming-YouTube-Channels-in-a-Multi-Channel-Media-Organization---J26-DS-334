@@ -206,3 +206,59 @@ describe("Quick-analysis snapshots", () => {
     expect(screen.queryByRole("button", { name: "Complete analysis" })).not.toBeInTheDocument();
   });
 });
+
+describe("Analyze Organization extras", () => {
+  it("reuses a saved search without spending quota, and can search YouTube again", async () => {
+    const posts: unknown[] = [];
+    mock((url, method, body) => {
+      if (url.pathname === `${A}/config`) return { body: config() };
+      if (url.pathname === `${A}/jobs` && method === "GET") return { body: { items: [] } };
+      if (url.pathname === `${A}/discover` && method === "GET") return { body: { ...discovery, source: "saved" } };
+      if (url.pathname === `${A}/discover` && method === "POST") { posts.push(body); return { body: discovery }; }
+      return undefined;
+    });
+    renderPage();
+    const user = userEvent.setup();
+    await user.type(await searchBox(), ORG);
+    await user.click(screen.getByRole("button", { name: "Search" }));
+    expect(await screen.findByText(/no quota used/, undefined, { timeout: 4000 })).toBeInTheDocument();
+    expect(posts).toEqual([]);                                   // nothing sent to YouTube
+    await user.click(screen.getByRole("button", { name: "Search YouTube again" }));
+    await waitFor(() => expect(posts).toHaveLength(1));
+  });
+
+  it("lights up channel logos as their comments are collected", async () => {
+    const running = job("running", { steps: [
+      { step: "comments", label: "Collecting public comments", status: "running",
+        details: { videos_total: 30, videos_done: 15, channels_done: [H1], channel_now: H2 } },
+    ] });
+    mock((url, method) => {
+      if (url.pathname === `${A}/config`) return { body: config({ active_job_id: "job-0123456789ab" }) };
+      if (url.pathname === `${A}/jobs` && method === "GET") return { body: { items: [] } };
+      if (url.pathname === `${A}/jobs/job-0123456789ab`) return { body: running };
+      return undefined;
+    });
+    renderPage();
+    expect(await screen.findByLabelText("Testvision TV: done", undefined, { timeout: 4000 })).toBeInTheDocument();
+    expect(screen.getByLabelText("Testvision News: collecting")).toBeInTheDocument();
+    expect(screen.getByText("1 of 2 collected")).toBeInTheDocument();
+  });
+
+  it("shows each organization's top bridge and compares two organizations", async () => {
+    const other = job("completed", { job_id: "job-0123456789ac", organization: "Othervision",
+      result: { snapshot_id: "rs-20260303T000000Z", rows: { channels: 3, videos: 40, comments: 300 } } });
+    mock((url, method) => {
+      if (url.pathname === `${A}/config`) return { body: config() };
+      if (url.pathname === `${A}/jobs` && method === "GET") return { body: { items: [job("completed"), other] } };
+      return undefined;
+    });
+    renderPage();
+    const user = userEvent.setup();
+    expect((await screen.findAllByText("Top bridge", undefined, { timeout: 4000 })).length).toBe(2);
+    await user.click(screen.getByRole("checkbox", { name: "Compare Testvision" }));
+    await user.click(screen.getByRole("checkbox", { name: "Compare Othervision" }));
+    expect(await screen.findByRole("heading", { name: "Testvision vs Othervision" })).toBeInTheDocument();
+    expect(await screen.findByText("Pairs with shared commenters", undefined, { timeout: 4000 })).toBeInTheDocument();
+    expect(screen.getByText(/Compare with care/)).toBeInTheDocument();
+  });
+});
