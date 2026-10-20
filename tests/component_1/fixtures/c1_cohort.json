@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "cohort_id": "synthetic_test_only",
+  "version": "test-1",
+  "approval": {
+    "status": "pending"
+  },
+  "enabled": false,
+  "channels": [
+    {
+      "channel_id": "UCaaaaaaaaaaaaaaaaaaaaaa",
+      "channel_name": "SYNTHETIC TEST CHANNEL"
+    }
+  ]
+}

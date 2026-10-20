@@ -1,0 +1,63 @@
+{
+  "synthetic_test_data": true,
+  "seed": [
+    {
+      "video_id": "old00000001",
+      "channel_id": "UCaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ],
+  "channels": [
+    {
+      "id": "UCaaaaaaaaaaaaaaaaaaaaaa",
+      "snippet": {
+        "title": "SYNTHETIC TEST CHANNEL"
+      },
+      "statistics": {},
+      "contentDetails": {
+        "relatedPlaylists": {
+          "uploads": "UUaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      }
+    }
+  ],
+  "videos": [
+    {
+      "id": "old00000001",
+      "snippet": {
+        "channelId": "UCaaaaaaaaaaaaaaaaaaaaaa",
+        "title": "SYNTHETIC TEST VIDEO",
+        "publishedAt": "2026-01-01T00:00:00Z"
+      },
+      "statistics": {
+        "viewCount": "5"
+      },
+      "contentDetails": {
+        "duration": "PT1M"
+      }
+    },
+    {
+      "id": "new00000001",
+      "snippet": {
+        "channelId": "UCaaaaaaaaaaaaaaaaaaaaaa",
+        "title": "SYNTHETIC TEST VIDEO",
+        "publishedAt": "2026-01-01T00:00:00Z"
+      },
+      "statistics": {
+        "viewCount": "5"
+      },
+      "contentDetails": {
+        "duration": "PT1M"
+      }
+    }
+  ],
+  "playlists": {
+    "UUaaaaaaaaaaaaaaaaaaaaaa": [
+      [
+        "new00000001"
+      ],
+      [
+        "new00000001"
+      ]
+    ]
+  }
+}

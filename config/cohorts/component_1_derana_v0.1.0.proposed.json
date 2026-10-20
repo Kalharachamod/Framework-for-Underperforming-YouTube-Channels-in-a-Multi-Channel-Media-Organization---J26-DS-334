@@ -1,0 +1,326 @@
+{
+  "schema_version": 1,
+  "cohort_id": "component_1_derana_initial",
+  "version": "0.1.0-proposed",
+  "status": "proposal_only",
+  "approval": {
+    "status": "pending",
+    "approved_by": null,
+    "approved_at": null,
+    "required_decisions": [
+      "Approve these 18 channels as the initial C1 organization cohort",
+      "Acknowledge Pulse.lk has medium-confidence source evidence",
+      "Resolve or explicitly defer registry differences without assigning ownership to unconfirmed channels",
+      "Agree stable-video inclusion and future admission rules"
+    ]
+  },
+  "enabled": false,
+  "organization": "Derana",
+  "membership_basis": {
+    "source": "config/organizations/derana.json",
+    "confirmed_at": "2026-10-07T10:41:00Z",
+    "method": "youtube_data_api: channel search + linked channels + description evidence; reviewer-confirmed",
+    "note": "Existing reviewer confirmation is evidence for the proposal, not C1 cohort approval; not independently reverified."
+  },
+  "evidence_sources": [
+    {
+      "path": "config/research_channels.json",
+      "sha256": "b6d8c4332c7c8c8770fa844ff68ebd1ca34a1cc6593752e02838b8d6cf28b3ba",
+      "purpose": "Existing configuration or saved read-only audit; no fresh YouTube verification"
+    },
+    {
+      "path": "config/organizations/derana.json",
+      "sha256": "0df9eb0294bf92d635ad7b9968b4276b785c3f429e467643a85cbca5e482d04b",
+      "purpose": "Existing configuration or saved read-only audit; no fresh YouTube verification"
+    },
+    {
+      "path": "config/channel_registry.csv",
+      "sha256": "e7bb92076fd6f29fb9b7180fc0650389a8ea8ddfe6b5480f6e52584b9b1df05a",
+      "purpose": "Existing configuration or saved read-only audit; no fresh YouTube verification"
+    },
+    {
+      "path": "research/component_1/results/audit_20261016T180009808234Z.json",
+      "sha256": "805de92dd10d529665cc5993d6f9c2c00e1c2017459c9cb2ba1a9722523632e4",
+      "purpose": "Existing configuration or saved read-only audit; no fresh YouTube verification"
+    }
+  ],
+  "channels": [
+    {
+      "channel_id": "UCRDDfbYPHX_GUJ4lcQYTc8A",
+      "channel_name": "TV Derana",
+      "handle": "@tvderanaofficial",
+      "source_confidence": "high",
+      "evidence": [
+        "organization name in channel title",
+        "linked by Ada Derana, FM Derana",
+        "links back to a matching channel",
+        "same country (LK)"
+      ],
+      "source": "config/organizations/derana.json",
+      "research_group": "owned",
+      "in_channel_registry": true
+    },
+    {
+      "channel_id": "UCCK3OZi788Ok44K97WAhLKQ",
+      "channel_name": "Ada Derana",
+      "handle": "@adaderananews",
+      "source_confidence": "high",
+      "evidence": [
+        "organization name in channel title",
+        "linked by TV Derana",
+        "links back to a matching channel",
+        "same country (LK)"
+      ],
+      "source": "config/organizations/derana.json",
+      "research_group": "owned",
+      "in_channel_registry": true
+    },
+    {
+      "channel_id": "UCOPPH1_whpThgY6e7r3qg-w",
+      "channel_name": "FM Derana",
+      "handle": "@fmderanaofficial",
+      "source_confidence": "high",
+      "evidence": [
+        "organization name in channel title",
+        "linked by TV Derana",
+        "links back to a matching channel",
+        "same country (LK)"
+      ],
+      "source": "config/organizations/derana.json",
+      "research_group": "owned",
+      "in_channel_registry": true
+    },
+    {
+      "channel_id": "UC_m6TcsKwid_mmOScbuYltg",
+      "channel_name": "Derana Shorts",
+      "handle": "@deranashorts",
+      "source_confidence": "high",
+      "evidence": [
+        "organization name in channel title",
+        "linked by TV Derana",
+        "links back to a matching channel",
+        "same country (LK)"
+      ],
+      "source": "config/organizations/derana.json",
+      "research_group": "owned",
+      "in_channel_registry": false
+    },
+    {
+      "channel_id": "UCW_rA_jb-_vbZtU4cTpnT5Q",
+      "channel_name": "Ada Derana News Channel",
+      "handle": "@adaderana_24",
+      "source_confidence": "high",
+      "evidence": [
+        "organization name in channel title",
+        "linked by Ada Derana",
+        "links back to a matching channel",
+        "same country (LK)"
+      ],
+      "source": "config/organizations/derana.json",
+      "research_group": "owned",
+      "in_channel_registry": false
+    },
+    {
+      "channel_id": "UCV1NPkc2O0YZBtx_rhDkicw",
+      "channel_name": "Ada Derana Education",
+      "handle": "@adaderanaeducation",
+      "source_confidence": "high",
+      "evidence": [
+        "organization name in channel title",
+        "linked by Ada Derana, TV Derana",
+        "links back to a matching channel",
+        "same country (LK)"
+      ],
+      "source": "config/organizations/derana.json",
+      "research_group": "owned",
+      "in_channel_registry": true
+    },
+    {
+      "channel_id": "UCrZs77rjxjbn_BMaSccMXnQ",
+      "channel_name": "Derana City Of Music",
+      "handle": "@deranacityofmusic5748",
+      "source_confidence": "high",
+      "evidence": [
+        "organization name in channel title",
+        "linked by TV Derana",
+        "links back to a matching channel",
+        "same country (LK)"
+      ],
+      "source": "config/organizations/derana.json",
+      "research_group": "owned",
+      "in_channel_registry": false
+    },
+    {
+      "channel_id": "UCZ418aLcVbJDo0fc01aQDQQ",
+      "channel_name": "Derana 60 Plus",
+      "handle": "@derana60plus",
+      "source_confidence": "high",
+      "evidence": [
+        "organization name in channel title",
+        "linked by TV Derana",
+        "links back to a matching channel",
+        "same country (LK)"
+      ],
+      "source": "config/organizations/derana.json",
+      "research_group": "owned",
+      "in_channel_registry": false
+    },
+    {
+      "channel_id": "UCHKtXGbqRIM0hA4Manb9DNg",
+      "channel_name": "Ada Derana Sports",
+      "handle": "@adaderanasports",
+      "source_confidence": "high",
+      "evidence": [
+        "organization name in channel title",
+        "linked by Ada Derana",
+        "links back to a matching channel",
+        "same country (LK)"
+      ],
+      "source": "config/organizations/derana.json",
+      "research_group": "owned",
+      "in_channel_registry": false
+    },
+    {
+      "channel_id": "UCSTl549eJYdeUAY0NmZLU6A",
+      "channel_name": "Ada Derana Biz",
+      "handle": "@adaderanabiz",
+      "source_confidence": "high",
+      "evidence": [
+        "organization name in channel title",
+        "linked by Ada Derana",
+        "links back to a matching channel",
+        "same country (LK)"
+      ],
+      "source": "config/organizations/derana.json",
+      "research_group": "owned",
+      "in_channel_registry": false
+    },
+    {
+      "channel_id": "UCir6eRv6gShvpiWR2TehHzg",
+      "channel_name": "Ada Derana World News",
+      "handle": "@adaderanaworldnews",
+      "source_confidence": "high",
+      "evidence": [
+        "organization name in channel title",
+        "linked by Ada Derana",
+        "links back to a matching channel"
+      ],
+      "source": "config/organizations/derana.json",
+      "research_group": "owned",
+      "in_channel_registry": false
+    },
+    {
+      "channel_id": "UCbkMFGQ_RWIf0OiYeOpf6Ng",
+      "channel_name": "TV Derana LIVE",
+      "handle": "@tvderanalive",
+      "source_confidence": "high",
+      "evidence": [
+        "organization name in channel title",
+        "linked by Ada Derana, TV Derana",
+        "same country (LK)"
+      ],
+      "source": "config/organizations/derana.json",
+      "research_group": "owned",
+      "in_channel_registry": true
+    },
+    {
+      "channel_id": "UCJr5vlnK6HEBVISUtxnq_sg",
+      "channel_name": "Derana Little Star",
+      "handle": "@deranalittlestar",
+      "source_confidence": "high",
+      "evidence": [
+        "organization name in channel title",
+        "linked by TV Derana",
+        "same country (LK)"
+      ],
+      "source": "config/organizations/derana.json",
+      "research_group": "owned",
+      "in_channel_registry": true
+    },
+    {
+      "channel_id": "UC11bd3xGXwzf_naIePO1n4g",
+      "channel_name": "Ada Derana Tamil",
+      "handle": "@adaderana_tamil",
+      "source_confidence": "high",
+      "evidence": [
+        "organization name in channel title",
+        "linked by Ada Derana",
+        "same country (LK)"
+      ],
+      "source": "config/organizations/derana.json",
+      "research_group": "owned",
+      "in_channel_registry": true
+    },
+    {
+      "channel_id": "UCuOtdpOPjHeoEAT4i44mVOg",
+      "channel_name": "Ada Derana News Channel | English",
+      "handle": "@adncenglish",
+      "source_confidence": "high",
+      "evidence": [
+        "organization name in channel title",
+        "linked by Ada Derana",
+        "same country (LK)"
+      ],
+      "source": "config/organizations/derana.json",
+      "research_group": "owned",
+      "in_channel_registry": true
+    },
+    {
+      "channel_id": "UCs8gVM6lPhRZk3L_zZmedpw",
+      "channel_name": "Dream Star",
+      "handle": "@dreamstaroffcial",
+      "source_confidence": "high",
+      "evidence": [
+        "linked by TV Derana",
+        "links back to a matching channel",
+        "organization named in description",
+        "same country (LK)"
+      ],
+      "source": "config/organizations/derana.json",
+      "research_group": "owned",
+      "in_channel_registry": true
+    },
+    {
+      "channel_id": "UCYPchfdlyZHi2gt2_FrLL3Q",
+      "channel_name": "Lokaya Saha Lokayo",
+      "handle": "@lokayasahalokayo",
+      "source_confidence": "high",
+      "evidence": [
+        "linked by Ada Derana",
+        "links back to a matching channel",
+        "organization named in description"
+      ],
+      "source": "config/organizations/derana.json",
+      "research_group": "owned",
+      "in_channel_registry": false
+    },
+    {
+      "channel_id": "UCVsi4vIpAcKl825aPQV4IjA",
+      "channel_name": "Pulse.lk",
+      "handle": "@pulselk",
+      "source_confidence": "medium",
+      "evidence": [
+        "linked by TV Derana",
+        "same country (LK)"
+      ],
+      "source": "config/organizations/derana.json",
+      "research_group": "owned",
+      "in_channel_registry": true
+    }
+  ],
+  "database_scope": {
+    "audited_channels": 43,
+    "proposed_channels_present": 18,
+    "other_channels": 25,
+    "other_channels_status": "unconfirmed; organization unknown; not classified as competitors",
+    "details": "research/component_1/results/cohort_reconciliation.md"
+  },
+  "video_refresh_policy": {
+    "status": "proposed_pending_approval",
+    "bootstrap": "Read all existing research.videos video_id values whose channel_id belongs to this manifest; retain the ID/channel mapping in an ignored durable cohort inventory. No newest-N or publication-date cutoff.",
+    "admission": "Discover uploads for approved channels; validate videos.list metadata and channel_id membership before admitting each new ID to the stable inventory. Deduplicate by video_id.",
+    "retention": "Keep admitted IDs across runs, including videos outside the newest upload window. Missing/unavailable responses do not delete IDs or create zero-valued observations.",
+    "versioning": "Track inventory revision and admission timestamps separately from the fixed channel-manifest version; channel membership changes require review.",
+    "execution": "This proposal is not consumed by the current shared collectors and does not enable any schedule."
+  }
+}
