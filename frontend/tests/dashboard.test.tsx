@@ -92,6 +92,17 @@ describe("Audience Bridges", () => {
     expect(unscored).not.toHaveTextContent("0.000");
   });
 
+  it("shows no evidence instead of a rank for a zero-score pair", async () => {
+    const base = (await import("./fixtures")).bridgePairs;
+    const zero = { ...base.items[4], rank: 2, audience_bridge_score: 0, confidence_component: 0, shared_commenters: 0 };
+    mockFetch(defaultRoutes({ bridgePairs: { ...base, items: [...base.items.slice(0, 4), zero, base.items[5]] } }));
+    renderAt("/bridges");
+    const table = (await screen.findAllByRole("table")).at(-1)!;
+    const row = within(table).getAllByRole("row").find((r) => r.textContent?.includes("no evidence"))!;
+    expect(row).toBeTruthy();
+    expect(row).toHaveTextContent("0.000");       // the observed zero score is still shown
+  });
+
   it("shows an empty state when the scoring run has no pairs", async () => {
     mockFetch(defaultRoutes({ bridgePairs: { snapshot_id: SID, experiment_id: EID, items: [], note: "" } }));
     renderAt("/bridges");
@@ -166,6 +177,14 @@ describe("Explainability", () => {
     expect(await screen.findByText("Explanation not available")).toBeInTheDocument();
     expect(screen.getByText(/no explanation artifact \(STEP 22\) exists/)).toBeInTheDocument();
     expect(screen.queryByText("Explanation reasons")).not.toBeInTheDocument();
+  });
+
+  it("shows no bridge evidence instead of a tie-break rank for a zero score", async () => {
+    mockFetch(defaultRoutes({ pair: pair({ audience_bridge_score: 0, rank: 2 }) }));
+    renderAt(`/explainability?source=${A}&destination=${C}`);
+    expect(await screen.findByText(/There is no bridge evidence between/, undefined, { timeout: 4000 })).toBeInTheDocument();
+    expect(screen.getAllByText(/no bridge evidence/i).length).toBeGreaterThan(1);
+    expect(screen.queryByText("#2")).not.toBeInTheDocument();
   });
 
   it("excludes the source from the destination choices", async () => {
