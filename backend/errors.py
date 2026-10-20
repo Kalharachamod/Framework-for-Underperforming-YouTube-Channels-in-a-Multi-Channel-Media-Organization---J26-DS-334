@@ -14,7 +14,9 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from backend.database.component_3_artifacts import StorageError
+from backend.services.component_3.analysis_jobs import AnalysisBusy, AnalysisDisabled
 from backend.services.component_3.service import ArtifactUnavailable, IdentifierLeak, InvalidParameter, NotFound
+from shared.data_collection.youtube_api_client import YouTubeAPIError
 
 log = logging.getLogger("backend.api")
 
@@ -44,6 +46,19 @@ def install(app: FastAPI) -> None:
         details = [{"location": ".".join(str(p) for p in e.get("loc", ())), "message": e.get("msg", "invalid")}
                    for e in exc.errors()]
         return error(422, "invalid_parameter", "request parameters are invalid", details)
+
+    @app.exception_handler(AnalysisDisabled)
+    async def _disabled(_: Request, exc: AnalysisDisabled):
+        return error(403, "forbidden", str(exc))
+
+    @app.exception_handler(AnalysisBusy)
+    async def _busy(_: Request, exc: AnalysisBusy):
+        return error(409, "conflict", str(exc))
+
+    @app.exception_handler(YouTubeAPIError)
+    async def _youtube(_: Request, exc: YouTubeAPIError):
+        log.warning("YouTube API error: %s", type(exc).__name__)
+        return error(502, "upstream_error", f"YouTube Data API request failed: {str(exc)[:200]}")
 
     @app.exception_handler(StorageError)
     async def _storage(_: Request, exc: StorageError):
