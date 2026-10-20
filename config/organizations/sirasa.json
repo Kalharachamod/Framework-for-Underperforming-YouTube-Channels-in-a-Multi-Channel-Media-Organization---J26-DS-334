@@ -1,0 +1,282 @@
+{
+  "organization": "sirasa",
+  "confirmed_at": "2026-10-16T09:48:40Z",
+  "discovered_at": "2026-10-16T09:48:07Z",
+  "method": "youtube_data_api: channel search + linked channels + description evidence; reviewer-confirmed",
+  "channels": [
+    {
+      "channel_id": "UCpp3TTx7OU3SmCECA1-6r3w",
+      "title": "Sirasa FM",
+      "handle": "@sirasafm",
+      "confidence": "high",
+      "evidence": [
+        "organization name in channel title",
+        "linked by Sirasa TV Digital",
+        "links back to a matching channel",
+        "same country (LK)"
+      ]
+    },
+    {
+      "channel_id": "UCfnZtEDnl84njUQgtF186cA",
+      "title": "Sirasa Lakshapathi",
+      "handle": "@sirasalakshapathi",
+      "confidence": "high",
+      "evidence": [
+        "organization name in channel title",
+        "linked by Sirasa TV Digital",
+        "links back to a matching channel",
+        "same country (LK)"
+      ]
+    },
+    {
+      "channel_id": "UC0xVuSfC72x3e7ijncDLgYQ",
+      "title": "Sirasa Cinescope",
+      "handle": "@sirasacinescope",
+      "confidence": "high",
+      "evidence": [
+        "organization name in channel title",
+        "linked by Sirasa TV Digital",
+        "links back to a matching channel",
+        "same country (LK)"
+      ]
+    },
+    {
+      "channel_id": "UCn0XmAUFv6d2tofMFEesSNw",
+      "title": "Sirasa TV",
+      "handle": "@sirasaofficial",
+      "confidence": "high",
+      "evidence": [
+        "organization name in channel title",
+        "linked by Sirasa FM, Sirasa Lakshapathi, Sirasa TV Digital",
+        "same country (LK)"
+      ]
+    },
+    {
+      "channel_id": "UCXJQwWh7dEdEfmIaIJpZ4SQ",
+      "title": "Sirasa Lunch Time TV",
+      "handle": "@sirasalunchtimetv",
+      "confidence": "high",
+      "evidence": [
+        "organization name in channel title",
+        "linked by Sirasa TV Digital",
+        "same country (LK)"
+      ]
+    },
+    {
+      "channel_id": "UCBNxaWOXx6B1B4CEtxoNS3Q",
+      "title": "Sirasa Dancing Star",
+      "handle": "@sirasadancingstarsl",
+      "confidence": "high",
+      "evidence": [
+        "organization name in channel title",
+        "linked by Sirasa TV Digital",
+        "same country (LK)"
+      ]
+    },
+    {
+      "channel_id": "UC8fCPqq-Q3Ki3RrMyTsmckg",
+      "title": "Sirasa Dhamma - සිරස ධම්ම",
+      "handle": "@sirasadhamma",
+      "confidence": "high",
+      "evidence": [
+        "organization name in channel title",
+        "linked by Sirasa TV Digital",
+        "same country (LK)"
+      ]
+    },
+    {
+      "channel_id": "UCEbTQZF9_vDOducFY8gOfag",
+      "title": "Sirasa Catchpoint",
+      "handle": "@sirasacatchpoint",
+      "confidence": "high",
+      "evidence": [
+        "organization name in channel title",
+        "linked by Sirasa TV Digital",
+        "same country (LK)"
+      ]
+    },
+    {
+      "channel_id": "UCdCI-4lcsMaDfkhlTr550Vw",
+      "title": "Sirasa tv live",
+      "handle": "@adapuwath",
+      "confidence": "high",
+      "evidence": [
+        "organization name in channel title",
+        "linked by Sirasa Tv live stream",
+        "same country (LK)"
+      ]
+    },
+    {
+      "channel_id": "UC1YAG2ZbQUjBx3b60c0Qmyg",
+      "title": "Sirasa Live",
+      "handle": "@sirasalivelk",
+      "confidence": "high",
+      "evidence": [
+        "organization name in channel title",
+        "linked by Sirasa TV Digital",
+        "same country (LK)"
+      ]
+    },
+    {
+      "channel_id": "UCXhjcvbJcbtKLxjTZpO1Xvw",
+      "title": "Sirasa Subasiri",
+      "handle": "@sirasasubasiri",
+      "confidence": "high",
+      "evidence": [
+        "organization name in channel title",
+        "linked by Sirasa TV Digital",
+        "same country (LK)"
+      ]
+    },
+    {
+      "channel_id": "UCGnnbsbqbCc7KxSIAbC_d2A",
+      "title": "Auto Vision",
+      "handle": "@sirasatvautovision",
+      "confidence": "high",
+      "evidence": [
+        "organization name partly in title or handle",
+        "linked by Sirasa TV Digital",
+        "organization named in description",
+        "same country (LK)"
+      ]
+    },
+    {
+      "channel_id": "UCqrJfySpfHED-jYFNjWNIqw",
+      "title": "5 Million Money Drop",
+      "handle": "@5millionmoneydrop",
+      "confidence": "high",
+      "evidence": [
+        "linked by Sirasa TV Digital",
+        "links back to a matching channel",
+        "organization named in description",
+        "same country (LK)"
+      ]
+    },
+    {
+      "channel_id": "UCmqflTSJ6911aCrnaWIXxsA",
+      "title": "The Voice Sri Lanka ",
+      "handle": "@thevoicesrilanka",
+      "confidence": "medium",
+      "evidence": [
+        "linked by Sirasa TV Digital",
+        "organization named in description",
+        "same country (LK)"
+      ]
+    },
+    {
+      "channel_id": "UCe13xXtdfx_n0_z1qeXV6_g",
+      "title": "M Entertainments",
+      "handle": "@mentertainmentspl",
+      "confidence": "medium",
+      "evidence": [
+        "linked by Sirasa FM",
+        "links back to a matching channel",
+        "same country (LK)"
+      ]
+    },
+    {
+      "channel_id": "UCsExZudI-3Bfi2ubAdwcgHw",
+      "title": "Y FM",
+      "handle": "@yfm927radio",
+      "confidence": "medium",
+      "evidence": [
+        "linked by Sirasa FM, Sirasa TV Digital",
+        "links back to a matching channel",
+        "same country (LK)"
+      ]
+    },
+    {
+      "channel_id": "UCtBhlCYSLlz2TO9hK93micg",
+      "title": "The Voice Kids Sri Lanka",
+      "handle": "@thevoicekidssrilanka",
+      "confidence": "medium",
+      "evidence": [
+        "linked by Sirasa TV Digital",
+        "organization named in description",
+        "same country (LK)"
+      ]
+    },
+    {
+      "channel_id": "UCLNz9bgiJfM3ImTtYDOt8Ew",
+      "title": "Sirasa TV Digital",
+      "handle": "@sirasatvdigital",
+      "confidence": "medium",
+      "evidence": [
+        "organization name in channel title",
+        "links back to a matching channel",
+        "same country (LK)"
+      ]
+    },
+    {
+      "channel_id": "UCrWPzTW4EjXNQGcCkCfOvog",
+      "title": "Sri Lanka's Got Talent",
+      "handle": "@slgtofficial",
+      "confidence": "medium",
+      "evidence": [
+        "linked by Sirasa TV Digital",
+        "organization named in description",
+        "same country (LK)"
+      ]
+    },
+    {
+      "channel_id": "UCgnFSj7jQffD5V5m05j4dPw",
+      "title": "Newsfirst Sri Lanka",
+      "handle": "@newsfirstsrilanka",
+      "confidence": "medium",
+      "evidence": [
+        "linked by Sirasa FM, Sirasa TV Digital",
+        "same country (LK)"
+      ]
+    },
+    {
+      "channel_id": "UCjm7vbOwssao7Bhm9wX3-bw",
+      "title": "Shakthi TV",
+      "handle": "@shakthitvofficial",
+      "confidence": "medium",
+      "evidence": [
+        "linked by Sirasa TV Digital",
+        "same country (LK)"
+      ]
+    },
+    {
+      "channel_id": "UCKkzOyGRuPyea04qr7aC1NQ",
+      "title": "Shakthi FM",
+      "handle": "@shakthifmsrilanka",
+      "confidence": "medium",
+      "evidence": [
+        "linked by Sirasa FM",
+        "same country (LK)"
+      ]
+    },
+    {
+      "channel_id": "UClSmnnGOPwfN-cnhQpdR2Cg",
+      "title": "Kisa - Sirasa TV",
+      "handle": "@kisasirasatv",
+      "confidence": "medium",
+      "evidence": [
+        "organization name in channel title",
+        "same country (LK)"
+      ]
+    },
+    {
+      "channel_id": "UCXFcukf9VvSWp731oQDJ7Bg",
+      "title": "Yes FM Sri Lanka",
+      "handle": "@yesfmsrilanka",
+      "confidence": "medium",
+      "evidence": [
+        "linked by Sirasa FM",
+        "same country (LK)"
+      ]
+    },
+    {
+      "channel_id": "UCK38_tUB5izyVAWBoLXTkXA",
+      "title": "Tech Life",
+      "handle": "@techlifesl",
+      "confidence": "medium",
+      "evidence": [
+        "linked by Sirasa FM",
+        "same country (LK)"
+      ]
+    }
+  ]
+}
