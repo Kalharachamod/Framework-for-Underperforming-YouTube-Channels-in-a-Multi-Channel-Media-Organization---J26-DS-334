@@ -15,6 +15,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from backend.database.component_3_artifacts import StorageError
 from backend.services.component_3.analysis_jobs import AnalysisBusy, AnalysisDisabled
+from backend.services.component_3.live_results import LiveUnavailable
 from backend.services.component_3.service import ArtifactUnavailable, IdentifierLeak, InvalidParameter, NotFound
 from shared.data_collection.youtube_api_client import YouTubeAPIError
 
@@ -50,6 +51,10 @@ def install(app: FastAPI) -> None:
     @app.exception_handler(AnalysisDisabled)
     async def _disabled(_: Request, exc: AnalysisDisabled):
         return error(403, "forbidden", str(exc))
+
+    @app.exception_handler(LiveUnavailable)
+    async def _live(_: Request, exc: LiveUnavailable):
+        return error(503, "storage_unavailable", str(exc))
 
     @app.exception_handler(AnalysisBusy)
     async def _busy(_: Request, exc: AnalysisBusy):

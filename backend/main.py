@@ -16,9 +16,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend import errors
 from backend.api.component_3 import schemas as sc
 from backend.api.component_3.analysis_routes import router as analysis_router
+from backend.api.component_3.live_routes import router as live_router
 from backend.api.component_3.routes import router as component_3_router
 from backend.config import Settings, load_settings
 from backend.services.component_3.analysis_jobs import AnalysisJobs
+from backend.services.component_3.live_results import LiveResults
 from backend.services.component_3.service import Component3Service
 
 DESCRIPTION = """API over the J26-DS-334 research results (read-only except organization analysis).
@@ -33,7 +35,7 @@ transfer, causality or growth. No commenter identifiers (raw or pseudonymized) a
 
 
 def create_app(settings: Settings | None = None, service: Component3Service | None = None,
-               analysis: AnalysisJobs | None = None) -> FastAPI:
+               analysis: AnalysisJobs | None = None, live: LiveResults | None = None) -> FastAPI:
     settings = settings or load_settings()
     app = FastAPI(title=settings.title, version=settings.api_version, description=DESCRIPTION,
                   openapi_tags=[{"name": "system", "description": "API liveness."},
@@ -48,6 +50,7 @@ def create_app(settings: Settings | None = None, service: Component3Service | No
     app.state.settings = settings
     app.state.component3 = service or Component3Service()
     app.state.analysis = analysis or AnalysisJobs(enabled=settings.analysis_enabled)
+    app.state.live = live or LiveResults()
     # POST is used only by the organization-analysis endpoints
     app.add_middleware(CORSMiddleware, allow_origins=list(settings.cors_origins), allow_credentials=False,
                        allow_methods=["GET", "POST"], allow_headers=["Accept", "Content-Type"])
@@ -70,6 +73,7 @@ def create_app(settings: Settings | None = None, service: Component3Service | No
 
     app.include_router(component_3_router)
     app.include_router(analysis_router)
+    app.include_router(live_router)
     return app
 
 
