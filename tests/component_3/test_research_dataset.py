@@ -307,6 +307,20 @@ def test_export_research_snapshot_from_database(db, isolated_data_dir, ticking):
     assert repo.count_rows(db, "channels") == 4
 
 
+def test_export_research_snapshot_channel_filter(db, isolated_data_dir, ticking):
+    # data of another organization in the same database must not enter the snapshot
+    repo.upsert_channels(db, channels())
+    repo.upsert_videos(db, videos())
+    repo.upsert_comments(db, comments())
+    db.commit()
+    info = export_research_snapshot(db, channel_ids=["UC_test_A", "UC_test_B"])
+    frames = {n: pd.read_parquet(s.research_dataset_path(info.snapshot_id, n)) for n in ("channels", "videos", "comments")}
+    assert set(frames["channels"]["channel_id"]) == {"UC_test_A", "UC_test_B"}
+    assert set(frames["videos"]["channel_id"]) <= {"UC_test_A", "UC_test_B"}
+    assert set(frames["comments"]["channel_id"]) <= {"UC_test_A", "UC_test_B"}
+    assert info.manifest["details"]["channel_filter"] == 2
+
+
 def test_cli_extract_requires_database(monkeypatch, isolated_data_dir, capsys):
     monkeypatch.delenv("SUPABASE_DB_URL", raising=False)
     assert rd.main(["--extract"]) == 2
