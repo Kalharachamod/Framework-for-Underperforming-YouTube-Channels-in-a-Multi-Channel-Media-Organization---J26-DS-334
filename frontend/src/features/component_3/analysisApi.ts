@@ -14,6 +14,7 @@ export interface Candidate {
   confidence: "high" | "medium" | "low";
   evidence: string[];
   previously_confirmed: boolean;
+  icon_url?: string | null;
 }
 
 export interface DiscoveryResponse {
