@@ -137,9 +137,11 @@ export function validateConfig(c) {
     fail("DATABASE_CONFIGURATION");
   }
   // Explicit TLS requirement; reject alternate routing/options and role override.
+  // The Supabase pooler login is c1_collector.<20-char project ref>; the server
+  // still sees session_user c1_collector, which store.mjs checks per transaction.
   if (
     !["postgres:", "postgresql:"].includes(u.protocol) ||
-    decodeURIComponent(u.username) !== "c1_collector" ||
+    !/^c1_collector(\.[a-z0-9]{20})?$/.test(decodeURIComponent(u.username)) ||
     !u.password || !u.hostname ||
     !["require", "verify-full"].includes(u.searchParams.get("sslmode")) ||
     [...u.searchParams.keys()].some((k) => k !== "sslmode")

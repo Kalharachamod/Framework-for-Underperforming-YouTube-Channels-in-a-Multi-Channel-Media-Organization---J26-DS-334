@@ -1,9 +1,11 @@
 # C1 collector — local implementation, disabled
 
-This code has not been served, deployed or connected to a database/API. The real
-proposed cohort remains pending and disabled. This implementation does not grant
-approval, provision resources, read environment files, bootstrap inventory,
-configure authentication at the gateway, schedule jobs or remove data.
+This code has not been served, deployed, or connected to Supabase or the real
+YouTube API. Its store has run against a disposable local PostgreSQL 17 with the
+real driver (see "Integration validation"). The real proposed cohort remains
+pending and disabled. This implementation does not grant approval, provision
+resources, read environment files, bootstrap inventory, configure authentication
+at the gateway, schedule jobs or remove data.
 
 Sources read before implementation:
 
@@ -36,20 +38,26 @@ logged. This function currently emits no logs.
 No actual values or secrets are supplied here. A separately approved operator
 would provide the following function-specific settings:
 
-| Setting                             | Requirement                                                                                                                                            |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `C1_ACTIVATED`                      | Exact `true`; missing/other values disable collection                                                                                                  |
-| `C1_CRON_TOKEN`                     | High-entropy C1-only bearer token, 32–512 characters                                                                                                   |
-| `C1_COLLECTOR_DB_URL`               | Only database credential accepted; exact username `c1_collector`, password, host and explicit `sslmode=require` or `verify-full`; no other URL options |
-| `C1_YOUTUBE_API_KEY`                | Dedicated YouTube collection key                                                                                                                       |
-| `C1_COHORT_ID`, `C1_COHORT_VERSION` | Operator-controlled target, never request-supplied                                                                                                     |
-| `C1_MANIFEST_HASH`                  | Canonical approved manifest hash, matched exactly against cohort configuration                                                                         |
-| `C1_RETENTION_DECISION_REFERENCE`   | Nonempty approved decision reference, matched exactly against cohort configuration                                                                     |
+| Setting                             | Requirement                                                                                                                                                                                                                                                            |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `C1_ACTIVATED`                      | Exact `true`; missing/other values disable collection                                                                                                                                                                                                                  |
+| `C1_CRON_TOKEN`                     | High-entropy C1-only bearer token, 32–512 characters                                                                                                                                                                                                                   |
+| `C1_COLLECTOR_DB_URL`               | Only database credential accepted; username exactly `c1_collector` or the pooler form `c1_collector.<20-char lowercase project ref>`, password, host and explicit `sslmode=require` or `verify-full`; no other URL options. Recommended: transaction pooler, port 6543 |
+| `C1_YOUTUBE_API_KEY`                | Dedicated YouTube collection key                                                                                                                                                                                                                                       |
+| `C1_COHORT_ID`, `C1_COHORT_VERSION` | Operator-controlled target, never request-supplied                                                                                                                                                                                                                     |
+| `C1_MANIFEST_HASH`                  | Canonical approved manifest hash, matched exactly against cohort configuration                                                                                                                                                                                         |
+| `C1_RETENTION_DECISION_REFERENCE`   | Nonempty approved decision reference, matched exactly against cohort configuration                                                                                                                                                                                     |
 
 The driver verifies the server certificate even when the accepted URL says
-`sslmode=require`. Do not weaken TLS to fix connectivity. Custom-role pooler
-routing, certificate trust and actual session/current user require later
-authorized validation. Both identities are checked in every store transaction.
+`sslmode=require`. Do not weaken TLS to fix connectivity. Supabase pooler
+routing and its certificate chain in the Edge runtime still require a first
+deployed check. The pooler strips the project ref, so the server sees
+`c1_collector`; both session and current user are checked in every store
+transaction. The pinned `postgres@3.4.7` also reads a few `PG*` environment
+variables for options the driver does not set (`PGMAX_PIPELINE`, `PGBACKOFF`,
+`PGKEEP_ALIVE`, `PGFETCH_TYPES`, `PGPUBLICATIONS`, `PGTARGET_SESSION_ATTRS`,
+`PGTARGETSESSIONATTRS`, `PGAPPNAME`); host, port, user, password, database and
+TLS always come from the URL and `driver.mjs`.
 
 Only `POST application/json` with exactly one property is accepted:
 `{"action":"daily-start"}` or `{"action":"continuation"}`. Requests are limited
@@ -157,26 +165,41 @@ option/array binding, attempt reservations, fair page planning,
 NULL/zero/bigint, ownership, replay, crash recovery, staged timestamps,
 deadlines and stale fencing tokens. SQL store tests execute its methods against
 a scripted query adapter. Concurrency/crash orchestration also uses an in-memory
-model. These mocks do not prove PostgreSQL syntax, ACLs, transaction rollback,
-locks, SQL races or PostgreSQL driver behavior. The prior local schema report
-validates schema behavior, not these new store transactions. No SQL was executed
-during this implementation task.
+model. The scripted adapter reproduces the real driver's jsonb parameter
+encoding (a `$n::jsonb` string parameter would be stored as a JSON string), and
+a source test requires every jsonb parameter to be cast `$n::text::jsonb`. These
+mocks still do not prove PostgreSQL syntax, ACLs, locks or SQL races; the
+integration run below covers the real driver.
+
+## Integration validation (2026-10-20)
+
+`tests/component_1/edge_collection/POSTGRES_INTEGRATION_RUNBOOK.md` was run in a
+disposable PostgreSQL 17.11 container (`--network none`, no published port),
+after the C1 SQL in Supabase order as a non-superuser `postgres`. Deno 2.9.7 ran
+inside the container with the real `npm:postgres@3.4.7` (lockfile integrity
+matched), as `c1_collector` over verified TLS with a required password, and
+YouTube mocked through the injected fetcher. All 11 tests passed across both
+phases: pending cohort returns `GATE_CLOSED` with no API call and no writes;
+after in-container approval, concurrent claims yield one lease; rollback leaves
+no row; a staged response is committed once after a simulated crash and the
+stale lease is rejected; a mocked 41-channel run with one transient retry
+completes with 41 channel and 6 video snapshots, each written once; repeat calls
+write nothing; history UPDATE/DELETE/TRUNCATE are denied even with the purge
+setting. `jsonb_typeof` of every summary, outcomes and staged response was
+`object`. The first run found jsonb double-encoding, fixed with `::text::jsonb`.
 
 ## Remaining validation and deployment prerequisites
 
-Deno local validation is now available (see below). Serving, driver certificate/
-connection behavior and Edge packaging remain unverified. A cached-only check
-printed a postgres registry metadata download line; no explicit cache/install
-command was issued. No collector was served or executed against real services.
-The pinned dependency still requires supply-chain review and a reviewed
-dependency lock. Later separately authorized disposable-database tests must
-execute the new store queries as the actual collector login, test rollback/fault
-boundaries and race real connections through lease expiry. Synthetic
-maximum-size load tests must measure memory, the 2-second Edge CPU limit and
-total transaction/handler time; per-statement timeouts alone do not bound the
-sum of a multi-statement plan. The handler deadline is a scheduling bound, not a
-hard cancellation of an in-flight transaction. Do not deploy based on mocked
-timing results.
+Serving, Edge packaging, Supabase pooler routing and the pooler certificate
+chain in the Edge runtime remain unverified. No collector was served or executed
+against real services. The pinned dependency still requires supply-chain review;
+the function-local `deno.lock` pins its integrity. Lease expiry under real
+connection races (75-second leases) was not exercised. Synthetic maximum-size
+load tests must measure memory, the 2-second Edge CPU limit and total
+transaction/handler time; per-statement timeouts alone do not bound the sum of a
+multi-statement plan. The handler deadline is a scheduling bound, not a hard
+cancellation of an in-flight transaction. Do not deploy based on mocked timing
+results.
 
 Operational integration remains unfinished: independent missed-run detection,
 alert owner/escalation, Cron/HTTP request correlation and production capacity
@@ -249,7 +272,17 @@ because out-of-scope reads had `prompt` state; explicit `.env` read denial and
 pre-existing mocked tests passed before and after these changes. No lockfile was
 generated; dependency lock/supply-chain review remains outstanding.
 
-Results on 2026-10-20 after the entity-keyed schema revision (same commands):
+Results on 2026-10-20 after the pooler-username and jsonb fixes (same commands):
+
+- `deno fmt --check`: passed, 13 files checked.
+- `deno lint`: passed, 10 files checked.
+- `deno check`: passed for the entry and test graph.
+- Permission-restricted `deno test`: 54 passed, 0 failed.
+- Node v24.19.0 `node --test`: 53 passed, 0 failed. Added: pooler username
+  accept/reject cases, fake-adapter jsonb encoding, and the `::text::jsonb`
+  source check. With the old `$n::jsonb` casts, 14 tests fail.
+
+Earlier results on 2026-10-20 after the entity-keyed schema revision:
 
 - `deno fmt --check`: passed, 13 files checked.
 - `deno lint`: passed, 10 files checked.

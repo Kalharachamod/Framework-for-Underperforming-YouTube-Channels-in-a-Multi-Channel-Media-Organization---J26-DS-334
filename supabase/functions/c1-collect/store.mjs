@@ -212,7 +212,7 @@ export class PostgresStore {
         [run] = await q(
           `INSERT INTO c1.collection_runs
           (run_id,cohort_id,version,manifest_hash,scheduled_for,collection_date,inventory_revision,inventory_cutoff,started_at,deadline_at,phase,status,summary)
-          VALUES ($1,$2,$3,$4,$5,$6,$7,clock_timestamp(),clock_timestamp(),$8,'refresh','running',$9::jsonb) RETURNING *`,
+          VALUES ($1,$2,$3,$4,$5,$6,$7,clock_timestamp(),clock_timestamp(),$8,'refresh','running',$9::text::jsonb) RETURNING *`,
           [
             this.uuid(),
             config.cohort,
@@ -341,7 +341,7 @@ export class PostgresStore {
           }
           run.summary.discoverySeeded = true;
           await q(
-            "UPDATE c1.collection_runs SET summary=$1::jsonb WHERE run_id=$2",
+            "UPDATE c1.collection_runs SET summary=$1::text::jsonb WHERE run_id=$2",
             [JSON.stringify(run.summary), lease.run],
           );
           await q(
@@ -381,7 +381,7 @@ export class PostgresStore {
           }
           run.summary.candidatesSeeded = true;
           await q(
-            "UPDATE c1.collection_runs SET summary=$1::jsonb WHERE run_id=$2",
+            "UPDATE c1.collection_runs SET summary=$1::text::jsonb WHERE run_id=$2",
             [JSON.stringify(run.summary), lease.run],
           );
           works = await this.allWork(q, lease);
@@ -487,8 +487,8 @@ export class PostgresStore {
         String(w.fence) !== lease.fence
       ) fail("WORK_STATE");
       await q(
-        `UPDATE c1.collection_work SET staged_response=$1::jsonb,observed_at=$2,payload_hash=$3,status='staged',
-        outcomes=$4::jsonb WHERE work_id=$5`,
+        `UPDATE c1.collection_work SET staged_response=$1::text::jsonb,observed_at=$2,payload_hash=$3,status='staged',
+        outcomes=$4::text::jsonb WHERE work_id=$5`,
         [
           JSON.stringify(payload),
           observed,
@@ -514,7 +514,7 @@ export class PostgresStore {
       await q(
         `UPDATE c1.collection_work SET status=$1,failure_code=$2,
         next_attempt_at=CASE WHEN $3::boolean THEN NULL ELSE clock_timestamp()+$4::integer*interval '1 millisecond' END,
-        outcomes=$5::jsonb WHERE work_id=$6`,
+        outcomes=$5::text::jsonb WHERE work_id=$6`,
         [
           terminal ? "failed" : "pending",
           code,
@@ -594,7 +594,7 @@ export class PostgresStore {
       const w = await this.work(q, lease, id);
       if (w.status !== "staged") fail("WORK_STATE");
       await q(
-        `UPDATE c1.collection_work SET status='failed',failure_code=$1,outcomes=$2::jsonb WHERE work_id=$3`,
+        `UPDATE c1.collection_work SET status='failed',failure_code=$1,outcomes=$2::text::jsonb WHERE work_id=$3`,
         [
           code,
           JSON.stringify({ ...w.outcomes, unconfirmed: w.selected_ids }),
@@ -711,7 +711,7 @@ export class PostgresStore {
       }
       await q(
         `UPDATE c1.collection_work SET status='committed',output_cursor=$1,
-        outcomes=$2::jsonb WHERE work_id=$3`,
+        outcomes=$2::text::jsonb WHERE work_id=$3`,
         [
           result.next,
           JSON.stringify({
@@ -792,7 +792,7 @@ export class PostgresStore {
       summary.discovery_complete && summary.candidates_complete;
     await q(
       `UPDATE c1.collection_runs SET status=$1,phase='finished',ended_at=clock_timestamp(),heartbeat_at=clock_timestamp(),
-      inventory_complete=$2,discovery_complete=$3,summary=$4::jsonb,failure_code=$5 WHERE run_id=$6`,
+      inventory_complete=$2,discovery_complete=$3,summary=$4::text::jsonb,failure_code=$5 WHERE run_id=$6`,
       [
         fatal ? "failed" : !code && done ? "complete" : "partial",
         summary.refresh_complete,

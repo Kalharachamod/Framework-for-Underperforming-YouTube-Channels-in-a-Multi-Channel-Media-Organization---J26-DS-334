@@ -7,7 +7,7 @@ Status: preparation only. Activation and scheduling remain disabled. None of the
 - Manifest: `config/cohorts/component_1_derana_vs_cm_v0.3.0.proposed.json` (41 channels: 18 Derana `owned`, 23 Capital Maharaja `competitor`; Capital Maharaja `is_holdout=true`). Status `proposed`, `enabled=false`, not selected for collection. The 2026-10-19 approval reported for the 43-channel cohort does not carry over.
 - SQL, in this order (details in `research/component_1/sql/README.md`): `000_preflight_readonly.sql`, `002a_roles.sql`, `002a2_model_reader_role.sql`, `002a1_owner_membership.sql`, `001_schema.sql`, `002b_access.sql`, `004_bootstrap_v0_3_0.sql`, then `003_verify_readonly.sql`; optional `005_revoke_owner_membership.sql` after approval.
 - Edge Function: the complete `supabase/functions/c1-collect/` directory.
-- Evidence: offline tests only (see "Validation status" in `docs/component_1_collection_design.md`). `LOCAL_VALIDATION_2026-10-18.md` covers the previous schema, not this one.
+- Evidence (see "Validation status" in `docs/component_1_collection_design.md`): offline tests; this SQL run in Supabase order on disposable local PostgreSQL 17.11 as a Supabase-like non-superuser `postgres`; and a collector integration run with the real driver as `c1_collector` over TLS with YouTube mocked (`tests/component_1/edge_collection/POSTGRES_INTEGRATION_RUNBOOK.md`). `LOCAL_VALIDATION_2026-10-18.md` covers the previous schema only.
 
 ## 0. Read-only preflight
 
@@ -39,7 +39,7 @@ Set passwords for `c1_collector` and `c1_model_reader` through the platform; nev
 
 - `C1_ACTIVATED` — leave unset/false until activation is separately approved.
 - `C1_CRON_TOKEN` — C1-only high-entropy bearer token.
-- `C1_COLLECTOR_DB_URL` — exact user `c1_collector`, `sslmode=require` or `verify-full`, no other options.
+- `C1_COLLECTOR_DB_URL` — recommended: the Supabase transaction pooler, `postgresql://c1_collector.<project ref>:<url-encoded password>@<region>.pooler.supabase.com:6543/postgres?sslmode=require`. The code accepts only the user `c1_collector` or exactly `c1_collector.<20-char lowercase project ref>`, `sslmode=require` or `verify-full`, and no other URL options; the pooler strips the ref, and every store transaction checks that `session_user` and `current_user` are `c1_collector`. The store uses only transaction-scoped settings and no prepared statements, so transaction mode is compatible (the session pooler on 5432 also works). The driver always verifies the server certificate against the runtime trust store; whether the pooler chain passes is checked by the first activated call returning `GATE_CLOSED` rather than `INTERNAL`.
 - `C1_YOUTUBE_API_KEY` — dedicated collection key.
 - `C1_COHORT_ID=component_1_derana_vs_cm`, `C1_COHORT_VERSION=0.3.0`.
 - `C1_MANIFEST_HASH` — the canonical-JSON hash embedded in `004` (recompute with `tests/component_1/test_c1_cohort_v030.py`; method in the manifest's `manifest_hash_method`).
@@ -57,4 +57,4 @@ The first `daily-start` inside the 02:00–03:00 Asia/Colombo window sets the 30
 
 ## Current blockers
 
-Cohort approval for v0.3.0, retention decision/reference, monitoring owner, live privilege/isolation preflight (including PUBLIC TEMP), passwords/secrets, a throwaway-database run of the new SQL, and verification of the 5 lower-confidence Capital Maharaja channels.
+Cohort approval for v0.3.0, retention decision/reference, monitoring owner, live privilege/isolation preflight (including PUBLIC TEMP), passwords/secrets, verification of the 5 lower-confidence Capital Maharaja channels, and a first deployed check that the Edge runtime reaches the pooler with certificate verification (expect `GATE_CLOSED` while the cohort is pending).

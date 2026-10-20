@@ -1,103 +1,140 @@
-# C1 PostgreSQL integration-test preparation
+# C1 PostgreSQL integration test
 
-**NOT RE-VALIDATED.** On 2026-10-20 the schema changed to entity-keyed channels,
-videos and history, with `c1.organizations`, `c1.cohort_channels`, the holdout
-views and the `c1_model_reader` role. `postgres.integration.test.mjs` and
-`../test_c1_postgres_local.ps1` were updated to match but have not been executed
-since. Apply order for a disposable database: `002a_roles.sql`,
-`002a2_model_reader_role.sql`, `001_schema.sql`, `002b_access.sql` (a superuser
-fixture login does not need `002a1`). The fixture loader must now also create
-organizations (one with `is_holdout=true`), channels with `organization_id`, and
-`cohort_channels` rows with roles.
+Validated 2026-10-20: all 11 tests in `postgres.integration.test.mjs` passed (2
+pending-phase, 9 enabled-phase) with the setup below. The test uses the real
+`npm:postgres@3.4.7` driver through `postgresFactory`, the real `PostgresStore`,
+`collect()` and HTTP handler, connected only as `c1_collector`. YouTube is
+always mocked through the injected `fetcher`; the container has no network.
 
-This is a future, explicitly authorized step. The test file uses the actual
-`npm:postgres@3.4.7` driver through `postgresFactory` and the actual
-`PostgresStore`; it does not use the mocked query adapter in
-`collection.test.mjs`. It is opt-in and skips unless `C1_IT_DB_URL` is supplied.
+Run only against a disposable local container. Never against Supabase, the real
+YouTube API, a published host port or a real credential. All passwords below are
+throwaway values for the container.
 
-## Current state and prerequisites
+## What the phases prove
 
-- The named container currently exists but is stopped (`Exited (255)`), with
-  PostgreSQL 17.11, `network none`, no published ports, no bind mounts, and
-  tmpfs at `/var/lib/postgresql/data`, `/var/run/postgresql`, and `/tmp`. Its
-  previous database state is therefore not available for testing and must not be
-  assumed to have survived. Starting it is a future container change, not part
-  of this preparation.
-- The reviewed SQL must already be applied in the disposable database. Do not
-  reapply it through this test.
-- A synthetic fixture-loader path using `c1_owner` must create an enabled
-  synthetic cohort, matching channels, videos, coordination row, and uniquely
-  identifiable run/work rows. The collector test process must use only the
-  `c1_collector` login. Fixture setup must be idempotent or use a fresh
-  database; the existing PowerShell fixture is intentionally non-repeatable.
-- Deno 2.9.7 and a runtime inside the isolated execution environment.
-- The pinned `npm:postgres@3.4.7` package, its transitive graph, and a reviewed
-  Deno lockfile. There is currently no C1 lockfile and the visible default Deno
-  npm cache has no PostgreSQL package files. Required future downloads are the
-  npm registry metadata and package graph for `postgres@3.4.7`, subject to
-  supply-chain review. No download has been performed.
-- A synthetic administrator fixture loader, run separately as `c1_owner`, that
-  creates the enabled cohort, channels, videos, coordination row, active run,
-  refresh work row, and an expired-lease run/work row. It must export:
-  `C1_IT_REPLAY_WORK_ID`, `C1_IT_STALE_RUN_ID`, `C1_IT_STALE_OWNER`,
-  `C1_IT_STALE_FENCE`, and `C1_IT_STALE_WORK_ID`. It must also create synthetic
-  `research.c1_synthetic_probe` for the permission assertion. The test process
-  never uses `c1_owner`.
-- A local TLS configuration: PostgreSQL server certificate/key and a synthetic
-  CA certificate configured inside the database runtime; the certificate must
-  validate for the hostname used by `C1_IT_DB_URL`. The Deno process must
-  receive that CA through the approved Node/Deno trust configuration (for
-  example, `NODE_EXTRA_CA_CERTS`), without weakening `rejectUnauthorized: true`
-  or changing the production driver.
+- `pending` (bootstrapped cohort still pending/disabled): the real driver logs
+  in as `c1_collector`; in-window `daily-start` and `continuation` through the
+  handler return `503 GATE_CLOSED` with no YouTube call and no database change.
+- `enabled` (after the operator approval SQL, inside the container only):
+  concurrent claims on two connections give one lease and one `busy`; a failed
+  transaction leaves no row; a staged channels response is committed once after
+  a simulated crash and the stale lease is rejected (`LEASE_LOST`);
+  continuations finish a mocked 41-channel run with one transient 503 retry (44
+  attempts: 1 channels, 42 discovery, 1 candidates); 41 channel and 6 video
+  snapshots are written once; repeated `daily-start`/`continuation` make no API
+  call and no write; history UPDATE/DELETE/TRUNCATE are denied to the collector
+  even with `c1.retention_purge` set; research, model views, channels,
+  memberships, holdout flag and cohort approval are not writable/readable as
+  required.
 
-## Isolated reachability
+`integration/post_checks.sql` then checks, as the owner path, that every
+`summary`, `outcomes` and `staged_response` is a jsonb `object`, the history
+counts, and that the history trigger blocks the owner.
 
-With Docker `network none`, no host TCP connection can reach PostgreSQL. The
-workable arrangement is to start the existing container without changing its
-network isolation, configure TLS inside it, and run Deno inside the same
-container against `127.0.0.1:5432`. The test process then uses TCP locally
-inside the isolated container, while the database remains unpublished and
-unreachable from the host or external services.
+## Prerequisites (host)
 
-The exact required container changes are: start the existing stopped container,
-install/configure local PostgreSQL TLS, make Deno and the C1 files available
-inside it, and make the reviewed dependency cache/lockfile available inside it.
-No port publication, network attachment, bind mount, or production SQL change is
-required. `docker exec psql` may administer fixtures, but is not the actual
-driver test.
-
-## Proposed command
-
-After the above prerequisites are confirmed, from the repository root, with
-synthetic values supplied in the process environment (not `.env`):
+- Docker; image `postgres:17` (17.11 validated).
+- Linux Deno 2.9.7 binary (`deno-x86_64-unknown-linux-gnu.zip` from the Deno
+  release; verify its published SHA-256 before use). Extract it into a new empty
+  directory.
+- The driver cache: on the host, with a fresh empty `DENO_DIR` and a scratch
+  copy of the function lockfile (so the repository lockfile is not rewritten):
 
 ```powershell
-$env:C1_IT_DB_URL = 'postgres://c1_collector:synthetic@127.0.0.1:5432/postgres?sslmode=verify-full'
-$env:C1_IT_COHORT = 'synthetic_c1_it_<unique-run>'
-$env:C1_IT_REPLAY_WORK_ID = '<fixture-refresh-work-id>'
-$env:C1_IT_STALE_RUN_ID = '<fixture-expired-run-id>'
-$env:C1_IT_STALE_OWNER = 'synthetic-stale-owner'
-$env:C1_IT_STALE_FENCE = '<fixture-stale-fence>'
-$env:C1_IT_STALE_WORK_ID = '<fixture-expired-work-id>'
-$env:NODE_EXTRA_CA_CERTS = '<path-inside-isolated-runtime>/synthetic-ca.pem'
-deno test --cached-only --deny-import --no-lock --no-prompt `
-  --deny-net --deny-env --deny-read=.env --deny-write --deny-run --deny-ffi `
-  --allow-read=supabase/functions/c1-collect,tests/component_1/edge_collection `
-  --allow-env=C1_IT_DB_URL,C1_IT_COHORT,C1_IT_REPLAY_WORK_ID,C1_IT_STALE_RUN_ID,C1_IT_STALE_OWNER,C1_IT_STALE_FENCE,C1_IT_STALE_WORK_ID,NODE_EXTRA_CA_CERTS `
-  tests/component_1/edge_collection/postgres.integration.test.mjs
+$env:DENO_DIR = '<new empty dir>\deno_dir'
+Copy-Item supabase/functions/c1-collect/deno.lock '<scratch>\deno.lock.copy'
+deno cache --config supabase/functions/c1-collect/deno.json --lock='<scratch>\deno.lock.copy' supabase/functions/c1-collect/driver.mjs npm:postgres@3.4.7
 ```
 
-This command is executable only after all placeholder values are replaced by the
-administrator fixture output and the runtime/cache/TLS prerequisites above are
-confirmed. It must run inside the isolated container. Do not run it against
-Supabase, YouTube, a published host port, or a real credential.
+Confirm the `postgres@3.4.7` integrity in the scratch lock equals the one in
+`supabase/functions/c1-collect/deno.lock` (`--frozen` refuses only because the
+committed lock has no `workspace` section).
 
-## Required coverage before execution is approved
+## Container and Supabase-like setup
 
-The final fixture-driven suite must assert successful store commits and
-rollback, identical replay without a second history row, conflicting replay
-rejection, expired lease and stale-fence rejection, concurrent claim
-serialization, attempt-budget reservation limits, collector
-identity/permissions, and RLS visibility for both in-scope and synthetic
-out-of-scope rows. Results must also record the exact runtime location and
-container isolation metadata.
+Scripts in `integration/` are LF-only (see its `.gitattributes`). Do not pipe
+scripts into `docker exec` from PowerShell: it prefixes a byte-order mark that
+breaks the first shell line. Copy files with `docker cp` instead.
+
+```powershell
+docker run -d --name c1-pgtest --network none -e POSTGRES_USER=sim_admin -e POSTGRES_PASSWORD=sim_admin_throwaway_local postgres:17
+docker exec c1-pgtest mkdir -p /sql /checks /opt/c1/supabase/functions /opt/c1/tests/component_1/edge_collection
+docker cp research/component_1/sql/. c1-pgtest:/sql/
+docker cp tests/component_1/edge_collection/integration/. c1-pgtest:/checks/
+docker cp supabase/functions/c1-collect c1-pgtest:/opt/c1/supabase/functions/
+docker cp tests/component_1/edge_collection/postgres.integration.test.mjs c1-pgtest:/opt/c1/tests/component_1/edge_collection/
+docker cp '<DENO_DIR>' c1-pgtest:/opt/c1/deno_dir
+docker cp '<extracted>\deno' c1-pgtest:/usr/local/bin/deno
+docker cp tests/component_1/edge_collection/integration/run_it.sh c1-pgtest:/opt/c1/run_it.sh
+docker exec c1-pgtest sh -c 'chmod 0755 /usr/local/bin/deno && chown -R postgres:postgres /opt/c1'
+docker exec c1-pgtest sh /checks/tls_setup.sh
+```
+
+`tls_setup.sh` creates a throwaway CA and a server certificate for
+`DNS:localhost, IP:127.0.0.1`, enables `ssl`, and rewrites `pg_hba.conf` so
+every TCP login, loopback included, is `hostssl ... scram-sha-256`. The image's
+default `host all all 127.0.0.1/32 trust` would otherwise accept loopback TCP
+without a password. Only the Unix socket stays `trust`, for `docker exec`
+administration as `sim_admin`. Check that `sslmode=disable` and a wrong password
+are both rejected before continuing.
+
+Supabase-like roles, then the C1 SQL in Supabase order as the non-superuser
+`postgres`, each over TLS with `ON_ERROR_STOP=1`:
+
+```text
+psql -U sim_admin (socket): CREATE ROLE postgres LOGIN NOSUPERUSER CREATEROLE CREATEDB PASSWORD '...';
+                            GRANT CREATE ON DATABASE postgres TO postgres;
+                            CREATE SCHEMA research; CREATE SCHEMA annotation;
+psql "host=localhost user=postgres dbname=postgres sslmode=verify-full sslrootcert=/opt/c1/tls/ca.pem"
+  -f 000_preflight_readonly.sql, 002a_roles.sql, 002a2_model_reader_role.sql,
+     002a1_owner_membership.sql, 001_schema.sql, 002b_access.sql, 004_bootstrap_v0_3_0.sql
+  ALTER ROLE c1_collector PASSWORD 'collector_throwaway_local';
+  ALTER ROLE c1_model_reader PASSWORD 'reader_throwaway_local';
+psql ... user=c1_collector ... -f 003_verify_readonly.sql
+psql -U sim_admin (socket): CREATE TABLE research.c1_synthetic_probe (id integer);
+```
+
+The only expected diagnostic is
+`002b_access.sql:98: WARNING: no privileges were
+granted for "postgres"`
+(database owned by `sim_admin`; PUBLIC CONNECT applies).
+
+## Run
+
+```powershell
+docker exec -u postgres c1-pgtest sh /opt/c1/run_it.sh pending
+docker exec -e PGPASSWORD=<postgres throwaway> c1-pgtest psql "host=localhost user=postgres dbname=postgres sslmode=verify-full sslrootcert=/opt/c1/tls/ca.pem" -v ON_ERROR_STOP=1 -f /checks/approve_enable.sql
+docker exec -u postgres c1-pgtest sh /opt/c1/run_it.sh enabled
+docker exec -e PGPASSWORD=<postgres throwaway> c1-pgtest psql "<same TLS conninfo>" -v ON_ERROR_STOP=1 -f /checks/post_checks.sql
+docker rm -f -v c1-pgtest
+```
+
+`approve_enable.sql` is the operator approve/enable SQL from the deployment
+checklist (as `postgres`, `SET LOCAL ROLE c1_owner`) with synthetic values; its
+retention reference must equal the test's `C1_IT_RETENTION` default.
+
+`run_it.sh` runs Deno as the unprivileged `postgres` OS user with:
+
+- `--allow-net=localhost:5432` only (not `--deny-net`, which blocks the driver);
+- `--cert /opt/c1/tls/ca.pem`, so `rejectUnauthorized: true` verifies the
+  throwaway CA without weakening the production driver;
+- `--allow-read=/opt/c1`, `--deny-write --deny-run --deny-ffi`,
+  `--cached-only
+  --deny-import --no-lock --no-prompt`;
+- `--allow-env` for the test's `C1_IT_*` names plus the `PG*` names that
+  `postgres@3.4.7` reads for options the driver does not set: `PGMAX_PIPELINE`,
+  `PGBACKOFF`, `PGKEEP_ALIVE`, `PGFETCH_TYPES`, `PGPUBLICATIONS`,
+  `PGTARGET_SESSION_ATTRS`, `PGTARGETSESSIONATTRS`, `PGAPPNAME`. With
+  `--deny-env` the driver fails with
+  `NotCapable: Requires env access to "PGMAX_PIPELINE"`.
+
+Optional overrides: `C1_IT_COHORT`, `C1_IT_VERSION`, `C1_IT_MANIFEST_HASH`,
+`C1_IT_RETENTION` (defaults: the v0.3.0 cohort, its deployed hash, and
+`synthetic-integration-retention`). Without `C1_IT_DB_URL` every test skips.
+
+## Not covered
+
+Supabase pooler routing and its certificate chain, the Edge runtime and
+packaging, lease expiry under real 75-second waits, memory/CPU limits, and the
+real YouTube API. `tests/component_1/test_c1_postgres_local.ps1` is a separate,
+older SQL-only script and remains not re-validated.

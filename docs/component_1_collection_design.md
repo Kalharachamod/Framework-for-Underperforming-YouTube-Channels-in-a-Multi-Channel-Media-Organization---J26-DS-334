@@ -14,10 +14,12 @@ No credential fallback is allowed. Existing `COMPONENT1_DB_URL`,
 `component1_readonly`, shared code, Python statistics runner, research tables,
 data, permissions, policies, and `research.schema_migrations` remain unchanged.
 
-The current manifest at
-`config/cohorts/component_1_derana_v0.1.0.proposed.json` remains proposal-only,
-pending approval, and disabled. Its 18 channels are a proposed allowlist, not an
-activation instruction. No historical statistics are copied.
+The current manifest is
+`config/cohorts/component_1_derana_vs_cm_v0.3.0.proposed.json` (41 channels: 18
+Derana `owned`, 23 Capital Maharaja `competitor`). It is proposal-only, pending
+approval, and disabled; its channels are a proposed allowlist, not an activation
+instruction. The 18-channel v0.1.0 and 43-channel v0.2.0 manifests are history.
+No historical statistics are copied.
 
 The existing runner supplies behavioral requirements and synthetic fixtures;
 it is not deployed into Edge Functions or given a writer. New collection code
@@ -41,6 +43,10 @@ design supports one active cohort version at a time.
 | `c1.collection_work` | PK `work_id`; unique `(run_id, work_key)` | Bounded batch or discovery-page task, selected IDs, phase/channel, input/output cursor, dispatch order, lease owner/expiry/fence, next retry time, attempts, bounded staged response, original observation timestamp/hash and outcome counts/IDs. Every row references a real run. |
 | `c1.collection_coordination` | PK `(cohort_id, version)` | Operator-created singleton per cohort version; nullable active-run FK, lease owner/expiry/fence, inventory revision and rotating discovery start. No fake task/run identifiers. Collector can SELECT and update operational columns, but cannot INSERT or DELETE rows. |
 | `c1.schema_migrations` | PK `version` | Independently reviewed C1 migration versions/checksums, applied by the deployment operator only. |
+
+The cohort-keyed channel/video/history keys above are the original 2026-10-18
+design. The deployed schema keys channels, videos and history by entity only and
+adds organizations and cohort membership; see "2026-10-20 revision".
 
 The work table combines checkpoints and collection outcomes to avoid separate
 status/checkpoint tables. Do not store an unbounded run's IDs or responses in a
@@ -127,19 +133,14 @@ approved resolution; until then the same-project design cannot claim isolation.
 
 ## Inventory bootstrap
 
-Use the existing read-only C1 path and unchanged `COMPONENT1_DB_URL` to select
-only proposed-cohort channel/video identity mappings. The runner already
-validates the role and read-only transaction and filters videos by manifest
-channels. A reviewed importer may use that path's guarded connection pattern
-for channel inventory; do not modify the runner to add writes.
-
-Validate the exported manifest hash, allowlist, deduplication and ownership
-offline. Import identity/provenance into C1 only through the separate bootstrap
-operator. Record the source extraction time as provenance, not as a new YouTube
-statistics observation. Do not copy metric columns or history. Missing channel
-rows must be reported/reconciled rather than expanding the cohort. Preserve
-the proposed disabled state after import. Inventory-only bootstrap still needs
-separate authorization for its database read and C1 import.
+Superseded. The earlier plan to read video inventory from `research` through
+`COMPONENT1_DB_URL` is not used. `research/component_1/sql/004_bootstrap_v0_3_0.sql`
+seeds only organizations, the pending cohort, its 41 channels with roles and the
+coordination row from the manifest; nothing is read from `research` or
+`annotation`, and no metrics or history are copied. The first approved discovery
+run admits videos (see "Bootstrap and admission" in the 2026-10-20 revision).
+`COMPONENT1_DB_URL` and the Python runner stay unchanged and are never used by
+the collector.
 
 ## Bounded execution and durable recovery
 
@@ -248,7 +249,11 @@ arbitrary video IDs. Duplicate invocations remain idempotent. Rotation/revocatio
 must update both copies; never log request authorization headers.
 
 Future Edge secrets: `C1_COLLECTOR_DB_URL`, a YouTube key scoped for this collection,
-and `C1_CRON_TOKEN`. No fallback and no reuse of `COMPONENT1_DB_URL`. Ignore any
+and `C1_CRON_TOKEN`. No fallback and no reuse of `COMPONENT1_DB_URL`. Recommended
+`C1_COLLECTOR_DB_URL`: the Supabase transaction pooler, port 6543, user
+`c1_collector.<project ref>`, `sslmode=require` (format in the deployment
+runbook); the collector checks `session_user = c1_collector` on every
+transaction. Ignore any
 platform-injected privileged database/API credentials; never instantiate an
 admin client. Vault access is for the scheduler actor only, not `c1_collector`.
 The restricted PostgreSQL connection isolates that connection's database rights
@@ -292,18 +297,20 @@ monitor must detect missing runs even when the collector never starts. Alert
 channel, owner and escalation path are unresolved; no messages are sent now.
 
 Planning formula for one observation per entity per day: daily history rows =
-channels + inventory videos; annual rows = 365 times that total. The following
-are scenarios, not a fresh inventory measurement or measured PostgreSQL sizes.
-Assume 150–300 bytes per history row including basic indexes, excluding WAL,
-backups, bloat, staging, metadata and operational records; MB is decimal.
+channels + inventory videos; annual rows = 365 times that total. This is an
+upper bound: the v0.3.0 refresh policy observes videos daily only to day 30,
+then weekly to day 365. The following are scenarios for the 41-channel cohort,
+not a fresh inventory measurement or measured PostgreSQL sizes. Assume 150–300
+bytes per history row including basic indexes, excluding WAL, backups, bloat,
+staging, metadata and operational records; MB is decimal.
 
 | Channels / videos | History rows/year | Estimated history growth/year |
 |---|---:|---:|
-| 18 / 1,186 | 439,460 | 66–132 MB |
-| 18 / 10,000 | 3,656,570 | 548–1,097 MB |
+| 41 / 1,500 | 562,465 | 84–169 MB |
+| 41 / 10,000 | 3,664,965 | 550–1,099 MB |
 
 Work outcomes for daily refresh can add roughly one entity result per video/day;
-at an assumed 100–250 bytes per result that adds about 43–108 MB/year for 1,186
+at an assumed 100–250 bytes per result that adds about 55–137 MB/year for 1,500
 videos or 365–913 MB/year for 10,000. Actual JSON/index overhead may exceed this.
 One 2 KB metadata row per 10,000 videos adds about 20 MB before indexes. At 100
 attempts/day and a hypothetical 50 KB staged response per successful attempt,
@@ -334,9 +341,11 @@ runtime code sets it. Each purge is a separately reviewed operator action.
 
 - [ ] Review this design; confirm budgets, continuation window, inventory scope,
   storage estimates, monitoring owner and retention decisions.
-- [ ] Separately approve the proposed cohort: 18-channel membership, Pulse.lk
-  evidence, registry discrepancies and admission rules. Preserve the pending
-  manifest until that explicit decision. A design review is not cohort approval.
+- [ ] Separately approve the proposed v0.3.0 cohort: 41-channel membership
+  (18 Derana, 23 Capital Maharaja), Pulse.lk evidence, the five medium/low-medium
+  Capital Maharaja channels and admission rules. Preserve the pending manifest
+  (its hash is deployed) until that explicit decision. A design review is not
+  cohort approval.
 - [ ] Implement C1-only schema/migration files and isolated Edge code in a later
   authorized step. Use independent C1 migration tracking. Keep default activation
   false and make missing settings fail closed. Leave the Python runner unchanged.
@@ -354,8 +363,8 @@ runtime code sets it. Each purge is a separately reviewed operator action.
   TLS, extensions and schedule timezone. Stop on any isolation failure; do not
   change existing research/PUBLIC permissions as a workaround.
 - [ ] Obtain separate authorization for new C1 resources and runtime-role grants.
-  Bootstrap inventory through unchanged read-only credentials, validate scope,
-  import into C1 only, and leave collection disabled. Copy no historical stats.
+  Bootstrap only through the reviewed `004` script (no `research` reads), leave
+  collection disabled, and copy no historical stats.
 - [ ] Provision C1-only secrets and authenticated deployment only when authorized.
   Validate with C1-only canaries and explicitly authorized bounded API collection;
   confirm research resources and migration tracking remain unchanged.
@@ -384,6 +393,9 @@ effective privileges or isolation. Runtime fencing, monotonic budget reservation
 fair scheduling, replay hash comparison and run completion remain future collector
 transaction responsibilities and require executable validation in a later step.
 # Expanded 43-channel planning scope
+
+History only: superseded by the 41-channel v0.3.0 cohort in "2026-10-20
+revision". The figures below describe the earlier 18- and 43-channel scopes.
 
 The separate proposal `config/cohorts/component_1_audited43_v0.2.0.proposed.json`
 records the user's selection of all 43 channel IDs in the saved database audit.
@@ -513,6 +525,20 @@ model views; the model reader reads only the views, with a correct holdout split
 `is_holdout` is locked; history UPDATE/TRUNCATE fail for every role, and DELETE
 fails unless `c1.retention_purge` is set locally; `research`/`annotation` are
 untouched. The only warning is that 002b's `GRANT CONNECT` grants nothing when
-`postgres` does not own the database (PUBLIC CONNECT still applies). This does
-not validate Supabase itself; `tests/component_1/test_c1_postgres_local.ps1`
-remains not re-validated.
+`postgres` does not own the database (PUBLIC CONNECT still applies). Those first
+runs used the image's loopback `trust` rule, so role identities were real but
+passwords were not checked.
+
+Collector integration (2026-10-20, later run): the real `npm:postgres@3.4.7`
+driver, `PostgresStore`, `collect()` and the handler ran in the same kind of
+container as `c1_collector` over verified TLS with a required password, with
+YouTube mocked (`tests/component_1/edge_collection/POSTGRES_INTEGRATION_RUNBOOK.md`).
+The pending cohort returned `GATE_CLOSED` with no API call and no writes; after
+an in-container approval, a mocked 41-channel run completed with 41 channel and
+6 video snapshots written once, staged-response takeover replay, a transient
+retry, no writes on repeat calls, and history UPDATE/DELETE/TRUNCATE denied. The
+first real-driver run found that jsonb parameters were double-encoded (stored as
+JSON strings); they are now cast `$n::text::jsonb`, and the offline fake adapter
+reproduces the driver's encoding. This does not validate Supabase pooler routing,
+its TLS certificate chain or the Edge runtime;
+`tests/component_1/test_c1_postgres_local.ps1` remains not re-validated.

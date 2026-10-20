@@ -190,6 +190,38 @@ test("only dedicated credential, role and TLS accepted; no fallback", async () =
   assert.equal((await handler(request())).status, 503);
   assert.equal(calls.connections, 0);
 });
+test("DB URL username: c1_collector or the pooler form c1_collector.<20-char ref> only", () => {
+  const ref = "abcdefghij0123456789";
+  const url = (user) =>
+    `postgres://${user}:synthetic@invalid.test:6543/postgres?sslmode=require`;
+  for (const user of ["c1_collector", `c1_collector.${ref}`]) {
+    validateConfig({ ...c, dbUrl: url(user) });
+  }
+  for (
+    const user of [
+      "postgres",
+      "c1_owner",
+      "c1_model_reader",
+      "c1_collectorX",
+      "c1_collector.short",
+      `c1_collector.${ref}.extra`,
+      `c1_collector.${ref}x`,
+      `c1_collector${ref}`,
+      `postgres.${ref}`,
+      "C1_COLLECTOR",
+      "C1_collector",
+      `c1_collector.${ref.toUpperCase()}`,
+      `C1_COLLECTOR.${ref}`,
+      `c1_collector.${ref.slice(0, 19)}_`,
+    ]
+  ) {
+    assert.throws(
+      () => validateConfig({ ...c, dbUrl: url(user) }),
+      (e) => e instanceof Stop && e.code === "DATABASE_CONFIGURATION",
+      user,
+    );
+  }
+});
 test("driver adapter is lazy, pins TLS verification, disables prepare, and binds arrays explicitly", async () => {
   let loads = 0, options, url, parameters, closed = false;
   const factory = postgresFactory(async () => {
@@ -377,6 +409,69 @@ test("injected internal scheduling clock permits an otherwise valid claim", asyn
   assert.ok((await f.store.claim(c, "daily-start")).lease);
 });
 
+// Mirrors postgres@3.4.7 parameter binding: a parameter whose described type is
+// jsonb is serialized with JSON.stringify, so an already-serialized string is
+// stored as a JSON string scalar. Cast through ::text, the string is sent as-is
+// and PostgreSQL parses it once. Every C1 jsonb value must be stored as an object.
+function driverEncode(sql, args) {
+  for (const m of sql.matchAll(/\$(\d+)((?:::\w+(?:\[\])?)*)/g)) {
+    const casts = m[2].split("::").filter(Boolean);
+    const at = casts.indexOf("jsonb");
+    if (at < 0) continue;
+    const value = args[Number(m[1]) - 1];
+    let stored;
+    try {
+      stored = JSON.parse(at === 0 ? JSON.stringify(value) : String(value));
+    } catch {
+      throw new Error(`jsonb $${m[1]} is not valid JSON text`);
+    }
+    if (
+      stored === null || typeof stored !== "object" || Array.isArray(stored)
+    ) {
+      throw new Error(`jsonb $${m[1]} would be stored as ${typeof stored}`);
+    }
+  }
+}
+test("fake adapter encodes jsonb like the real driver", () => {
+  const text = JSON.stringify({ a: 1 });
+  assert.throws(
+    () => driverEncode("SET x=$1::jsonb", [text]),
+    /stored as string/,
+  );
+  driverEncode("SET x=$1::jsonb", [{ a: 1 }]);
+  driverEncode("SET x=$1::text::jsonb", [text]);
+  assert.throws(
+    () => driverEncode("SET x=$1::text::jsonb", [{ a: 1 }]),
+    /JSON text/,
+  );
+  assert.throws(
+    () => driverEncode("SET x=$1::text::jsonb", ['"a"']),
+    /stored as string/,
+  );
+});
+test("every jsonb parameter in store.mjs is cast through ::text", () => {
+  const source = readFileSync(
+    new URL(
+      "../../../supabase/functions/c1-collect/store.mjs",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const casts = [...source.matchAll(/(\$\d+)?((?:::\w+)*)::jsonb\b/g)];
+  assert.ok(casts.length >= 9);
+  for (const [whole, param, before] of casts) {
+    assert.ok(param, whole);
+    assert.equal(before, "::text", whole);
+  }
+  const columns = [
+    ...source.matchAll(/\b(summary|outcomes|staged_response)=(\$\d+[:\w]*)/g),
+  ];
+  assert.ok(columns.length >= 8);
+  for (const [whole, , bound] of columns) {
+    assert.match(bound, /^\$\d+::text::jsonb$/, whole);
+  }
+});
+
 // Scripted DB implements only the injected query boundary. No driver loaded.
 function dbFixture(
   {
@@ -423,6 +518,7 @@ function dbFixture(
   const db = {
     transaction: async (body) =>
       body(async (sql, args = []) => {
+        driverEncode(sql, args);
         calls.push({ sql, args });
         const result = await respond(sql, args, {
           coordination,

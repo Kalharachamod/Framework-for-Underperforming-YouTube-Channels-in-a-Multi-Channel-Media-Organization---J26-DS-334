@@ -79,9 +79,11 @@ hashed. Any manifest edit changes the hash; regenerate `004` and rerun
 
 These text assertions detect selected regressions only. They do not parse or
 execute PostgreSQL and cannot establish syntax correctness, privilege isolation,
-RLS/trigger semantics, race safety or live compatibility. Before production,
-run the scripts once in a throwaway database (for example a Supabase branch) and
-the not-re-validated `tests/component_1/test_c1_postgres_local.ps1` there.
+RLS/trigger semantics, race safety or live compatibility. The scripts have been
+run in Supabase order on a disposable local PostgreSQL 17 as a non-superuser
+`postgres`, and the collector store was exercised there with the real driver
+(`tests/component_1/edge_collection/POSTGRES_INTEGRATION_RUNBOOK.md`). The older
+`tests/component_1/test_c1_postgres_local.ps1` remains not re-validated.
 
 ## Limits that remain
 
