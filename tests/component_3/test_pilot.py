@@ -83,7 +83,15 @@ def fake_db():
     yield Conn()
 
 
+def _free_disk(monkeypatch, gb):
+    """The real free space of the test machine must never decide a test: report a fixed value."""
+    from collections import namedtuple
+    usage = namedtuple("usage", "total used free")
+    monkeypatch.setattr(pl.shutil, "disk_usage", lambda path: usage(500e9, 500e9 - gb * 1e9, gb * 1e9))
+
+
 def test_preflight_passes_without_printing_secrets(isolated_data_dir, monkeypatch, capsys):
+    _free_disk(monkeypatch, 50)
     secret = "AIza" + "x" * 35
     monkeypatch.setenv("YOUTUBE_API_KEY", secret)
     monkeypatch.setenv("SUPABASE_DB_URL", "postgresql://user:pw-not-real@localhost/db")
@@ -92,6 +100,15 @@ def test_preflight_passes_without_printing_secrets(isolated_data_dir, monkeypatc
     assert pre["ok"], pre["checks"]
     text = json.dumps(pre) + capsys.readouterr().out
     assert secret not in text and "pw-not-real" not in text and "test-salt" not in text
+
+
+def test_preflight_fails_when_disk_space_is_low(isolated_data_dir, monkeypatch):
+    _free_disk(monkeypatch, 0.2)
+    monkeypatch.setenv("YOUTUBE_API_KEY", "AIza" + "x" * 35)
+    monkeypatch.setenv("SUPABASE_DB_URL", "postgresql://user:x@localhost/db")
+    pre = pl.preflight(pl.load_config(), connect=fake_db)
+    disk = next(c for c in pre["checks"] if c["check"] == "disk space")
+    assert not pre["ok"] and disk["status"] == "fail" and "0.2 GB free" in disk["detail"]
 
 
 def test_preflight_fails_on_missing_prerequisites(isolated_data_dir, monkeypatch):
