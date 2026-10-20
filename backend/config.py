@@ -4,9 +4,12 @@
                                  "*" is refused: CORS must name the allowed frontends
   API_MAX_PAGE_SIZE              upper bound for ?limit= (default 100)
   API_REQUEST_TIMEOUT_SECONDS    per-request time limit, answered with 504 (default 30)
+  API_ENABLE_ANALYSIS            "true" (default) / "false": the organization-analysis endpoints, the only
+                                 ones that call YouTube and write data (search, collection, quick scoring)
   DATA_DIR                       research data root (shared with the research pipeline)
 
-No secret is read or needed here: the API reads local research artifacts only.
+No secret is read here. The analysis endpoints use the YouTube key, salt and database URL from .env
+through the shared collection code; every other endpoint reads local research artifacts only.
 """
 
 from __future__ import annotations
@@ -30,6 +33,7 @@ class Settings:
     request_timeout_seconds: float = 30.0
     api_version: str = "1.0.0"
     title: str = "Growth Intelligence API"
+    analysis_enabled: bool = True
 
     def __post_init__(self):
         if any(o.strip() == "*" for o in self.cors_origins):
@@ -42,6 +46,15 @@ class Settings:
             raise ConfigError("API_REQUEST_TIMEOUT_SECONDS must be in (0, 600]")
 
 
+def _flag(value: str) -> bool:
+    v = value.strip().lower()
+    if v in ("1", "true", "yes", "on"):
+        return True
+    if v in ("0", "false", "no", "off"):
+        return False
+    raise ValueError("API_ENABLE_ANALYSIS must be true or false")
+
+
 def load_settings() -> Settings:
     origins = os.getenv("API_CORS_ORIGINS")
     try:
@@ -50,6 +63,7 @@ def load_settings() -> Settings:
             else DEFAULT_ORIGINS,
             max_page_size=int(os.getenv("API_MAX_PAGE_SIZE", "100")),
             request_timeout_seconds=float(os.getenv("API_REQUEST_TIMEOUT_SECONDS", "30")),
+            analysis_enabled=_flag(os.getenv("API_ENABLE_ANALYSIS", "true")),
         )
     except ValueError as exc:
         raise ConfigError(f"invalid API configuration: {exc}") from None

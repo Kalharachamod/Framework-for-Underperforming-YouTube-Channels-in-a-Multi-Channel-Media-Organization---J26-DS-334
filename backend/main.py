@@ -15,11 +15,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend import errors
 from backend.api.component_3 import schemas as sc
+from backend.api.component_3.analysis_routes import router as analysis_router
 from backend.api.component_3.routes import router as component_3_router
 from backend.config import Settings, load_settings
+from backend.services.component_3.analysis_jobs import AnalysisJobs
 from backend.services.component_3.service import Component3Service
 
-DESCRIPTION = """Read-only API over the J26-DS-334 research results.
+DESCRIPTION = """API over the J26-DS-334 research results (read-only except organization analysis).
 
 **Component 3: Diffusion-Based Cross-Channel Audience Bridge Scoring.** Channels, Audience Bridge
 Scores (STEP 19, provisional formula), explanations (STEP 22), evaluation (STEP 21) and artifact
@@ -30,7 +32,8 @@ transfer, causality or growth. No commenter identifiers (raw or pseudonymized) a
 """
 
 
-def create_app(settings: Settings | None = None, service: Component3Service | None = None) -> FastAPI:
+def create_app(settings: Settings | None = None, service: Component3Service | None = None,
+               analysis: AnalysisJobs | None = None) -> FastAPI:
     settings = settings or load_settings()
     app = FastAPI(title=settings.title, version=settings.api_version, description=DESCRIPTION,
                   openapi_tags=[{"name": "system", "description": "API liveness."},
@@ -38,11 +41,16 @@ def create_app(settings: Settings | None = None, service: Component3Service | No
                                 {"name": "Component 3: channels", "description": "Channels and aggregate features."},
                                 {"name": "Component 3: audience bridge",
                                  "description": "Audience Bridge Scores, decomposition and explanations."},
-                                {"name": "Component 3: evaluation", "description": "Stored STEP 21 evaluation results."}])
+                                {"name": "Component 3: evaluation", "description": "Stored STEP 21 evaluation results."},
+                                {"name": "Component 3: organization analysis",
+                                 "description": "Search any organization's channels and run a quick collection + "
+                                                "scoring job (calls YouTube, writes data; API_ENABLE_ANALYSIS)."}])
     app.state.settings = settings
     app.state.component3 = service or Component3Service()
+    app.state.analysis = analysis or AnalysisJobs(enabled=settings.analysis_enabled)
+    # POST is used only by the organization-analysis endpoints
     app.add_middleware(CORSMiddleware, allow_origins=list(settings.cors_origins), allow_credentials=False,
-                       allow_methods=["GET"], allow_headers=["Accept", "Content-Type"])
+                       allow_methods=["GET", "POST"], allow_headers=["Accept", "Content-Type"])
 
     @app.middleware("http")
     async def timeout(request: Request, call_next):
@@ -61,6 +69,7 @@ def create_app(settings: Settings | None = None, service: Component3Service | No
                 "time": datetime.now(timezone.utc).replace(microsecond=0)}
 
     app.include_router(component_3_router)
+    app.include_router(analysis_router)
     return app
 
 
