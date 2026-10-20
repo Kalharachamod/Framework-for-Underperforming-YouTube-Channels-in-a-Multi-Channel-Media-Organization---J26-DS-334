@@ -282,7 +282,7 @@ export function ChannelExplorerPage() {
                 </Block>
               </div>
 
-              <Block title="Shared audience" hint="Other research channels with at least one commenter in common. Bubble size: shared commenters." label="Channels sharing commenters">
+              <Block title="Shared commenters" hint="Other research channels with at least one commenter in common. Bubble size: shared commenters." label="Channels sharing commenters">
                 {pairs.status === "loading" && <Loading variant="cards" rows={6} />}
                 {pairs.status === "error" && <ErrorState error={pairs.error} onRetry={pairs.reload} what="Shared commenters" />}
                 {pairs.status === "success" && (shared.length === 0 ? (

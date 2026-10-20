@@ -147,7 +147,7 @@ function ScoreDistribution({ rows }: { rows: BridgePairRow[] }) {
         ))}
       </div>
       <ul className="sdist__facts">
-        <li><b>{int(zero)}</b><span>pairs at 0 (no shared audience)</span></li>
+        <li><b>{int(zero)}</b><span>pairs at 0 (no shared commenters)</span></li>
         <li><b>{int(scored.length - zero)}</b><span>pairs with a positive score</span></li>
         <li><b>{num(median, 3)}</b><span>median score</span></li>
       </ul>
@@ -192,7 +192,7 @@ export function DashboardPage() {
         <div className="ov-banner__text">
           <span className="ov-banner__kicker">Component 3 · Growth Intelligence</span>
           <h1>Audience bridge research</h1>
-          <p>Diffusion-based cross-channel audience bridge scoring across {s ? int(s.channels) : "the"} research channels: who shares audiences with whom, how strongly, and why.</p>
+          <p>Diffusion-based cross-channel audience bridge scoring across {s ? int(s.channels) : "the"} research channels: which channels share public commenters, how strongly, and why.</p>
           {s && (
             <ul className="ov-banner__tags">
               <li><span>Snapshot</span><b className="mono">{s.snapshot_id}</b></li>
