@@ -16,10 +16,14 @@ Methods:
   hgt_similarity         component of proposed, alternative embedding (STEP 16 channel-embedding cosine)
   louvain                baseline (STEP 20 binary same-community indicator)
   node2vec               baseline (STEP 20 raw cosine similarity)
+  shared_commenters      baseline: simple overlap, the number of public commenters the pair shares (STEP 14
+                         channel_pair_features). Per source this ranks exactly like the directional overlap share
+                         |C_s ∩ C_d| / |C_s|. It shows how much the proposed score adds beyond counting.
 """
 
 from __future__ import annotations
 
+import hashlib
 import importlib
 import time
 import tracemalloc
@@ -126,6 +130,23 @@ def _node2vec(ctx: MethodContext) -> tuple[pd.DataFrame, str, dict]:
     return df, r.experiment_id, {"embedded_nodes": int(len(r.embeddings.nodes))}
 
 
+def _shared_commenters(ctx: MethodContext) -> tuple[pd.DataFrame, str, dict]:
+    """Simple-overlap baseline. A pair absent from channel_pair_features shares no commenter: an observed 0."""
+    inp = ctx.baseline_input
+    ch = inp.channels
+    pf = inp.pair_features
+    shared: dict[tuple[str, str], float] = {}
+    for a, b, n in zip(pf["channel_a"], pf["channel_b"], pf["shared_commenter_count"]):
+        shared[(a, b)] = shared[(b, a)] = float(n)
+    pairs = pd.DataFrame([(a, b) for a in ch for b in ch if a != b], columns=["source_channel_id", "destination_channel_id"])
+    pairs["shared_commenters"] = [shared.get((a, b), 0.0) for a, b in zip(pairs.source_channel_id, pairs.destination_channel_id)]
+    payload = f"{inp.snapshot_id}|{inp.graph.fingerprint()}|{inp.as_of.isoformat()}|shared_commenters-1.0"
+    experiment_id = f"overlap-{hashlib.sha256(payload.encode()).hexdigest()[:12]}"
+    df = standardize(pairs, method="shared_commenters", role="baseline", signal_type="count (shared public commenters)",
+                     score_col="shared_commenters", snapshot_id=inp.snapshot_id, experiment_id=experiment_id, channels=ch)
+    return df, experiment_id, {"pairs_with_shared_commenters": int((pairs["shared_commenters"] > 0).sum())}
+
+
 def _embedding(source: str):
     def adapter(ctx: MethodContext) -> tuple[pd.DataFrame, str, dict]:
         from research.component_3.model import audience_bridge as ab
@@ -165,10 +186,11 @@ METHODS: dict[str, Callable[[MethodContext], tuple[pd.DataFrame, str, dict]]] = 
     "hgt_similarity": _embedding("hgt"),
     "louvain": _louvain,
     "node2vec": _node2vec,
+    "shared_commenters": _shared_commenters,
 }
 PROPOSED = ("audience_bridge_score",)
 PROPOSED_COMPONENTS = ("ppr_diffusion", "topic_similarity", "metapath2vec_similarity", "hgt_similarity")
-BASELINES = ("louvain", "node2vec")
+BASELINES = ("louvain", "node2vec", "shared_commenters")
 
 
 def run_method(name: str, ctx: MethodContext) -> MethodRun:
