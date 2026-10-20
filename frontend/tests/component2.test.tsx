@@ -104,6 +104,24 @@ describe("Component 2 research evidence", () => {
     expect(screen.getByText(/e5 embeddings \+ logistic regression reach F1 0.54/)).toBeVisible();
   });
 
+  it("shows the Dream Star gap with a JSD scale, season switch and validation example", async () => {
+    await openPage();
+    const nav = screen.getByRole("navigation", { name: "Component 2 sections" });
+    expect(within(nav).getByRole("link", { name: "Gap analysis" })).toHaveAttribute("href", "#c2-gap");
+    expect(within(nav).getByRole("link", { name: "Validation" })).toHaveAttribute("href", "#c2-validation");
+    const gap = screen.getByRole("region", { name: "Where audience attention and published content differ" });
+    expect(within(gap).getByLabelText(/0 to 1 scale.*Season 2025: 0.155.*New season 2026: 0.426/)).toBeInTheDocument();
+    expect(within(gap).getByLabelText(/Voting: audience interest 6.1%, published supply 0.4%, gap \+5.7 pp/)).toBeInTheDocument();
+    await userEvent.click(within(gap).getByRole("button", { name: /New season 2026/ }));
+    expect(within(gap).getByRole("button", { name: /New season 2026/ })).toHaveAttribute("aria-pressed", "true");
+    expect(within(gap).getByText("0.426", { selector: ".stat-card *, [class*=stat] *" })).toBeVisible();
+    await userEvent.click(within(gap).getByRole("button", { name: "Show data table" }));
+    expect(within(gap).getByRole("table")).toHaveTextContent("Voice and group songs");
+    const validation = screen.getByRole("region", { name: "Usefulness over time: do highlighted gaps matter later?" });
+    expect(within(validation).getByText("Still uncovered · gap widened")).toBeVisible();
+    expect(within(validation).getAllByRole("listitem")).toHaveLength(3);
+  });
+
   it("navigates between the offline Component 2 view and the existing team workspace", async () => {
     mockFetch(defaultRoutes());
     await openPage();

@@ -217,3 +217,42 @@ export const researchQuestions = [
   ["What is JSD?", "Jensen–Shannon Divergence is the average KL divergence of two distributions from their mean: JSD(P,Q) = ½ KL(P‖M) + ½ KL(Q‖M), M=(P+Q)/2. It is symmetric and, with base-2 logarithms, ranges from 0 to 1. SciPy's jensenshannon returns the square-root distance, so the divergence itself is computed directly."],
   ["What comes next?", "Separate meaningful comments from reactions, build channel-specific demand topics, compute JSD and per-topic gaps against supply, validate season to season, and report final classifier results on the blind held-out set."],
 ] as const;
+
+/** Experiment 4A aggregates for Dream Star (shares of meaningful comments and of videos per topic). */
+export interface GapTopic { name: string; keywords: string; interest: number; supply: number; comments: number; videos: number }
+export interface GapWindow { id: string; label: string; period: string; jsd: number; jsdRange: [number, number]; comments: number; videos: number; topics: GapTopic[] }
+export const dreamStarGap: { channel: string; windows: GapWindow[] } = {
+  channel: "Dream Star",
+  windows: [
+    {
+      id: "season_2025", label: "Season 2025", period: "Apr 2025 – Jan 2026", jsd: 0.155, jsdRange: [0.119, 0.243], comments: 12239, videos: 896,
+      topics: [
+        { name: "Support for Pahanmi, Anupama and Janani", keywords: "pahanmi · anupama · janani · ane", interest: 10.3, supply: 2.2, comments: 1261, videos: 20 },
+        { name: "Contestant praise", keywords: "lassanai · oya · pahanmi · anupama", interest: 9.6, supply: 2.8, comments: 1179, videos: 25 },
+        { name: "Nipuni and her songs", keywords: "sinduwa · nipuni · lassanai · sindu", interest: 9.1, supply: 2.6, comments: 1118, videos: 23 },
+        { name: "Performance reactions", keywords: "oya · harima · very · pahanmi", interest: 8.0, supply: 2.3, comments: 979, videos: 21 },
+        { name: "Voting", keywords: "vote · votes · sing · kiyala", interest: 6.1, supply: 0.4, comments: 749, videos: 4 },
+        { name: "Finals", keywords: "final · finals · innama · nipuni", interest: 3.8, supply: 7.8, comments: 470, videos: 70 },
+        { name: "Votes, SMS and wild card", keywords: "vote · sms · judge · wild card", interest: 8.4, supply: 13.7, comments: 1024, videos: 123 },
+        { name: "Contestant line-up", keywords: "janani · nipuni · brian · dasith", interest: 5.8, supply: 12.3, comments: 711, videos: 110 },
+        { name: "Songs and lyrics", keywords: "song · voice · group · lyrics", interest: 4.6, supply: 16.0, comments: 559, videos: 143 },
+        { name: "Judges debate (English)", keywords: "judges · should · not · they", interest: 6.6, supply: 19.0, comments: 802, videos: 170 },
+      ],
+    },
+    {
+      id: "new_season_2026", label: "New season 2026", period: "From mid-Sep 2026", jsd: 0.426, jsdRange: [0.361, 0.426], comments: 567, videos: 69,
+      topics: [
+        { name: "Support for Pahanmi, Anupama and Janani", keywords: "pahanmi · anupama · janani · ane", interest: 15.5, supply: 0.0, comments: 88, videos: 0 },
+        { name: "Contestant praise", keywords: "lassanai · oya · pahanmi · anupama", interest: 11.8, supply: 0.0, comments: 67, videos: 0 },
+        { name: "Nipuni and her songs", keywords: "sinduwa · nipuni · lassanai · sindu", interest: 18.9, supply: 8.7, comments: 107, videos: 6 },
+        { name: "Nipuni and SMS voting", keywords: "nipuni · sinduwa · sms · janani", interest: 8.5, supply: 1.4, comments: 48, videos: 1 },
+        { name: "Contestant line-up", keywords: "janani · nipuni · brian · dasith", interest: 7.1, supply: 0.0, comments: 40, videos: 0 },
+        { name: "Judges debate (English)", keywords: "judges · should · not · they", interest: 4.1, supply: 0.0, comments: 23, videos: 0 },
+        { name: "Performance reactions", keywords: "oya · harima · very · pahanmi", interest: 2.8, supply: 7.2, comments: 16, videos: 5 },
+        { name: "Contestant and song chat", keywords: "oya · pahanmi · sindu · janani", interest: 4.6, supply: 14.5, comments: 26, videos: 10 },
+        { name: "Voting", keywords: "vote · votes · sing · kiyala", interest: 1.4, supply: 11.6, comments: 8, videos: 8 },
+        { name: "Voice and group songs", keywords: "song · voice · group · sing", interest: 8.1, supply: 46.4, comments: 46, videos: 32 },
+      ],
+    },
+  ],
+};
