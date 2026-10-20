@@ -199,8 +199,9 @@ def test_evaluation_results(client, full):
     assert runs[0]["evaluation_id"] == full["evid"] and runs[0]["audience_bridge_experiment_id"] == full["eid"]
     body = get(client, f"{API}/evaluation/{full['evid']}/ranking", method="audience_bridge_score", metric="spearman")
     sc.EvaluationRowsResponse.model_validate(body)
-    assert body["total"] == 6 and {i["reference_method"] for i in body["items"]} == \
-        {"ppr_diffusion", "topic_similarity", "metapath2vec_similarity", "hgt_similarity", "louvain", "node2vec"}
+    assert body["total"] == 7 and {i["reference_method"] for i in body["items"]} == \
+        {"ppr_diffusion", "topic_similarity", "metapath2vec_similarity", "hgt_similarity", "louvain", "node2vec",
+         "shared_commenters"}
     assert get(client, f"{API}/evaluation/{full['evid']}/temporal_stability")["items"][0]["status"] == \
         "insufficient_temporal_data"
     perf = get(client, f"{API}/evaluation/{full['evid']}/performance", method="input_preparation")

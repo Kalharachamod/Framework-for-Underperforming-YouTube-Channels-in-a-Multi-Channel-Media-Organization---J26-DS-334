@@ -153,13 +153,23 @@ def test_standardize_ranks_ties_nulls_and_self_pairs():
     assert "duplicate (source, destination) pairs" in me.validate_rankings(bad)
 
 
-@pytest.mark.parametrize("method", ["ppr_diffusion", "topic_similarity", "louvain", "node2vec"])
+@pytest.mark.parametrize("method", ["ppr_diffusion", "topic_similarity", "louvain", "node2vec", "shared_commenters"])
 def test_method_adapters_produce_valid_rankings(ctx, method):
     r = me.run_method(method, ctx)
     assert r.status == "ok" and r.experiment_id
     assert me.validate_rankings(r.rankings) == []
     assert set(r.rankings.source_channel_id) | set(r.rankings.destination_channel_id) <= set(ctx.baseline_input.channels)
     assert r.seconds >= 0 and r.python_peak_mib >= 0
+
+
+def test_shared_commenters_baseline_counts_overlap(ctx):
+    rk = me.run_method("shared_commenters", ctx).rankings
+    score = lambda a, b: rk[(rk.source_channel_id == CN[a]) & (rk.destination_channel_id == CN[b])].score.iloc[0]
+    assert score("A", "B") == 2 and score("A", "C") == 2 and score("D", "E") == 3
+    assert score("D", "A") == 0 and score("F", "A") == 0          # no shared commenter: an observed 0, not missing
+    assert rk.score.notna().all() and "shared_commenters" in me.BASELINES
+    top_d = rk[(rk.source_channel_id == CN["D"]) & (rk["rank"] == 1)].destination_channel_id.iloc[0]
+    assert top_d == CN["E"]
 
 
 def test_topic_and_louvain_signals_are_as_expected(ctx):
@@ -423,7 +433,7 @@ def test_full_run_with_step19_scores(sid):
     assert r.metadata["proposed_method"]["status"] == "ok" and r.metadata["proposed_method"]["note"] is None
     agree = rows(r.tables["ranking_evaluation_results"], analysis="agreement", method="audience_bridge_score")
     assert set(agree.reference_method) == {"ppr_diffusion", "topic_similarity", "metapath2vec_similarity",
-                                         "hgt_similarity", "louvain", "node2vec"}
+                                         "hgt_similarity", "louvain", "node2vec", "shared_commenters"}
 
 
 def test_subsample_never_leaves_orphan_replies():
