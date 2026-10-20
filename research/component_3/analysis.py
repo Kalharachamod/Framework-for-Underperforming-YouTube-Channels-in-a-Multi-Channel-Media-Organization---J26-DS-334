@@ -148,20 +148,34 @@ def collect(organization: str, channels: dict[str, str], config: pl.PilotConfig,
 
         refs = cmc.stored_videos(conn, video_ids=vids.videos_collected)
         collected: list[str] = []
-        disabled = failed = 0
-        progress("comments", "running", {"videos_done": 0, "videos_total": len(refs)})
-        for start in range(0, len(refs), COMMENT_BATCH):
-            res = cmc.collect_comments(refs[start:start + COMMENT_BATCH], client, cmc.supabase_store(conn),
-                                       max_threads_per_video=config.max_threads_per_video,
-                                       fetch_all_replies=config.fetch_all_replies)
-            conn.commit()
-            collected.extend(res.comments_collected)
-            disabled += len(res.videos_with_comments_disabled)
-            failed += len(res.video_failures) + len(res.comment_failures)
-            progress("comments", "running", {"videos_done": min(start + COMMENT_BATCH, len(refs)),
-                                             "videos_total": len(refs), "comments": len(collected)})
+        disabled = failed = done = 0
+        # channel by channel, so the dashboard can show which channels are finished (public channel ids only)
+        by_channel: dict[str, list] = {}
+        for r in refs:
+            by_channel.setdefault(r.channel_id, []).append(r)
+        finished: list[str] = [c for c in ids if c not in by_channel]   # no collected videos: nothing to do
+
+        def report(now: str | None) -> None:
+            progress("comments", "running", {"videos_done": done, "videos_total": len(refs), "comments": len(collected),
+                                             "channels_done": list(finished), "channel_now": now})
+
+        report(next(iter(by_channel), None))
+        for cid, crefs in by_channel.items():
+            for start in range(0, len(crefs), COMMENT_BATCH):
+                res = cmc.collect_comments(crefs[start:start + COMMENT_BATCH], client, cmc.supabase_store(conn),
+                                           max_threads_per_video=config.max_threads_per_video,
+                                           fetch_all_replies=config.fetch_all_replies)
+                conn.commit()
+                collected.extend(res.comments_collected)
+                disabled += len(res.videos_with_comments_disabled)
+                failed += len(res.video_failures) + len(res.comment_failures)
+                done += len(crefs[start:start + COMMENT_BATCH])
+                report(cid)
+            finished.append(cid)
+            report(None)
         out["comments"] = {"collected": len(collected), "videos": len(refs),
-                           "videos_with_comments_disabled": disabled, "failed": failed}
+                           "videos_with_comments_disabled": disabled, "failed": failed,
+                           "channels_done": list(finished), "videos_total": len(refs), "videos_done": done}
         progress("comments", "completed", out["comments"])
 
         progress("snapshot", "running", {})
