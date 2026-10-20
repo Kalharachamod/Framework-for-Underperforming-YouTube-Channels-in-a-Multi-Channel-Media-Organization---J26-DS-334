@@ -53,3 +53,11 @@ export function compact(value: number | null | undefined): string {
   if (abs >= 1e3) return `${(value / 1e3).toFixed(1)}K`;
   return String(Math.round(value));
 }
+
+/** A score of exactly 0 means the pair shares no public commenters (confidence 0). Its rank is only a
+ * deterministic tie-break, so it is shown as "no bridge evidence" instead of a position. A missing score
+ * (null: incomplete components) is a different state and keeps its own "—". */
+export function isNoBridgeEvidence(score: number | null | undefined): boolean {
+  return score === 0;
+}
+export const NO_EVIDENCE_TITLE = "Score 0: no shared public commenters, so this pair has no bridge evidence and its rank is only a tie-break.";

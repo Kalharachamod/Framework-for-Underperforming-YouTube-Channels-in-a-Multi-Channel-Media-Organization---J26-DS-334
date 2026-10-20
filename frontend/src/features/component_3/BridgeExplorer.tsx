@@ -11,7 +11,7 @@ import { FlowCanvas, FlowLegend, type FlowEdge, type FlowLane, type FlowNode } f
 import { ScoreBreakdown } from "../../components/charts/ScoreBreakdown";
 import { EmptyState, ErrorState, Loading } from "../../components/common/States";
 import { useApi } from "../../hooks/useApi";
-import { int, num, pct } from "../../utils/format";
+import { int, isNoBridgeEvidence, NO_EVIDENCE_TITLE, num, pct } from "../../utils/format";
 import { component3Api } from "./api";
 import { useResearch } from "./ResearchContext";
 import type { BridgePairRow } from "./types";
@@ -42,7 +42,9 @@ export function BridgeInspector({ source, destination }: { source: string; desti
       <div className="insp__nums">
         <div><span>Audience Bridge Score</span><strong>{num(p.audience_bridge_score, 3)}</strong></div>
         <div><span>Confidence</span><strong>{num(b.confidence_component, 3)}</strong></div>
-        <div><span>Rank for source</span><strong>{p.rank ?? "—"}{p.ranking_context ? <small> / {int(p.ranking_context.scored_destinations)}</small> : null}</strong></div>
+        <div><span>Rank for source</span>{!isNoBridgeEvidence(p.audience_bridge_score)
+          ? <strong>{p.rank ?? "—"}{p.ranking_context ? <small> / {int(p.ranking_context.scored_destinations)}</small> : null}</strong>
+          : <strong title={NO_EVIDENCE_TITLE}>No bridge evidence</strong>}</div>
       </div>
       <ScoreBreakdown compact b={{ diffusion: b.diffusion_component, embedding: b.embedding_component, topic: b.topic_component,
         base: b.base_score, confidence: b.confidence_component, score: p.audience_bridge_score, embeddingUsed: b.w_embedding > 0 }} />

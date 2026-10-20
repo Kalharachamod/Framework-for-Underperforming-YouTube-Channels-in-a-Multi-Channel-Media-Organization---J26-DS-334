@@ -5,7 +5,7 @@ import { ChannelAvatar } from "../../../components/common/ChannelAvatar";
 import { Icon } from "../../../components/common/Icon";
 import { Badge, KeyValues, Select, type Tone } from "../../../components/common/ui";
 import { useApi } from "../../../hooks/useApi";
-import { date, int, label, num, pct } from "../../../utils/format";
+import { date, int, isNoBridgeEvidence, label, NO_EVIDENCE_TITLE, num, pct } from "../../../utils/format";
 import { component3Api } from "../api";
 import { LIMITATIONS, Provenance } from "../ContextBar";
 import { channelName, useResearch } from "../ResearchContext";
@@ -24,7 +24,9 @@ function interpretation(p: BridgePairResponse): string[] {
   const b = p.score_breakdown;
   const src = p.source_channel_name ?? p.source_channel_id, dst = p.destination_channel_name ?? p.destination_channel_id;
   const out: string[] = [];
-  if (p.rank !== null && p.ranking_context) {
+  if (p.audience_bridge_score === 0) {
+    out.push(`There is no bridge evidence between ${src} and ${dst}: they share no public commenters, so the score is 0 and the pair is not ranked (its listed position is only a tie-break).`);
+  } else if (p.rank !== null && p.ranking_context) {
     out.push(`Within the observed public interaction data, ${dst} ranks ${p.rank} of ${p.ranking_context.scored_destinations} scored destinations for ${src}.`);
   }
   const parts = ([["structural connectivity (diffusion)", b.diffusion_component], ["learned graph similarity (embedding)", b.embedding_component],
@@ -177,7 +179,9 @@ export function ExplainabilityPage() {
               <text x={65} y={86} textAnchor="middle" className="ring__cap">bridge score</text>
             </svg>
             <ul className="xp-hero__facts">
-              <li><span>Rank</span><b>{p.rank === null ? "—" : `#${p.rank}`}</b><small>{p.ranking_context ? `of ${int(p.ranking_context.scored_destinations)} scored destinations` : ""}</small></li>
+              {!isNoBridgeEvidence(score)
+                ? <li><span>Rank</span><b>{p.rank === null ? "—" : `#${p.rank}`}</b><small>{p.ranking_context ? `of ${int(p.ranking_context.scored_destinations)} scored destinations` : ""}</small></li>
+                : <li title={NO_EVIDENCE_TITLE}><span>Rank</span><b>—</b><small>no bridge evidence</small></li>}
               <li><span>Confidence</span><b>{num(b.confidence_component)}</b><small>evidence × topic coverage</small></li>
               <li><span>Shared commenters</span><b>{int(b.shared_commenters)}</b><small>aggregate count</small></li>
             </ul>
@@ -200,7 +204,9 @@ export function ExplainabilityPage() {
             </section>
             <section className="xblock" aria-label="Ranking context">
               <header className="xblock__head"><div><h3>Ranking context</h3><p>Where this destination sits among the source's scored destinations.</p></div></header>
-              {p.ranking_context ? (
+              {isNoBridgeEvidence(score) ? (
+                <p className="muted">No bridge evidence: this pair shares no public commenters, so it has no meaningful position in the ranking.</p>
+              ) : p.ranking_context ? (
                 <>
                   <div className="xp-rank">
                     {Array.from({ length: Math.min(60, p.ranking_context.scored_destinations ?? 0) }, (_, i) => (

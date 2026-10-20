@@ -4,7 +4,7 @@ import { useSearchParams } from "react-router-dom";
 import { EmptyState, ErrorState, Loading } from "../../../components/common/States";
 import { Notice, PageHeader, Pager, TableWrap } from "../../../components/common/ui";
 import { useApi } from "../../../hooks/useApi";
-import { int, num, pct } from "../../../utils/format";
+import { int, isNoBridgeEvidence, NO_EVIDENCE_TITLE, num, pct } from "../../../utils/format";
 import { component3Api } from "../api";
 import { BridgeExplorer } from "../BridgeExplorer";
 import { LIMITATIONS, Provenance } from "../ContextBar";
@@ -142,7 +142,7 @@ export function BridgesPage() {
                             <tr className={r.source_channel_id === source && r.destination_channel_id === destination ? "is-on" : ""}>
                               <td><button type="button" className="rt-toggle" aria-expanded={isOpen} aria-label={`${isOpen ? "Hide" : "Show"} evidence for ${r.source_channel_name} to ${r.destination_channel_name}`}
                                 onClick={() => setOpen(isOpen ? null : key)}>{isOpen ? "−" : "+"}</button></td>
-                              <td>{r.rank ?? "—"}</td>
+                              <td>{!isNoBridgeEvidence(r.audience_bridge_score) ? (r.rank ?? "—") : <span className="muted small" title={NO_EVIDENCE_TITLE}>no evidence</span>}</td>
                               <td className="rt-pair">
                                 <button type="button" className="link-button rt-pairbtn" onClick={() => { setParams({ source: r.source_channel_id, destination: r.destination_channel_id }); window.scrollTo?.({ top: 0, behavior: "smooth" }); }}>
                                   <ChannelAvatar id={r.source_channel_id} name={r.source_channel_name} size={20} />
