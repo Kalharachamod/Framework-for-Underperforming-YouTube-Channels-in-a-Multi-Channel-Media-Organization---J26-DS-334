@@ -58,6 +58,24 @@ class Candidate:
     score: float = 0.0
     confidence: Confidence = "low"
     evidence: list[str] = field(default_factory=list)
+    icon_url: str | None = None      # public profile image (YouTube image hosts only); presentation only
+
+
+ICON_HOSTS = {"yt3.ggpht.com", "yt3.googleusercontent.com", "i.ytimg.com"}
+
+
+def _icon(snippet: dict[str, Any]) -> str | None:
+    """The channel's public profile-image URL, only from YouTube's own https image hosts."""
+    from urllib.parse import urlparse
+
+    thumbs = snippet.get("thumbnails") or {}
+    for size in ("medium", "default", "high"):
+        url = (thumbs.get(size) or {}).get("url")
+        if isinstance(url, str):
+            parsed = urlparse(url)
+            if parsed.scheme == "https" and parsed.hostname in ICON_HOSTS:
+                return url
+    return None
 
 
 @dataclass
@@ -135,6 +153,7 @@ def _score(org, ch, channels, seeds, linked_from, links_out, seed_countries) -> 
         country=_country(ch),
         subscriber_count=None if stats.get("hiddenSubscriberCount") else _int(stats.get("subscriberCount")),
         video_count=_int(stats.get("videoCount")),
+        icon_url=_icon(snippet),
     )
     score, ev = 0.0, cand.evidence
 
