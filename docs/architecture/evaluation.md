@@ -21,6 +21,7 @@ python -m research.component_3.evaluation.evaluate --topic-backend char_lsa --sk
 | `topic_similarity` | component of proposed method | STEP 18 `topic_similarity` (symmetric) |
 | `louvain` | baseline | STEP 20 same-community indicator (binary, many ties) |
 | `node2vec` | baseline | STEP 20 raw cosine similarity |
+| `shared_commenters` | baseline (simple overlap) | Number of public commenters the pair shares (STEP 14 `channel_pair_features`); a pair absent there is an observed 0. Per source it ranks exactly like the directional overlap share. Added in evaluation version 1.2, also in the sparse runs |
 
 Each adapter in `methods.py` turns its method's output into one **standard ranking table**:
 - **Columns:** `method`, `role`, `signal_type`, `source_channel_id`, `destination_channel_id`, `score`, `rank`, `tied`, `snapshot_id`, `experiment_id`.
