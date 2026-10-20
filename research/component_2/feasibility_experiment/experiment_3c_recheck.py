@@ -169,7 +169,7 @@ def main() -> int:
     out = DEFAULT_OUTPUT_DIR
     labels, provenance = import_reviewed_labels(args.reviewed)
     ExpandedCorpusGuard.load(CORPUS_DIR / "comment_partition_manifest_v2.csv").validate_training_frame(labels[["comment_id"]])
-    labels.to_csv(out / "annotation_batch1_labels_ai_assisted.csv", index=False, encoding="utf-8")
+    labels.to_csv(out / "annotation_batch1_504.csv", index=False, encoding="utf-8")
     (out / "annotation_batch1_provenance.json").write_text(json.dumps(provenance, indent=2) + "\n", encoding="utf-8")
     if args.score:
         key = pd.read_csv(out / "recheck_private_key.csv", dtype=str)

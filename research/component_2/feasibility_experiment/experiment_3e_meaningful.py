@@ -43,7 +43,7 @@ _WORD = re.compile(r"[\w඀-෿‍]+", re.UNICODE)
 
 
 def load_meaningful_batch(batch_dir: Path = BATCH_DIR) -> pd.DataFrame:
-    labels = pd.read_csv(batch_dir / "annotation_batch1_labels_ai_assisted.csv", dtype=str, keep_default_na=False)
+    labels = pd.read_csv(batch_dir / "annotation_batch1_504.csv", dtype=str, keep_default_na=False)
     batch = pd.read_csv(batch_dir / "annotation_batch1.csv", dtype=str, keep_default_na=False, encoding="utf-8-sig")
     frame = labels.merge(batch[["review_id", "comment_text", "video_title"]], on="review_id", validate="one_to_one")
     frame = frame.loc[frame["primary_signal"].isin(MEANINGFUL | NOT_MEANINGFUL)].reset_index(drop=True)
