@@ -78,7 +78,20 @@ def default_discoverer(organization: str, region_code: str | None) -> dict[str, 
 
     result = discover_organization(organization, YouTubeClient(), region_code=region_code)
     save_review(result)
+    remember_icons({c.channel_id: c.icon_url for c in result.candidates if c.icon_url})
     return discovery_payload(result)
+
+
+def remember_icons(icons: dict[str, str]) -> None:
+    """Add discovered channels' public profile images to the dashboard icon file (best effort, no quota)."""
+    from research.component_3.preprocessing import channel_icons as ci
+
+    try:
+        path = ci.icons_path()
+        existing = (json.loads(path.read_text(encoding="utf-8")).get("items") or {}) if path.is_file() else {}
+        ci.write_icons({**existing, **{k: v for k, v in icons.items() if ci.is_channel_id(k)}})
+    except (OSError, ValueError):
+        pass  # icons are decoration only
 
 
 def saved_discovery(organization: str) -> dict[str, Any] | None:
@@ -102,6 +115,7 @@ def discovery_payload(result) -> dict[str, Any]:
             "candidates": [{"channel_id": c.channel_id, "title": c.title, "handle": c.handle, "country": c.country,
                             "subscriber_count": c.subscriber_count, "video_count": c.video_count,
                             "score": c.score, "confidence": c.confidence, "evidence": list(c.evidence),
+                            "icon_url": getattr(c, "icon_url", None),
                             "previously_confirmed": c.channel_id in confirmed}
                            for c in result.candidates]}
 
