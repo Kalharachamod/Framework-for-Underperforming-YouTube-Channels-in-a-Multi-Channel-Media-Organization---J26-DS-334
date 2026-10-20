@@ -252,3 +252,25 @@ def test_discovery_reports_quota_errors(project, monkeypatch, capsys):
 def test_empty_query_rejected(client):
     with pytest.raises(ValueError):
         client.search_channels("  ")
+
+
+def test_candidate_icons_only_from_youtube_image_hosts():
+    from shared.data_collection.org_discovery import _icon
+
+    ok = {"thumbnails": {"medium": {"url": "https://yt3.ggpht.com/abc=s240"}}}
+    assert _icon(ok) == "https://yt3.ggpht.com/abc=s240"
+    assert _icon({"thumbnails": {"default": {"url": "https://evil.example.com/x.png"}}}) is None
+    assert _icon({"thumbnails": {"default": {"url": "http://yt3.ggpht.com/abc"}}}) is None     # not https
+    assert _icon({}) is None
+
+
+def test_review_without_icons_still_loads(project, result):
+    from dataclasses import asdict
+
+    from shared.data_collection.org_discovery import load_review, save_review
+
+    for c in result.candidates:
+        c.icon_url = None
+    save_review(result)
+    assert all(c.icon_url is None for c in load_review(result.organization).candidates)
+    assert "icon_url" in asdict(result.candidates[0])
