@@ -47,7 +47,8 @@ from shared.utils import snapshots
 from shared.utils.parquet_io import read_dataset, write_dataset
 
 EVALUATION_DIR = "evaluation"
-EVALUATION_VERSION = "1.1"   # 1.1: temporal pairs use the latest earlier snapshot with the same channel set
+EVALUATION_VERSION = "1.2"   # 1.1: temporal pairs use the latest earlier snapshot with the same channel set
+                             # 1.2: simple-overlap baseline (shared_commenters) added, also in sparse runs
 METADATA_FILE = "evaluation_run_metadata.json"
 COMPARISON_NOTE = ("Agreement and stability measure consistency between rankings, not correctness. "
                    "No result shows audience migration, audience transfer, causality or growth.")
@@ -86,7 +87,7 @@ class EvaluationConfig:
     sparse_fractions: tuple[float, ...] = (0.75, 0.5, 0.25)
     sparse_seeds: tuple[int, ...] = (0, 1, 2)
     sparse_methods: tuple[str, ...] = ("audience_bridge_score", "ppr_diffusion", "metapath2vec_similarity", "louvain",
-                                       "node2vec")
+                                       "node2vec", "shared_commenters")
 
     def __post_init__(self):
         unknown = sorted((set(self.methods) | set(self.sparse_methods)) - set(me.METHODS))
