@@ -83,6 +83,25 @@ In the Audience Bridges ranking table:
 
 Both columns have tooltips stating this ("Diffusion component (weight × normalised Personalized PageRank)" and "Raw cosine similarity of the two content profiles (symmetric)"). The values are correct. Readers must not compare the two columns directly. Values were not changed.
 
+## Finding 6: The score closely follows a simple overlap count
+
+**Classification:** research finding / limitation (no code defect).
+
+**Evidence:** comparison of the Audience Bridge Score with a simple-overlap baseline (rank destinations by shared commenters):
+
+| Comparison with the simple-overlap baseline | Derana main (`abs-7cf3eab938ad`) | Derana newest, partial (`abs-ba1203506d95`) |
+|---|---|---|
+| Spearman, all pairs (13 sources with a defined ranking) | 0.989 | 0.984 |
+| Mean per-source Spearman, **only pairs that share commenters** (11 sources) | **0.84** (min 0.50) | **0.78** (min −0.13) |
+| Top-1 Jaccard | 0.833 | 0.778 |
+| Sources whose top destination differs | **3 of 13** | **4 of 13** |
+
+**Interpretation:**
+- The agreement over all pairs (≈0.99) is inflated because both methods score every pair without shared commenters as 0.
+- Among pairs with evidence, the score mostly follows the count (≈0.8) but changes the top bridge for about a quarter to a third of channels.
+- With the current sparse data (most evidence pairs share only 1–3 commenters), the evidence-based confidence dominates the ranking. The diffusion, embedding and topic components mainly refine the order of closely matched pairs.
+- **Consequence:** the thesis must not claim that the score finds bridges a simple count cannot. The defensible claims are that it gives a graded, explained ranking, separates tied counts, and adds content and structure; its added value over counting is **modest on this data** and should be re-tested on larger, same-period collections and against expert labels.
+
 ## Other integration observations (STEP 34)
 
 - **Error responses:** a self pair (source = destination) returns HTTP 422 "self pairs are not scored". A malformed channel ID returns 404 "not part of research snapshot". Both are clear and safe.

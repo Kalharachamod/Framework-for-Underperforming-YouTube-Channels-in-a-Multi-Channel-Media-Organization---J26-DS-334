@@ -114,6 +114,22 @@ The table shows mean per-source agreement with the Audience Bridge Score. Spearm
 - This shows that the methods produce **different** rankings, not that any one of them is better.
 - Top-1 agreement: for 8 of 18 sources, the score's top destination lies in the source's Louvain community. node2vec picks the same top destination for only 2 of 18 sources.
 
+### Simple-overlap baseline (added after the main evaluation)
+
+Computed from the stored score tables with the evaluation's own ranking code (evaluation version 1.2 includes this baseline in new runs; `eval-60ac93319497` predates it).
+
+| Comparison with the simple-overlap baseline | Derana main (`abs-7cf3eab938ad`) | Derana newest, partial (`abs-ba1203506d95`) |
+|---|---|---|
+| Spearman, all pairs (13 sources with a defined ranking) | 0.989 | 0.984 |
+| Mean per-source Spearman, **only pairs that share commenters** (11 sources) | **0.84** (min 0.50) | **0.78** (min −0.13) |
+| Top-1 Jaccard | 0.833 | 0.778 |
+| Sources whose top destination differs | **3 of 13** | **4 of 13** |
+
+**Interpretation (important):**
+- The near-perfect agreement over all pairs is inflated by zeros: both methods give 0 to every pair without shared commenters (73 % of pairs).
+- Among pairs that **do** share commenters, the bridge score mostly follows the count but **reorders some pairs**, and picks a **different top bridge for 3–4 of 13 channels**. Example: for Dream Star the score picks Derana 60 Plus; the plain count picks Derana Little Star.
+- So on this data the score adds **modest value beyond counting**: it mainly breaks ties and reorders closely matched pairs using diffusion, embeddings and content. This is reported as a limitation (Finding 6).
+
 ## 8.11 Ranking Results
 
 - **Relevance metrics** (precision, recall, NDCG, MRR): **not computed**, because no labels were supplied.

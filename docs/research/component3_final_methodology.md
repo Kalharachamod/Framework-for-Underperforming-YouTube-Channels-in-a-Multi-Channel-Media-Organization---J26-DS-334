@@ -160,6 +160,7 @@ AudienceBridgeScore(s → d) = base_score(s → d) × confidence(s, d)
 |---|---|---|
 | **Louvain** | Communities on the Jaccard shared-commenter channel projection (resolution 1.0, seed 42). Score = 1 if the destination is in the source's community, else 0 | The established "overlap community" view: are bridges just communities? |
 | **node2vec** | Type-agnostic random-walk embeddings (p = q = 1, dimension 64, weighted, seed 42); channel cosine | The established homogeneous-embedding view. It isolates the value of type-aware metapaths and of the full score |
+| **Shared commenters** (simple overlap) | Rank destinations by the number of public commenters the pair shares (equivalent, per source, to the directional overlap share) | The simplest possible answer. It tests whether the full score adds anything beyond counting (added in evaluation version 1.2) |
 
 ## 4.14 Evaluation
 

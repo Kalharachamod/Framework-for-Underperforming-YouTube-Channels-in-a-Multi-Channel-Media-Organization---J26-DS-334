@@ -30,6 +30,7 @@ Always state the scope with these claims: one snapshot, 18 Derana channels, no l
 | Novelty of individual techniques (PPR, metapath2vec, HGT, node2vec, Louvain, E5, shrinkage confidence, heterogeneous graphs, directional audience relations) | All are established ([component3_novelty_threat_analysis.md](component3_novelty_threat_analysis.md)) |
 | "First", "first-ever", "unique", "novel algorithm", "no previous work" | Not supported by a non-systematic search |
 | That HGT is an effective channel representation here | Channel vectors collapsed (Finding 3) |
+| That the score identifies bridges a simple shared-commenter count would miss | On this data it closely follows the count (≈0.8 among evidence pairs) and changes the top bridge for only 3–4 of 13 channels (Finding 6) |
 | Long-term stability | One comparable snapshot pair, 1.5 days apart |
 
 ## Preferred terminology

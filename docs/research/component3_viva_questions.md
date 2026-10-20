@@ -80,6 +80,11 @@ It is the standard "overlap communities" view. If bridges were just community me
 **Why node2vec?**
 It is the standard homogeneous-embedding view. It isolates the value of type-aware paths and of the combined score: Spearman −0.29.
 
+## Simple overlap
+
+**Why not just count shared commenters?**
+I tested exactly that with a simple-overlap baseline. On Derana the score agrees closely with the count (Spearman 0.99 over all pairs, inflated by shared zeros; about 0.8 among pairs that share commenters), and it picks a different top bridge for 3–4 of 13 channels. So with today's sparse data, the evidence term dominates. The diffusion, embedding and topic components mainly break ties and reorder close pairs, and they add an explanation of *why* a pair is connected. Showing a larger added value needs bigger same-period collections and expert labels; I report this as a limitation, not a strength.
+
 ## Evaluation
 
 **How do you know the method works?**
