@@ -81,3 +81,18 @@ def test_window_without_videos_records_a_failed_run(seeded):
     status, error = db.execute("SELECT status, error FROM research.c3_live_runs ORDER BY started_at DESC LIMIT 1").fetchone()
     assert status == "failed" and "no videos published" in error
     assert db.execute("SELECT count(*) FROM research.c3_live_bridge_scores").fetchone()[0] == 0   # no partial results
+
+
+def test_collection_failing_for_every_channel_fails_the_run(seeded, monkeypatch):
+    from shared.data_collection import channel_collector as chc
+
+    db, database = seeded
+    def rejected(ids, client, store):
+        return chc.ChannelCollectionResult(requested=list(ids), failed=[
+            chc.ChannelFailure(cid, "auth_error", "API key not valid") for cid in ids])
+    monkeypatch.setattr(chc, "collect_channels", rejected)
+    with pytest.raises(live.LiveError, match="collection failed for all 3 channels"):
+        live.run_nightly(client=SimpleNamespace(quota_used=1), database=database, now=NOW, log=lambda m: None)
+    status, error = db.execute("SELECT status, error FROM research.c3_live_runs ORDER BY started_at DESC LIMIT 1").fetchone()
+    assert status == "failed" and "auth_error: API key not valid" in error
+    assert db.execute("SELECT count(*) FROM research.c3_live_bridge_scores").fetchone()[0] == 0

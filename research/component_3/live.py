@@ -71,6 +71,10 @@ def collect(conn, client, ids: list[str], *, now: datetime, recheck_days: int = 
 
     ch = chc.collect_channels(ids, client, chc.supabase_store(conn))
     conn.commit()
+    if ids and not ch.collected and ch.failed:
+        # nothing reached YouTube (e.g. a rejected key or exhausted quota): do not publish old data as new
+        f = ch.failed[0]
+        raise LiveError(f"collection failed for all {len(ids)} channels ({f.reason}: {f.message})")
     vids = vc.collect_videos(list(ch.collected) or ids, client, vc.supabase_store(conn),
                              known_channels=vc.supabase_known_channels(conn), max_videos_per_channel=max_videos)
     conn.commit()
@@ -88,6 +92,8 @@ def collect(conn, client, ids: list[str], *, now: datetime, recheck_days: int = 
            "comments_collected": len(com.comments_collected) if com else 0,
            "comment_failures": (len(com.video_failures) + len(com.comment_failures)) if com else 0,
            "quota_units": client.quota_used}
+    if ch.failed:
+        out["failure_examples"] = [f"{f.reason}: {f.message}" for f in ch.failed[:3]]
     log(f"collection: {out}")
     return out
 
