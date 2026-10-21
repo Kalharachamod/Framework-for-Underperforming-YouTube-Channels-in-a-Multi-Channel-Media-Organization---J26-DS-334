@@ -1,0 +1,16 @@
+{
+  "imports": {
+    "postgres": "npm:postgres@3.4.7"
+  },
+  "compilerOptions": {
+    "checkJs": false
+  },
+  "nodeModulesDir": "none",
+  "lint": {
+    "rules": {
+      "exclude": [
+        "require-await"
+      ]
+    }
+  }
+}

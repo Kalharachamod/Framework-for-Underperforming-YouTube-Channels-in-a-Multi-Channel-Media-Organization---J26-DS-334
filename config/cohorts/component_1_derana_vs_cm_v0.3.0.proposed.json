@@ -1,0 +1,143 @@
+{
+  "schema_version": 1,
+  "cohort_id": "component_1_derana_vs_cm",
+  "version": "0.3.0",
+  "status": "proposed",
+  "enabled": false,
+  "change_note": "0.3.0 derived from component_1_audited43 0.2.0-proposed: removed Tech Life and Auto Vision (organization unverified); cohort-level organization replaced by an organizations list and per-channel organization_id, role and organization_confidence; Capital Maharaja marked holdout (never used for model training); Sirasa Dhamma name restored from research/component_1/results/cohort_channel_metadata.json; selected_for_collection reset to false. Later in 0.3.0 (before any bootstrap): budgets set to 200/70/20, refresh policy (daily to day 30, weekly to day 365, then stop), 30-day admission lookback with no video import, and the canonical-JSON manifest hash method.",
+  "activation": {
+    "selected_for_collection": false,
+    "selected_by": null,
+    "leader_approval": "none recorded for 0.3.0; the user-reported 2026-10-19 leader approval applied to the 43-channel 0.2.0 cohort and is not carried over",
+    "scheduling": "disabled"
+  },
+  "organizations": [
+    {
+      "organization_id": "derana",
+      "name": "Derana",
+      "country": "LK",
+      "is_holdout": false
+    },
+    {
+      "organization_id": "capital_maharaja",
+      "name": "Capital Maharaja",
+      "country": "LK",
+      "is_holdout": true
+    }
+  ],
+  "holdout_policy": "Channels whose organization has is_holdout true must never enter model training. Their data is used only for competitor comparison and for testing the model on a different organization.",
+  "membership_basis": {
+    "source": "component_1_audited43_v0.2.0.proposed.json; research/component_1/results/cohort_reconciliation.md and cohort_channel_metadata.json",
+    "audited_channel_count": 43,
+    "selected_channel_count": 41,
+    "organization_evidence": "The 18 Derana channels keep their repo-confirmed evidence (config/organizations/derana.json). The 23 Capital Maharaja assignments come from brand names and general knowledge, recorded per channel in organization_confidence and organization_basis; they have not been verified with the YouTube API or repo evidence.",
+    "unconfirmed_membership_policy": "Re-verify any channel below high confidence before approval; do not assign Hiru, ITN or other organizations without evidence."
+  },
+  "removed_channels": [
+    {"channel_id": "UCK38_tUB5izyVAWBoLXTkXA", "channel_name": "Tech Life", "existing_videos": 15, "reason": "organization unverified"},
+    {"channel_id": "UCGnnbsbqbCc7KxSIAbC_d2A", "channel_name": "Auto Vision", "existing_videos": 15, "reason": "organization unverified"}
+  ],
+  "evidence": {
+    "reconciliation": "research/component_1/results/cohort_reconciliation.md",
+    "metadata": "research/component_1/results/cohort_channel_metadata.json",
+    "metadata_observed_at_utc": "2026-10-16T18:10:56.952785+00:00",
+    "database_list_matches_saved_audit": true,
+    "video_count_scope": {
+      "derana_owned": {"channel_count": 18, "video_count": 1136, "observed_at_utc": "2026-10-16T18:10:56.952785+00:00", "source": "cohort_channel_metadata.json, restricted to the 18 Derana channel IDs"},
+      "capital_maharaja_competitor": {"channel_count": 23, "video_count": 331, "observed_at_utc": "2026-10-16T18:10:56.952785+00:00", "source": "cohort_channel_metadata.json, restricted to the 23 Capital Maharaja channel IDs"},
+      "full_cohort": {"channel_count": 41, "video_count": 1467, "observed_at_utc": "2026-10-16T18:10:56.952785+00:00", "source": "cohort_channel_metadata.json, all selected channel IDs"}
+    },
+    "video_count_note": "Counts come from the same dated local metadata artifact; 1,467 = 1,497 (0.2.0) minus 15 Tech Life and 15 Auto Vision."
+  },
+  "confirmed_derana_channel_ids": [
+    "UCRDDfbYPHX_GUJ4lcQYTc8A", "UCCK3OZi788Ok44K97WAhLKQ", "UCOPPH1_whpThgY6e7r3qg-w", "UC_m6TcsKwid_mmOScbuYltg", "UCW_rA_jb-_vbZtU4cTpnT5Q", "UCV1NPkc2O0YZBtx_rhDkicw", "UCrZs77rjxjbn_BMaSccMXnQ", "UCZ418aLcVbJDo0fc01aQDQQ", "UCHKtXGbqRIM0hA4Manb9DNg", "UCSTl549eJYdeUAY0NmZLU6A", "UCir6eRv6gShvpiWR2TehHzg", "UCbkMFGQ_RWIf0OiYeOpf6Ng", "UCJr5vlnK6HEBVISUtxnq_sg", "UC11bd3xGXwzf_naIePO1n4g", "UCuOtdpOPjHeoEAT4i44mVOg", "UCs8gVM6lPhRZk3L_zZmedpw", "UCYPchfdlyZHi2gt2_FrLL3Q", "UCVsi4vIpAcKl825aPQV4IjA"
+  ],
+  "channels": [
+    {"channel_id": "UC_m6TcsKwid_mmOScbuYltg", "channel_name": "Derana Shorts", "existing_videos": 50, "organization_id": "derana", "role": "owned", "organization_confidence": "repo-confirmed", "organization_basis": "config/organizations/derana.json; source confidence high"},
+    {"channel_id": "UC0xVuSfC72x3e7ijncDLgYQ", "channel_name": "Sirasa Cinescope", "existing_videos": 15, "organization_id": "capital_maharaja", "role": "competitor", "organization_confidence": "high", "organization_basis": "Sirasa brand in channel name"},
+    {"channel_id": "UC11bd3xGXwzf_naIePO1n4g", "channel_name": "Ada Derana Tamil", "existing_videos": 86, "organization_id": "derana", "role": "owned", "organization_confidence": "repo-confirmed", "organization_basis": "config/organizations/derana.json; source confidence high"},
+    {"channel_id": "UC1YAG2ZbQUjBx3b60c0Qmyg", "channel_name": "Sirasa Live", "existing_videos": 15, "organization_id": "capital_maharaja", "role": "competitor", "organization_confidence": "high", "organization_basis": "Sirasa brand in channel name"},
+    {"channel_id": "UC8fCPqq-Q3Ki3RrMyTsmckg", "channel_name": "Sirasa Dhamma - සිරස ධම්ම", "existing_videos": 15, "organization_id": "capital_maharaja", "role": "competitor", "organization_confidence": "high", "organization_basis": "Sirasa brand in channel name"},
+    {"channel_id": "UCbkMFGQ_RWIf0OiYeOpf6Ng", "channel_name": "TV Derana LIVE", "existing_videos": 50, "organization_id": "derana", "role": "owned", "organization_confidence": "repo-confirmed", "organization_basis": "config/organizations/derana.json; source confidence high"},
+    {"channel_id": "UCBNxaWOXx6B1B4CEtxoNS3Q", "channel_name": "Sirasa Dancing Star", "existing_videos": 15, "organization_id": "capital_maharaja", "role": "competitor", "organization_confidence": "high", "organization_basis": "Sirasa brand in channel name"},
+    {"channel_id": "UCCK3OZi788Ok44K97WAhLKQ", "channel_name": "Ada Derana", "existing_videos": 150, "organization_id": "derana", "role": "owned", "organization_confidence": "repo-confirmed", "organization_basis": "config/organizations/derana.json; source confidence high"},
+    {"channel_id": "UCdCI-4lcsMaDfkhlTr550Vw", "channel_name": "Sirasa tv live", "existing_videos": 1, "organization_id": "capital_maharaja", "role": "competitor", "organization_confidence": "high", "organization_basis": "Sirasa brand in channel name"},
+    {"channel_id": "UCe13xXtdfx_n0_z1qeXV6_g", "channel_name": "M Entertainments", "existing_videos": 15, "organization_id": "capital_maharaja", "role": "competitor", "organization_confidence": "low-medium", "organization_basis": "likely the group's music label; not verified"},
+    {"channel_id": "UCEbTQZF9_vDOducFY8gOfag", "channel_name": "Sirasa Catchpoint", "existing_videos": 15, "organization_id": "capital_maharaja", "role": "competitor", "organization_confidence": "high", "organization_basis": "Sirasa brand in channel name"},
+    {"channel_id": "UCfnZtEDnl84njUQgtF186cA", "channel_name": "Sirasa Lakshapathi", "existing_videos": 15, "organization_id": "capital_maharaja", "role": "competitor", "organization_confidence": "high", "organization_basis": "Sirasa brand in channel name"},
+    {"channel_id": "UCgnFSj7jQffD5V5m05j4dPw", "channel_name": "Newsfirst Sri Lanka", "existing_videos": 15, "organization_id": "capital_maharaja", "role": "competitor", "organization_confidence": "high", "organization_basis": "known Capital Maharaja brand"},
+    {"channel_id": "UCHKtXGbqRIM0hA4Manb9DNg", "channel_name": "Ada Derana Sports", "existing_videos": 50, "organization_id": "derana", "role": "owned", "organization_confidence": "repo-confirmed", "organization_basis": "config/organizations/derana.json; source confidence high"},
+    {"channel_id": "UCir6eRv6gShvpiWR2TehHzg", "channel_name": "Ada Derana World News", "existing_videos": 1, "organization_id": "derana", "role": "owned", "organization_confidence": "repo-confirmed", "organization_basis": "config/organizations/derana.json; source confidence high"},
+    {"channel_id": "UCjm7vbOwssao7Bhm9wX3-bw", "channel_name": "Shakthi TV", "existing_videos": 15, "organization_id": "capital_maharaja", "role": "competitor", "organization_confidence": "high", "organization_basis": "known Capital Maharaja brand"},
+    {"channel_id": "UCJr5vlnK6HEBVISUtxnq_sg", "channel_name": "Derana Little Star", "existing_videos": 50, "organization_id": "derana", "role": "owned", "organization_confidence": "repo-confirmed", "organization_basis": "config/organizations/derana.json; source confidence high"},
+    {"channel_id": "UCKkzOyGRuPyea04qr7aC1NQ", "channel_name": "Shakthi FM", "existing_videos": 15, "organization_id": "capital_maharaja", "role": "competitor", "organization_confidence": "high", "organization_basis": "known Capital Maharaja brand"},
+    {"channel_id": "UCLNz9bgiJfM3ImTtYDOt8Ew", "channel_name": "Sirasa TV Digital", "existing_videos": 15, "organization_id": "capital_maharaja", "role": "competitor", "organization_confidence": "high", "organization_basis": "Sirasa brand in channel name"},
+    {"channel_id": "UClSmnnGOPwfN-cnhQpdR2Cg", "channel_name": "Kisa - Sirasa TV", "existing_videos": 15, "organization_id": "capital_maharaja", "role": "competitor", "organization_confidence": "high", "organization_basis": "Sirasa brand in channel name"},
+    {"channel_id": "UCmqflTSJ6911aCrnaWIXxsA", "channel_name": "The Voice Sri Lanka ", "existing_videos": 15, "organization_id": "capital_maharaja", "role": "competitor", "organization_confidence": "medium", "organization_basis": "Sirasa TV show; not verified"},
+    {"channel_id": "UCn0XmAUFv6d2tofMFEesSNw", "channel_name": "Sirasa TV", "existing_videos": 15, "organization_id": "capital_maharaja", "role": "competitor", "organization_confidence": "high", "organization_basis": "Sirasa brand in channel name"},
+    {"channel_id": "UCOPPH1_whpThgY6e7r3qg-w", "channel_name": "FM Derana", "existing_videos": 52, "organization_id": "derana", "role": "owned", "organization_confidence": "repo-confirmed", "organization_basis": "config/organizations/derana.json; source confidence high"},
+    {"channel_id": "UCpp3TTx7OU3SmCECA1-6r3w", "channel_name": "Sirasa FM", "existing_videos": 15, "organization_id": "capital_maharaja", "role": "competitor", "organization_confidence": "high", "organization_basis": "Sirasa brand in channel name"},
+    {"channel_id": "UCqrJfySpfHED-jYFNjWNIqw", "channel_name": "5 Million Money Drop", "existing_videos": 15, "organization_id": "capital_maharaja", "role": "competitor", "organization_confidence": "medium", "organization_basis": "Sirasa TV show; not verified"},
+    {"channel_id": "UCRDDfbYPHX_GUJ4lcQYTc8A", "channel_name": "TV Derana", "existing_videos": 126, "organization_id": "derana", "role": "owned", "organization_confidence": "repo-confirmed", "organization_basis": "config/organizations/derana.json; source confidence high"},
+    {"channel_id": "UCrWPzTW4EjXNQGcCkCfOvog", "channel_name": "Sri Lanka's Got Talent", "existing_videos": 15, "organization_id": "capital_maharaja", "role": "competitor", "organization_confidence": "medium", "organization_basis": "Sirasa TV show; not verified"},
+    {"channel_id": "UCrZs77rjxjbn_BMaSccMXnQ", "channel_name": "Derana City Of Music", "existing_videos": 50, "organization_id": "derana", "role": "owned", "organization_confidence": "repo-confirmed", "organization_basis": "config/organizations/derana.json; source confidence high"},
+    {"channel_id": "UCs8gVM6lPhRZk3L_zZmedpw", "channel_name": "Dream Star", "existing_videos": 75, "organization_id": "derana", "role": "owned", "organization_confidence": "repo-confirmed", "organization_basis": "config/organizations/derana.json; source confidence high"},
+    {"channel_id": "UCsExZudI-3Bfi2ubAdwcgHw", "channel_name": "Y FM", "existing_videos": 15, "organization_id": "capital_maharaja", "role": "competitor", "organization_confidence": "high", "organization_basis": "known Capital Maharaja brand"},
+    {"channel_id": "UCSTl549eJYdeUAY0NmZLU6A", "channel_name": "Ada Derana Biz", "existing_videos": 50, "organization_id": "derana", "role": "owned", "organization_confidence": "repo-confirmed", "organization_basis": "config/organizations/derana.json; source confidence high"},
+    {"channel_id": "UCtBhlCYSLlz2TO9hK93micg", "channel_name": "The Voice Kids Sri Lanka", "existing_videos": 15, "organization_id": "capital_maharaja", "role": "competitor", "organization_confidence": "medium", "organization_basis": "Sirasa TV show; not verified"},
+    {"channel_id": "UCuOtdpOPjHeoEAT4i44mVOg", "channel_name": "Ada Derana News Channel | English", "existing_videos": 65, "organization_id": "derana", "role": "owned", "organization_confidence": "repo-confirmed", "organization_basis": "config/organizations/derana.json; source confidence high"},
+    {"channel_id": "UCV1NPkc2O0YZBtx_rhDkicw", "channel_name": "Ada Derana Education", "existing_videos": 54, "organization_id": "derana", "role": "owned", "organization_confidence": "repo-confirmed", "organization_basis": "config/organizations/derana.json; source confidence high"},
+    {"channel_id": "UCVsi4vIpAcKl825aPQV4IjA", "channel_name": "Pulse.lk", "existing_videos": 66, "organization_id": "derana", "role": "owned", "organization_confidence": "repo-confirmed", "organization_basis": "config/organizations/derana.json; source confidence medium"},
+    {"channel_id": "UCW_rA_jb-_vbZtU4cTpnT5Q", "channel_name": "Ada Derana News Channel", "existing_videos": 59, "organization_id": "derana", "role": "owned", "organization_confidence": "repo-confirmed", "organization_basis": "config/organizations/derana.json; source confidence high"},
+    {"channel_id": "UCXFcukf9VvSWp731oQDJ7Bg", "channel_name": "Yes FM Sri Lanka", "existing_videos": 15, "organization_id": "capital_maharaja", "role": "competitor", "organization_confidence": "high", "organization_basis": "known Capital Maharaja brand"},
+    {"channel_id": "UCXhjcvbJcbtKLxjTZpO1Xvw", "channel_name": "Sirasa Subasiri", "existing_videos": 15, "organization_id": "capital_maharaja", "role": "competitor", "organization_confidence": "high", "organization_basis": "Sirasa brand in channel name"},
+    {"channel_id": "UCXJQwWh7dEdEfmIaIJpZ4SQ", "channel_name": "Sirasa Lunch Time TV", "existing_videos": 15, "organization_id": "capital_maharaja", "role": "competitor", "organization_confidence": "high", "organization_basis": "Sirasa brand in channel name"},
+    {"channel_id": "UCYPchfdlyZHi2gt2_FrLL3Q", "channel_name": "Lokaya Saha Lokayo", "existing_videos": 52, "organization_id": "derana", "role": "owned", "organization_confidence": "repo-confirmed", "organization_basis": "config/organizations/derana.json; source confidence high"},
+    {"channel_id": "UCZ418aLcVbJDo0fc01aQDQQ", "channel_name": "Derana 60 Plus", "existing_videos": 50, "organization_id": "derana", "role": "owned", "organization_confidence": "repo-confirmed", "organization_basis": "config/organizations/derana.json; source confidence high"}
+  ],
+  "manifest_hash_method": "SHA-256 hex of the canonical JSON of this file: parse it, then serialize with keys sorted at every level, separators ',' and ':' with no whitespace, non-ASCII characters kept as-is (not \\u-escaped), encoded as UTF-8. Python: hashlib.sha256(json.dumps(obj, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode('utf-8')).hexdigest(). Raw file bytes are not hashed, so Git line-ending conversion does not change the hash.",
+  "admission": {
+    "seed": "No videos are imported from research or annotation. The first approved discovery run seeds the C1 video inventory.",
+    "admission_lookback_days": 30,
+    "admission_published_after": "Set once by the collector at the first run: that run's scheduled time minus 30 days. Discovery stops paging at older uploads and older candidates are not admitted.",
+    "baseline_catalogue": "Older owned-channel videos need a separate one-time baseline catalogue later; not part of this cohort version."
+  },
+  "refresh_policy": {
+    "daily_until_age_days": 30,
+    "weekly_until_age_days": 365,
+    "weekly_rule": "Refreshed when age in whole days is a multiple of 7, or when the last metadata observation is older than 7 days (catch-up after a missed run).",
+    "after_weekly": "Stop refreshing the video after day 365; its history is kept."
+  },
+  "collection_plan": {
+    "total_attempt_budget": 200,
+    "discovery_attempt_budget": 70,
+    "candidate_attempt_reserve": 20,
+    "max_pages_per_channel": 10,
+    "candidate_batch_size": 50,
+    "dispatches_per_invocation": 6,
+    "throughput_note": "Daily start plus continuation every minute in the 02:00-03:00 Asia/Colombo window allows at most 60 x 6 = 360 dispatches, above the 200-attempt cap.",
+    "initial_inventory_videos": 0,
+    "channel_metadata_requests_per_run": 1,
+    "channel_metadata_observations_per_run": 41,
+    "discovery": {
+      "channels": 41,
+      "minimum_initial_attempts": 41,
+      "extra_attempts": 29,
+      "coverage_note": "Each channel gets one newest-first page per round; the 29 extra attempts cover retries and second pages for busy channels. Paging stops at admission_published_after."
+    },
+    "allocation_formula": "1 channel batch + due refresh batches + 70 discovery + 20 candidate reserve <= 200 total attempts; a run whose due refresh batches leave less than 20 for candidates fails closed before any request.",
+    "daily_units_formula": "1 + ~41-45 discovery + ceil(U/50) candidates + ceil(31U/50) videos aged 0-30 days + ceil(335U/7/50) weekly videos aged 31-365 days, where U = new uploads per day across all 41 channels. One unit per attempt.",
+    "expected_daily_units": [
+      {"uploads_per_day": 40, "day_31": 72, "after_one_year": 107},
+      {"uploads_per_day": 80, "day_31": 104, "after_one_year": 173},
+      {"uploads_per_day": 150, "day_31": 156, "after_one_year": 286, "note": "exceeds the 200 cap; raise the cap or shorten the weekly window"}
+    ],
+    "quota_note": "Upload rates are unmeasured. The cap of 200 is 2% of the default 10,000 daily units. Refresh is spent first, so full first-page discovery for all 41 channels with the 20-attempt candidate reserve holds up to about 85 uploads per day at steady state; above that discovery becomes partial and later the run fails closed. Measure U in the first week."
+  },
+  "approval_requirements": [
+    "Obtain approval for this 41-channel 0.3.0 cohort; the 2026-10-19 approval reported for 0.2.0 does not carry over.",
+    "Verify Capital Maharaja membership for the medium and low-medium channels (The Voice Sri Lanka, The Voice Kids Sri Lanka, Sri Lanka's Got Talent, 5 Million Money Drop, M Entertainments) or remove them.",
+    "Confirm the holdout rule is enforced in the schema and training views before any model training.",
+    "Keep activation and scheduling disabled until approval, inventory reconciliation, credentials, TLS, and a collection run review are complete."
+  ]
+}

@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "cohort_id": "component_1_audited43",
+  "version": "0.2.0-proposed",
+  "status": "proposal_only",
+  "organization": "Derana",
+  "enabled": false,
+  "activation": {
+    "selected_for_collection": true,
+    "selected_by": "user",
+    "leader_approval": "user reported on 2026-10-19 that the leader approved collection for all 43 channels; approver name and actual approval date are not recorded",
+    "scheduling": "disabled"
+  },
+  "membership_basis": {
+    "source": "research/component_1/results/cohort_reconciliation.md and cohort_channel_metadata.json",
+    "audited_channel_count": 43,
+    "organization_evidence": "Preserve existing Derana evidence for the 18 confirmed channels; the other 25 are selected for collection but remain organization-unconfirmed.",
+    "unconfirmed_membership_policy": "Do not classify the 25 unconfirmed channels as Hiru, Derana, or competitors without evidence."
+  },
+  "evidence": {
+    "reconciliation": "research/component_1/results/cohort_reconciliation.md",
+    "metadata": "research/component_1/results/cohort_channel_metadata.json",
+    "metadata_observed_at_utc": "2026-10-16T18:10:56.952785+00:00",
+    "database_list_matches_saved_audit": true,
+    "video_count_scope": {
+      "derana_18_channel_subset": {"channel_count": 18, "video_count": 1136, "observed_at_utc": "2026-10-16T18:10:56.952785+00:00", "source": "cohort_channel_metadata.json, restricted to the 18 confirmed Derana channel IDs"},
+      "audited43_full_cohort": {"channel_count": 43, "video_count": 1497, "observed_at_utc": "2026-10-16T18:10:56.952785+00:00", "source": "cohort_channel_metadata.json, all selected channel IDs"}
+    },
+    "video_count_note": "1,136 is the 18-channel Derana modeling subset; 1,497 is the full 43-channel selected cohort. They are different scopes from the same dated local metadata artifact, not a discrepancy."
+  },
+  "confirmed_derana_channel_ids": [
+    "UCRDDfbYPHX_GUJ4lcQYTc8A", "UCCK3OZi788Ok44K97WAhLKQ", "UCOPPH1_whpThgY6e7r3qg-w", "UC_m6TcsKwid_mmOScbuYltg", "UCW_rA_jb-_vbZtU4cTpnT5Q", "UCV1NPkc2O0YZBtx_rhDkicw", "UCrZs77rjxjbn_BMaSccMXnQ", "UCZ418aLcVbJDo0fc01aQDQQ", "UCHKtXGbqRIM0hA4Manb9DNg", "UCSTl549eJYdeUAY0NmZLU6A", "UCir6eRv6gShvpiWR2TehHzg", "UCbkMFGQ_RWIf0OiYeOpf6Ng", "UCJr5vlnK6HEBVISUtxnq_sg", "UC11bd3xGXwzf_naIePO1n4g", "UCuOtdpOPjHeoEAT4i44mVOg", "UCs8gVM6lPhRZk3L_zZmedpw", "UCYPchfdlyZHi2gt2_FrLL3Q", "UCVsi4vIpAcKl825aPQV4IjA"
+  ],
+  "channels": [
+    {"channel_id": "UC_m6TcsKwid_mmOScbuYltg", "channel_name": "Derana Shorts", "existing_videos": 50},
+    {"channel_id": "UC0xVuSfC72x3e7ijncDLgYQ", "channel_name": "Sirasa Cinescope", "existing_videos": 15},
+    {"channel_id": "UC11bd3xGXwzf_naIePO1n4g", "channel_name": "Ada Derana Tamil", "existing_videos": 86},
+    {"channel_id": "UC1YAG2ZbQUjBx3b60c0Qmyg", "channel_name": "Sirasa Live", "existing_videos": 15},
+    {"channel_id": "UC8fCPqq-Q3Ki3RrMyTsmckg", "channel_name": "Sirasa Dhamma - à·ƒà·’à¶»à·ƒ à¶°à¶¸à·Šà¶¸", "existing_videos": 15},
+    {"channel_id": "UCbkMFGQ_RWIf0OiYeOpf6Ng", "channel_name": "TV Derana LIVE", "existing_videos": 50},
+    {"channel_id": "UCBNxaWOXx6B1B4CEtxoNS3Q", "channel_name": "Sirasa Dancing Star", "existing_videos": 15},
+    {"channel_id": "UCCK3OZi788Ok44K97WAhLKQ", "channel_name": "Ada Derana", "existing_videos": 150},
+    {"channel_id": "UCdCI-4lcsMaDfkhlTr550Vw", "channel_name": "Sirasa tv live", "existing_videos": 1},
+    {"channel_id": "UCe13xXtdfx_n0_z1qeXV6_g", "channel_name": "M Entertainments", "existing_videos": 15},
+    {"channel_id": "UCEbTQZF9_vDOducFY8gOfag", "channel_name": "Sirasa Catchpoint", "existing_videos": 15},
+    {"channel_id": "UCfnZtEDnl84njUQgtF186cA", "channel_name": "Sirasa Lakshapathi", "existing_videos": 15},
+    {"channel_id": "UCgnFSj7jQffD5V5m05j4dPw", "channel_name": "Newsfirst Sri Lanka", "existing_videos": 15},
+    {"channel_id": "UCGnnbsbqbCc7KxSIAbC_d2A", "channel_name": "Auto Vision", "existing_videos": 15},
+    {"channel_id": "UCHKtXGbqRIM0hA4Manb9DNg", "channel_name": "Ada Derana Sports", "existing_videos": 50},
+    {"channel_id": "UCir6eRv6gShvpiWR2TehHzg", "channel_name": "Ada Derana World News", "existing_videos": 1},
+    {"channel_id": "UCjm7vbOwssao7Bhm9wX3-bw", "channel_name": "Shakthi TV", "existing_videos": 15},
+    {"channel_id": "UCJr5vlnK6HEBVISUtxnq_sg", "channel_name": "Derana Little Star", "existing_videos": 50},
+    {"channel_id": "UCK38_tUB5izyVAWBoLXTkXA", "channel_name": "Tech Life", "existing_videos": 15},
+    {"channel_id": "UCKkzOyGRuPyea04qr7aC1NQ", "channel_name": "Shakthi FM", "existing_videos": 15},
+    {"channel_id": "UCLNz9bgiJfM3ImTtYDOt8Ew", "channel_name": "Sirasa TV Digital", "existing_videos": 15},
+    {"channel_id": "UClSmnnGOPwfN-cnhQpdR2Cg", "channel_name": "Kisa - Sirasa TV", "existing_videos": 15},
+    {"channel_id": "UCmqflTSJ6911aCrnaWIXxsA", "channel_name": "The Voice Sri Lanka ", "existing_videos": 15},
+    {"channel_id": "UCn0XmAUFv6d2tofMFEesSNw", "channel_name": "Sirasa TV", "existing_videos": 15},
+    {"channel_id": "UCOPPH1_whpThgY6e7r3qg-w", "channel_name": "FM Derana", "existing_videos": 52},
+    {"channel_id": "UCpp3TTx7OU3SmCECA1-6r3w", "channel_name": "Sirasa FM", "existing_videos": 15},
+    {"channel_id": "UCqrJfySpfHED-jYFNjWNIqw", "channel_name": "5 Million Money Drop", "existing_videos": 15},
+    {"channel_id": "UCRDDfbYPHX_GUJ4lcQYTc8A", "channel_name": "TV Derana", "existing_videos": 126},
+    {"channel_id": "UCrWPzTW4EjXNQGcCkCfOvog", "channel_name": "Sri Lanka's Got Talent", "existing_videos": 15},
+    {"channel_id": "UCrZs77rjxjbn_BMaSccMXnQ", "channel_name": "Derana City Of Music", "existing_videos": 50},
+    {"channel_id": "UCs8gVM6lPhRZk3L_zZmedpw", "channel_name": "Dream Star", "existing_videos": 75},
+    {"channel_id": "UCsExZudI-3Bfi2ubAdwcgHw", "channel_name": "Y FM", "existing_videos": 15},
+    {"channel_id": "UCSTl549eJYdeUAY0NmZLU6A", "channel_name": "Ada Derana Biz", "existing_videos": 50},
+    {"channel_id": "UCtBhlCYSLlz2TO9hK93micg", "channel_name": "The Voice Kids Sri Lanka", "existing_videos": 15},
+    {"channel_id": "UCuOtdpOPjHeoEAT4i44mVOg", "channel_name": "Ada Derana News Channel | English", "existing_videos": 65},
+    {"channel_id": "UCV1NPkc2O0YZBtx_rhDkicw", "channel_name": "Ada Derana Education", "existing_videos": 54},
+    {"channel_id": "UCVsi4vIpAcKl825aPQV4IjA", "channel_name": "Pulse.lk", "existing_videos": 66},
+    {"channel_id": "UCW_rA_jb-_vbZtU4cTpnT5Q", "channel_name": "Ada Derana News Channel", "existing_videos": 59},
+    {"channel_id": "UCXFcukf9VvSWp731oQDJ7Bg", "channel_name": "Yes FM Sri Lanka", "existing_videos": 15},
+    {"channel_id": "UCXhjcvbJcbtKLxjTZpO1Xvw", "channel_name": "Sirasa Subasiri", "existing_videos": 15},
+    {"channel_id": "UCXJQwWh7dEdEfmIaIJpZ4SQ", "channel_name": "Sirasa Lunch Time TV", "existing_videos": 15},
+    {"channel_id": "UCYPchfdlyZHi2gt2_FrLL3Q", "channel_name": "Lokaya Saha Lokayo", "existing_videos": 52},
+    {"channel_id": "UCZ418aLcVbJDo0fc01aQDQQ", "channel_name": "Derana 60 Plus", "existing_videos": 50}
+  ],
+  "collection_plan": {
+    "existing_video_count_used_for_estimate": 1497,
+    "refresh_batches_of_50": 30,
+      "channel_metadata_requests_per_run": 1,
+      "channel_metadata_observations_per_run": 43,
+    "discovery": {
+      "channels": 43,
+      "max_pages_per_channel": 10,
+        "global_attempt_budget": 49,
+        "minimum_initial_attempts": 43,
+        "retry_allowance": 6,
+        "coverage_note": "The Edge collector gives each of 43 channels one initial playlist attempt, then allows at most 6 additional discovery attempts. Retries consume both the global total and discovery phase budget; complete discovery is not guaranteed."
+    },
+    "total_attempt_budget": 100,
+    "candidate_attempt_reserve": 20,
+    "candidate_batch_size": 50,
+    "allocation_formula": "1 channel metadata request + 30 inventory refresh batches + 49 discovery attempts + 20 candidate-attempt reserve = 100 total attempts.",
+    "initial_budget_check": "The Edge gate protects 30 inventory batches + 1 channel batch + 20 candidate attempts = 51 attempts before discovery; discovery is separately capped at 49. Retries consume reserved attempts and are limited per work item by the collector.",
+    "storage_estimate": {
+      "existing_video_inventory_rows": 1497,
+      "channel_inventory_rows": 43,
+      "minimum_observations_per_run": 1540,
+      "note": "Row counts are planning estimates from the saved read-only metadata; byte sizing is not claimed without schema/storage measurement."
+    }
+  },
+  "approval_requirements": [
+    "Retain the user-reported 2026-10-19 confirmation as provenance only; do not infer an approver name or actual approval date.",
+    "Confirm the distinct 18-channel (1,136) and 43-channel (1,497) inventory scopes before activation.",
+    "Confirm ownership or leave the 25 other memberships explicitly unconfirmed.",
+    "Keep activation and scheduling disabled until approval, inventory reconciliation, credentials, TLS, and a collection run review are complete."
+  ]
+}
