@@ -15,6 +15,34 @@ Owner: Samarasinghe S I (IT23333802)
 `preprocessing/` · `model/` · `evaluation/` · `notebooks/` · `results/` (git-ignored)
 
 
+## Demo
+
+`sql/demo_readonly.sql` prints four read-only views of the collected data as
+`c1_collector`: overview counts, latest snapshot per channel, top 15 videos by
+latest views, and snapshots per collection day (times in Asia/Colombo). It runs
+inside `BEGIN READ ONLY` ... `ROLLBACK` and changes nothing.
+
+Docker Desktop must be running. From the repository root in PowerShell
+(`docker pull postgres:17` beforehand avoids a download during the demo):
+
+```powershell
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8   # Sinhala titles render correctly
+$env:PGPASSWORD = (Get-Content -Raw C:\Users\acer\c1_collector_pw.txt).Trim()
+$demo = (Resolve-Path research/component_1/sql/demo_readonly.sql).Path
+try {
+  docker run --rm -e PGPASSWORD --mount "type=bind,source=$demo,target=/demo/demo_readonly.sql,readonly" postgres:17 `
+    psql "host=aws-0-ap-southeast-1.pooler.supabase.com port=5432 dbname=postgres user=c1_collector.kbukuimdsnlcmtkozzuh sslmode=require" `
+    -v ON_ERROR_STOP=1 -f /demo/demo_readonly.sql
+} finally {
+  Remove-Item Env:PGPASSWORD
+}
+```
+
+`-e PGPASSWORD` with no value passes the variable from the current session, so
+the password never appears on the command line. The file is mounted read-only.
+`sslmode=require` encrypts the connection but does not verify the certificate.
+
+
 ## Read-only data audit
 
 From the repository root, run `python research/component_1/audit_data.py` after
