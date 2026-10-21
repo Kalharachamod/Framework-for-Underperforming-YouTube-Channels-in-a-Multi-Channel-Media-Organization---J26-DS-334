@@ -84,13 +84,18 @@ describe("Component 2 research evidence", () => {
     const examples = screen.getByRole("region", { name: "Annotated examples for each of the eight audience signals" });
     for (const [code] of taxonomy) {
       await userEvent.selectOptions(select, code);
-      expect(within(examples).getAllByRole("article").length).toBeGreaterThan(0);
+      expect(within(examples).getAllByRole("article")).toHaveLength(1);
     }
     await userEvent.selectOptions(select, "UNCLEAR");
     expect(within(examples).getByText("An ambiguous short question")).toBeVisible();
     expect(within(examples).queryByText("A specific re-upload request")).not.toBeInTheDocument();
     await userEvent.selectOptions(select, "SPAM_OR_IRRELEVANT");
-    expect(within(examples).getByText(/illustrative example/)).toBeVisible();
+    expect(within(examples).getByText("Self-promotion phrased as a request")).toBeVisible();
+    expect(examples).not.toHaveTextContent(/illustrative|Earn Rs/);
+    await userEvent.selectOptions(select, "INFORMATION_NEED");
+    expect(within(examples).getByText(/repeated information need points to real demand/)).toBeVisible();
+    await userEvent.selectOptions(select, "all");
+    expect(within(examples).getAllByRole("article")).toHaveLength(8);
     expect(examples).not.toHaveTextContent(/Ugx|Ugy|Ugz|commenter:|anon_/);
   });
 
@@ -104,22 +109,53 @@ describe("Component 2 research evidence", () => {
     expect(screen.getByText(/e5 embeddings \+ logistic regression reach F1 0.54/)).toBeVisible();
   });
 
-  it("shows the Dream Star gap with a JSD scale, season switch and validation example", async () => {
+  it("shows the Dream Star Season 2025 gap with a JSD scale and time-based validation", async () => {
     await openPage();
     const nav = screen.getByRole("navigation", { name: "Component 2 sections" });
     expect(within(nav).getByRole("link", { name: "Gap analysis" })).toHaveAttribute("href", "#c2-gap");
     expect(within(nav).getByRole("link", { name: "Validation" })).toHaveAttribute("href", "#c2-validation");
     const gap = screen.getByRole("region", { name: "Where audience attention and published content differ" });
-    expect(within(gap).getByLabelText(/0 to 1 scale.*Season 2025: 0.155.*New season 2026: 0.426/)).toBeInTheDocument();
+    expect(within(gap).getByLabelText(/0 to 1 scale.*Season 2025: 0.155\./)).toBeInTheDocument();
+    expect(within(gap).getByText(/Dream Star · Season 2025 \(Apr 2025 – Jan 2026\)/)).toBeVisible();
+    expect(within(gap).queryByRole("group", { name: "Analysis period" })).not.toBeInTheDocument();
     expect(within(gap).getByLabelText(/Voting: audience interest 6.1%, published supply 0.4%, gap \+5.7 pp/)).toBeInTheDocument();
-    await userEvent.click(within(gap).getByRole("button", { name: /New season 2026/ }));
-    expect(within(gap).getByRole("button", { name: /New season 2026/ })).toHaveAttribute("aria-pressed", "true");
-    expect(within(gap).getByText("0.426", { selector: ".stat-card *, [class*=stat] *" })).toBeVisible();
+    expect(within(gap).getByText("0.155", { selector: ".stat-card *, [class*=stat] *" })).toBeVisible();
     await userEvent.click(within(gap).getByRole("button", { name: "Show data table" }));
-    expect(within(gap).getByRole("table")).toHaveTextContent("Voice and group songs");
+    expect(within(gap).getByRole("region", { name: "Season 2025 topic shares" })).toHaveTextContent("Songs and lyrics");
+    await userEvent.click(within(gap).getByText("How these numbers were produced"));
+    expect(within(gap).getByText(/890 of 967 videos fell into one topic/)).toBeVisible();
+    await userEvent.click(within(gap).getByText("What the checks showed"));
+    expect(within(gap).getByText(/Video placement is the weak step/)).toBeVisible();
+    await userEvent.click(within(gap).getByText("Terms and methods compared"));
+    expect(within(gap).getByRole("region", { name: "Methods compared" })).toHaveTextContent("HDBSCAN vs k-means");
+    expect(within(gap).getByText(/request-vs-supply JSD is 0.140/)).toBeVisible();
     const validation = screen.getByRole("region", { name: "Usefulness over time: do highlighted gaps matter later?" });
-    expect(within(validation).getByText("Still uncovered · gap widened")).toBeVisible();
+    expect(within(validation).getByText("Attention rose towards the finals")).toBeVisible();
+    expect(within(validation).getByText(/195 of 567 meaningful comments still discussed Season 12 contestants/)).toBeVisible();
     expect(within(validation).getAllByRole("listitem")).toHaveLength(3);
+  });
+
+  it("demo view shows only the demo sections and links back to the full view", async () => {
+    await openPage("/component-2?view=demo");
+    const nav = screen.getByRole("navigation", { name: "Component 2 sections" });
+    expect(within(nav).getAllByRole("link").map((link) => link.textContent)).toEqual(["Annotated examples", "Viewer requests", "Gap analysis", "Validation"]);
+    const requests = screen.getByRole("region", { name: "What viewers asked for, and whether the channel can supply it" });
+    expect(within(requests).getByLabelText("Upload missing songs and performances: 27 requests")).toBeInTheDocument();
+    expect(within(requests).getAllByText("Channel can supply")).toHaveLength(4); // legend + three themes
+    expect(within(requests).getByText(/85 comments labelled as actionable requests/)).toBeVisible();
+    expect(screen.getByRole("region", { name: "Where audience attention and published content differ" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Usefulness over time: do highlighted gaps matter later?" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: /How the methodology evolved/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Methodology questions and evidence-based answers" })).not.toBeInTheDocument();
+    expect(screen.getByText("84,002")).toBeVisible();
+    const why = screen.getByRole("region", { name: "What is missing, and what this component adds" });
+    expect(within(why).getByText(/A script-normalised, demand-anchored divergence method/)).toBeVisible();
+    expect(within(why).getByText("Unstudied population")).toBeVisible();
+    expect(within(screen.getByRole("region", { name: "Component 2 evidence snapshot" })).getByText("12,239")).toBeVisible();
+    expect(document.body).not.toHaveTextContent(/integrated demand-to-supply|Supply topic coherence/);
+    await userEvent.click(screen.getByRole("link", { name: "Show full research view" }));
+    expect(await screen.findByRole("region", { name: /How the methodology evolved/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Demo view/ })).toHaveAttribute("href", "/component-2?view=demo");
   });
 
   it("navigates between the offline Component 2 view and the existing team workspace", async () => {

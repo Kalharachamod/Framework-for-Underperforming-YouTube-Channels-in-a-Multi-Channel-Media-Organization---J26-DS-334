@@ -8,7 +8,7 @@ import {
   alignmentStrategies, decisionJourney, defenceQuestions, measureComparisons, methodEdges, methodNodes,
   modelApproaches, verifiedProgress, type MethodNode, type MethodStatus,
 } from "./methodologyData";
-import { COMPONENT_TITLE } from "./researchData";
+import { COMPONENT_TITLE, novelty, researchGap } from "./researchData";
 import "./component2.css";
 import "./methodology.css";
 
@@ -185,7 +185,7 @@ function NoveltyAndDefence() {
   const [question, setQuestion] = useState(defenceQuestions[0].id);
   const current = defenceQuestions.find((item) => item.id === question) ?? defenceQuestions[0];
   return <>
-    <section id="m2-novelty" className="m2-section" aria-labelledby="m2-novelty-title"><div className="m2-section-heading"><span className="m2-index">06</span><div><p className="m2-eyebrow">Research contribution</p><h2 id="m2-novelty-title">Intended Novelty</h2></div></div><div className="m2-novelty-statement"><p>The proposed contribution is an integrated framework that identifies genuine audience content demands from multilingual YouTube comments and compares them with existing channel content using a shared semantic topic representation.</p><p>By combining multilingual demand extraction, content-supply modelling, Jensen-Shannon Divergence and topic-level gap interpretation, the framework aims to identify measurable, evidence-supported content opportunities for multi-channel media organizations.</p><p><strong>The novelty lies in the integrated demand-to-supply intelligence framework, rather than in inventing individual NLP algorithms or divergence measures.</strong> Its reliability and practical usefulness are assessed through classifier evaluation, topic coherence and season-to-season validation.</p></div></section>
+    <section id="m2-novelty" className="m2-section" aria-labelledby="m2-novelty-title"><div className="m2-section-heading"><span className="m2-index">06</span><div><p className="m2-eyebrow">Research contribution</p><h2 id="m2-novelty-title">Research gap and novelty</h2></div></div><div className="m2-novelty-statement"><p><strong>Research gap.</strong></p><ul>{researchGap.map(([term, text]) => <li key={term}><strong>{term}:</strong> {text}</li>)}</ul><p><strong>Novelty: {novelty.statement}</strong></p><ul>{novelty.parts.map(([term, text]) => <li key={term}><strong>{term}:</strong> {text}</li>)}</ul><p>Its usefulness is assessed through classifier evaluation, topic coherence and usefulness over time: whether highlighted gaps were covered in the next period and how those videos performed.</p></div></section>
     <section id="m2-defence" className="m2-section" aria-labelledby="m2-defence-title"><div className="m2-section-heading"><span className="m2-index">07</span><div><p className="m2-eyebrow">Research evaluation Q&A</p><h2 id="m2-defence-title">Explain each methodological decision precisely</h2><p>Choose a question for a concise explanation, defensible answer and common mistake.</p></div></div><Select id="m2-defence-question" label="Research question" value={question} onChange={setQuestion} options={defenceQuestions.map((item) => ({ value: item.id, label: item.title }))} /><div className="m2-answer"><span>20-second explanation</span><h3>{current.title}</h3><p>{current.simple}</p><div><section><strong>Defensible answer</strong><p>{current.answer}</p></section><section><strong>Common incorrect answer</strong><p>{current.avoid}</p></section></div></div></section>
   </>;
 }

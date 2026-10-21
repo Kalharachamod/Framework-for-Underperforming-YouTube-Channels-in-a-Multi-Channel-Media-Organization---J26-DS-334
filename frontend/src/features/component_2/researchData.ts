@@ -171,18 +171,17 @@ export const taxonomy = [
 
 export type SignalCode = (typeof taxonomy)[number][0];
 export interface ResearchExample {
-  title: string; signal: SignalCode; text: string; human: string; baseline: string; ruleOutcome: string; explanation: string; source: string; illustrative?: boolean;
+  title: string; signal: SignalCode; channel: string; videoTitle: string; text: string; human: string; baseline: string; ruleOutcome: string; explanation: string; source: string; illustrative?: boolean;
 }
 export const examples: ResearchExample[] = [
-  { title: "A specific re-upload request", signal: "EXPLICIT_CONTENT_REQUEST", text: "Season 10 eke group songs tika ain kralane. Ee tika aye upload krnne nadda", human: "YES", baseline: "Candidate · EXPLICIT_CONTENT_REQUEST", ruleOutcome: "True positive", explanation: "This Singlish question asks the channel to restore the removed group songs. It names a concrete content operation, not just liking the programme.", source: "Calibration row 27" },
-  { title: "Implicit storyline preference", signal: "CONTENT_CHANGE_PREFERENCE", text: "වෙනස් කරන්න එපා.", human: "YES", baseline: "Not a candidate · UNCLEAR", ruleOutcome: "False negative", explanation: "Excerpt: ‘do not change’. The full comment addresses the writer and asks for a specific storyline direction. The rules missed it because it contains no request keyword.", source: "Calibration row 24 · excerpt; character references omitted" },
-  { title: "A broadcast-time question", signal: "INFORMATION_NEED", text: "Redio eke yanne kiyatada kawadda dan", human: "NO", baseline: "Not a candidate · UNCLEAR", ruleOutcome: "True negative", explanation: "The viewer asks when the programme airs on radio. It is an information need about the schedule, not a request for new or changed content.", source: "Calibration row 8" },
-  { title: "A full-video availability question", signal: "INFORMATION_NEED", text: "මේකේ full video එකක් නැද්ද", human: "UNCLEAR", baseline: "Candidate · CONTENT_CHANGE_PREFERENCE", ruleOutcome: "Excluded (UNCLEAR)", explanation: "Asking whether a full video exists may imply a request to upload it, but no direct request is made, so actionability is recorded as UNCLEAR and excluded from the binary metrics.", source: "Calibration row 29" },
-  { title: "Concern about story quality", signal: "CONTENT_QUALITY_FEEDBACK", text: "Me kathavanm supri kalayak yaddi pata kurullo vage epa karaviyda danna", human: "NO", baseline: "Candidate · EXPLICIT_CONTENT_REQUEST", ruleOutcome: "False positive", explanation: "The viewer praises the drama but worries its quality may fall later. It is quality feedback without a specific requested change; the rules were triggered by the word danna.", source: "Calibration row 36" },
-  { title: "Discussion of the current match", signal: "TOPICAL_INTEREST_OR_DISCUSSION", text: "Me wage media walata kiyannethuwa confident eka match eke penanna balanna one", human: "NO", baseline: "Candidate · EXPLICIT_CONTENT_REQUEST", ruleOutcome: "False positive", explanation: "The Singlish word one refers to the player's performance in the match. The comment discusses the topic without asking the channel to produce anything.", source: "Calibration row 4" },
-  { title: "Praise mistaken for demand", signal: "ORDINARY_REACTION", text: "One of my fav❤ singers ♥️♥️♥️🔥🔥🔥", human: "NO", baseline: "Candidate · EXPLICIT_CONTENT_REQUEST", ruleOutcome: "False positive", explanation: "The rules read one as a request cue, but here it is an English quantifier in praise. Positive sentiment does not request a channel action.", source: "Calibration row 16" },
-  { title: "Promotional spam", signal: "SPAM_OR_IRRELEVANT", text: "Earn Rs. 50,000 daily! Contact me for investment opportunities.", human: "NO · SPAM", baseline: "Not applied", ruleOutcome: "Illustrative", explanation: "Unrelated promotion and solicitation. It is recorded as SPAM_OR_IRRELEVANT with a separate SPAM decision and never counted as demand.", source: "decision_guide.md · illustrative example", illustrative: true },
-  { title: "An ambiguous short question", signal: "UNCLEAR", text: "Peace is ongoing show only\nDo you know?", human: "UNCLEAR", baseline: "Candidate · EXPLICIT_CONTENT_REQUEST", ruleOutcome: "Excluded (UNCLEAR)", explanation: "It is not clear whether the viewer is asking for information or suggesting content, so the signal is recorded as UNCLEAR instead of guessing.", source: "Calibration row 31" },
+  { title: "A specific re-upload request", signal: "EXPLICIT_CONTENT_REQUEST", channel: "Dream Star", videoTitle: "Derana Dream Star Season 13 | අයදුම්පත් බාරගැනීම ජුනි 30 දා අවසන් වේ.", text: "Season 10 eke group songs tika ain kralane. Ee tika aye upload krnne nadda", human: "YES", baseline: "Candidate · EXPLICIT_CONTENT_REQUEST", ruleOutcome: "True positive", explanation: "This Singlish question asks the channel to restore the removed group songs. It names a concrete content operation, rather than simply praising the programme.", source: "Calibration row 27" },
+  { title: "Storyline request to the writer", signal: "CONTENT_CHANGE_PREFERENCE", channel: "TV Derana", videoTitle: "Husmak Lagin (හුස්මක් ලඟින්) | Episode 105 | 06th October 2026", text: "Mr. writer රිද්ම වෙනස් කරන්න එපා. ඉදිරියේදී මේඝට ෂෙල්ටන්ගෙන් එන ප්‍රශ්න වලදී මේඝගෙ ළගින් කව්රු හෝ සිටිය යුතුයි. 👍", human: "YES", baseline: "Not a candidate · UNCLEAR", ruleOutcome: "False negative", explanation: "On the teledrama Husmak Lagin, the viewer tells the writer not to change Ridma and asks that someone stand by Megha when Shelton causes her problems. Ridma, Megha and Shelton are characters in the drama, so this is a specific storyline request the channel can pass to the writer. The rules missed it because it contains no request keyword.", source: "Calibration row 24 · full comment" },
+  { title: "A full-video availability question", signal: "INFORMATION_NEED", channel: "Dream Star", videoTitle: "Mahesha | Gihan | Sithara | Derana Dream Star Season Ending Weekend", text: "මේකේ full video එකක් නැද්ද", human: "UNCLEAR", baseline: "Candidate · CONTENT_CHANGE_PREFERENCE", ruleOutcome: "Excluded (UNCLEAR)", explanation: "The viewer asks whether a full video exists. On its own this is a question, not a direct request, so actionability is recorded as UNCLEAR and excluded from the binary metrics. When many viewers ask the same question, the repeated information need points to real demand, here for full-episode uploads.", source: "Calibration row 29" },
+  { title: "Concern about story quality", signal: "CONTENT_QUALITY_FEEDBACK", channel: "TV Derana", videoTitle: "Husmak Lagin (හුස්මක් ලඟින්) | Episode 105 | 06th October 2026", text: "Me kathavanm supri kalayak yaddi pata kurullo vage epa karaviyda danna", human: "NO", baseline: "Candidate · EXPLICIT_CONTENT_REQUEST", ruleOutcome: "False positive", explanation: "The viewer praises the drama but worries its quality may fall later. It is quality feedback without a specific requested change; the rules were triggered by the word ‘danna’.", source: "Calibration row 36" },
+  { title: "Discussion of the current match", signal: "TOPICAL_INTEREST_OR_DISCUSSION", channel: "Ada Derana Sports", videoTitle: "ශ්‍රී ලංකා - ඔස්ට්‍රේලියා තරගයේ සූදානම ගැන දුෂ්මන්ත චමීර දෙරණ සමඟ පළකළ අදහස් | Dushmantha Chameera", text: "Me wage media walata kiyannethuwa confident eka match eke penanna balanna one", human: "NO", baseline: "Candidate · EXPLICIT_CONTENT_REQUEST", ruleOutcome: "False positive", explanation: "The Singlish word ‘one’ (meaning ‘needed’) refers to the player’s performance in the match. The comment discusses the topic without asking the channel to produce anything.", source: "Calibration row 4" },
+  { title: "Praise mistaken for demand", signal: "ORDINARY_REACTION", channel: "FM Derana", videoTitle: "තාමත් ඒ රහ ඒ විදියටම දැනෙනන කිව්වා නේද ? | Sudam Chamara | Fm Derana Chart Show", text: "One of my fav❤ singers ♥️♥️♥️🔥🔥🔥", human: "NO", baseline: "Candidate · EXPLICIT_CONTENT_REQUEST", ruleOutcome: "False positive", explanation: "The rules read ‘one’ as a request cue, but here it is part of the English phrase ‘one of my favourite singers’. Positive sentiment does not request a channel action.", source: "Calibration row 16" },
+  { title: "Self-promotion phrased as a request", signal: "SPAM_OR_IRRELEVANT", channel: "Lokaya Saha Lokayo", videoTitle: "සෙංකඩගල අසිරිමත් චිත්‍ර ප්‍රදර්ශනය", text: "මන් social media app එකක් හදනො… tv දෙරනට පුළුවන් වෙද… මාගෙ ඇප්ප් එකක උපකාරයක් ලබා දෙන්න😢", human: "NO · SPAM", baseline: "Not a candidate · UNCLEAR", ruleOutcome: "True negative", explanation: "The viewer says they are building a social media app and asks TV Derana to help launch it. It is phrased as a request, but it promotes the commenter's own product and is unrelated to the programme, so it is recorded as SPAM_OR_IRRELEVANT and never counted as demand.", source: "Annotation batch 1 · B1-0430 · excerpt" },
+  { title: "An ambiguous short question", signal: "UNCLEAR", channel: "Ada Derana", videoTitle: "Derana Aruna | දෙරණ අරුණ | Sri Lanka's Breakfast Show - 2026.10.10", text: "Peace is ongoing show only\nDo you know?", human: "UNCLEAR", baseline: "Candidate · EXPLICIT_CONTENT_REQUEST", ruleOutcome: "Excluded (UNCLEAR)", explanation: "It is not clear whether the viewer is asking for information or suggesting content, so the signal is recorded as UNCLEAR instead of guessing.", source: "Calibration row 31" },
 ];
 
 export const comparisons = [
@@ -239,20 +238,51 @@ export const dreamStarGap: { channel: string; windows: GapWindow[] } = {
         { name: "Judges debate (English)", keywords: "judges · should · not · they", interest: 6.6, supply: 19.0, comments: 802, videos: 170 },
       ],
     },
-    {
-      id: "new_season_2026", label: "New season 2026", period: "From mid-Sep 2026", jsd: 0.426, jsdRange: [0.361, 0.426], comments: 567, videos: 69,
-      topics: [
-        { name: "Support for Pahanmi, Anupama and Janani", keywords: "pahanmi · anupama · janani · ane", interest: 15.5, supply: 0.0, comments: 88, videos: 0 },
-        { name: "Contestant praise", keywords: "lassanai · oya · pahanmi · anupama", interest: 11.8, supply: 0.0, comments: 67, videos: 0 },
-        { name: "Nipuni and her songs", keywords: "sinduwa · nipuni · lassanai · sindu", interest: 18.9, supply: 8.7, comments: 107, videos: 6 },
-        { name: "Nipuni and SMS voting", keywords: "nipuni · sinduwa · sms · janani", interest: 8.5, supply: 1.4, comments: 48, videos: 1 },
-        { name: "Contestant line-up", keywords: "janani · nipuni · brian · dasith", interest: 7.1, supply: 0.0, comments: 40, videos: 0 },
-        { name: "Judges debate (English)", keywords: "judges · should · not · they", interest: 4.1, supply: 0.0, comments: 23, videos: 0 },
-        { name: "Performance reactions", keywords: "oya · harima · very · pahanmi", interest: 2.8, supply: 7.2, comments: 16, videos: 5 },
-        { name: "Contestant and song chat", keywords: "oya · pahanmi · sindu · janani", interest: 4.6, supply: 14.5, comments: 26, videos: 10 },
-        { name: "Voting", keywords: "vote · votes · sing · kiyala", interest: 1.4, supply: 11.6, comments: 8, videos: 8 },
-        { name: "Voice and group songs", keywords: "song · voice · group · sing", interest: 8.1, supply: 46.4, comments: 46, videos: 32 },
-      ],
-    },
   ],
 };
+
+/** Research gap and novelty as currently framed (replaces the earlier "integrated framework" wording). */
+export const researchGap: [string, string][] = [
+  ["Unanswered question", "Do an underperforming channel's uploads match what its own audience talks about and asks for? Comment research finds sentiment, spam or popular topics, but does not compare them with what the channel publishes."],
+  ["Unstudied population", "Sri Lankan audiences who comment in Sinhala script, Singlish and English, often mixed in one comment. Most comment-mining work assumes one clean language."],
+  ["Missing method", "Multilingual embeddings group these comments by script and writing style before meaning, so comparing them directly with video text measures style rather than interest. Existing work does not correct for one language written in two scripts when comparing comments with channel content."],
+];
+export const novelty = {
+  statement: "A script-normalised, demand-anchored divergence method that measures the gap between what audiences discuss in Sinhala, Singlish and English comments and what a YouTube channel publishes.",
+  parts: [
+    ["Script-normalised comparison", "Embeddings are centred within each script group and each domain (comments and videos), so text is compared by meaning. Without this, 890 of 967 Dream Star videos fell into one topic because of writing style."],
+    ["Demand-anchored topics", "Topics are discovered from what the audience discusses, and videos are placed into them, so interests the channel has not covered can appear."],
+    ["A measured gap with direction", "Jensen–Shannon divergence gives the overall gap, and interest % minus supply % per topic shows where it is and which way it goes. JSD is the measuring tool, not the novelty."],
+  ] as [string, string][],
+};
+
+/** Themes of the 85 researcher-labelled requests (79 batch 1 + 6 calibration); grouping provisional until verified. */
+export interface RequestTheme { label: string; count: number; canSupply: boolean; action: string; channels: string; examples: { text: string; channel: string }[] }
+export const requestThemes: RequestTheme[] = [
+  { label: "Upload missing songs and performances", count: 27, canSupply: true, action: "Upload the performances that were aired but left out", channels: "Dream Star 14 · Derana 60 Plus 13", examples: [
+    { text: "Oyage me song eka last Saturday programme eken cut wela. Meke full mashup eka upload karanna pls..", channel: "Dream Star" },
+    { text: "Nirmala ammage sinduwa giyapaarath na me paarath na😢😢😢", channel: "Derana 60 Plus" },
+    { text: "4 දෙනෙක්ගෙම සින්දු නෑ අද ඇයි ඒ 😮😮😮", channel: "Dream Star" },
+  ] },
+  { label: "Judges, voting and fairness", count: 19, canSupply: false, action: "Programme feedback: judge panel, voting rules, eliminations", channels: "Dream Star 15 · Derana 60 Plus 3 · Derana Little Star 1", examples: [
+    { text: "අනේ කිර්ති පැස්ක්වෙල් සර් නැද්ද 😢", channel: "Dream Star" },
+    { text: "විනිෂ්චය අසාධාරනයි. ඉදිරි වටයේදීවත් විනිසුරැවන් වෙනස් කරන්න.", channel: "Derana 60 Plus" },
+  ] },
+  { label: "Format, guests and presentation", count: 13, canSupply: false, action: "Programme feedback: length, editing, guest choice", channels: "FM Derana 6 · Dream Star 3 · Derana Little Star 2 · others 2", examples: [
+    { text: "එකම ටික තුන් පාරක් විතර කියලා කාලය කා දැම්මා නොවැ.", channel: "FM Derana" },
+    { text: "peyak wthi thiyanna thibbe", channel: "FM Derana" },
+  ] },
+  { label: "New content, topics or guests", count: 10, canSupply: true, action: "Make a new video, episode or interview", channels: "FM Derana 5 · Ada Derana Sports 4 · Dream Star 1", examples: [
+    { text: "සමාගමේ යක්කු ගැන වීඩියෝ එකක් කරන්නකෝ", channel: "FM Derana" },
+    { text: "Kali ammma ganath karanna", channel: "FM Derana" },
+    { text: "Ranithma liyanage interview plz", channel: "Ada Derana Sports" },
+  ] },
+  { label: "Full episodes and regular uploads", count: 8, canSupply: true, action: "Upload full episodes or keep a regular schedule", channels: "FM Derana 4 · Derana Little Star 3 · TV Derana 1", examples: [
+    { text: "ai me program eka youtube danne neththde. apita balanna beha ne please full program eka dannna", channel: "Derana Little Star" },
+    { text: "Meke ai full episode eka naththe", channel: "Derana Little Star" },
+  ] },
+  { label: "Storyline and drama", count: 8, canSupply: false, action: "Feedback for writers", channels: "TV Derana 7 · FM Derana 1", examples: [
+    { text: "මේ නාට්‍ය ඉවර කරන්න හිතන්නවත් එපා", channel: "TV Derana" },
+    { text: "Araligei ammigei taththigei scine wedipura pennannako please", channel: "TV Derana" },
+  ] },
+];
