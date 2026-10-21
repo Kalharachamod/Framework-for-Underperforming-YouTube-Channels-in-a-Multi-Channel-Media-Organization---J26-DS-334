@@ -38,6 +38,21 @@ All of `data/` is git-ignored.
 - `rs-20261015T174938Z` is newer, but **incomplete**: a network interruption during collection left 718 comments unstored, 26 videos failed and 446 were skipped. It must be labelled as partial if used. See [component3_known_findings_and_limitations.md](component3_known_findings_and_limitations.md).
 - Temporal evaluation pairs a snapshot only with an earlier snapshot that has the same channel set and a similar collection depth (ratio ≥ 0.8).
 
+## Live (nightly) data
+
+`python -m research.component_3.live`, run every night by GitHub Actions ([live_results.md](../architecture/live_results.md)):
+
+1. **Collection:** for the research channels it collects:
+   - channel details
+   - the newest 50 uploads per channel
+   - comments on videos published in the last 30 days (incremental)
+2. **Snapshot:** a snapshot of videos published in the last 90 days and their comments, the same window for every channel.
+   - Its source is `supabase_postgresql_live`, so it never replaces a thesis snapshot.
+3. **Scoring:** the frozen pipeline up to the Audience Bridge Score and its explanations.
+4. **Publishing:** aggregates go to `research.c3_live_runs`, `c3_live_bridge_scores` and `c3_live_channels`.
+   - No commenter identifiers and no comment text are published.
+   - A failed run (including collection failing for every channel) is recorded as failed and publishes nothing.
+
 ## Reproducibility considerations
 
 - **Inputs:** an analysis is fully determined by the snapshot ID, the salt (`.env`), the configuration and the seeds. Each experiment ID is a hash of these.

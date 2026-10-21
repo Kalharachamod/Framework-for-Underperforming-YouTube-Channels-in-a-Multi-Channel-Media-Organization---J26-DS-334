@@ -34,7 +34,8 @@ Options: `--no-collect`, `--window-days N` (default 90) and `--recheck-days N` (
 RLS is enabled and `anon`/`authenticated` have no access; only the backend reads these tables.
 
 The tables hold **aggregates only**: never commenter identifiers (raw or hashed) and never comment text. A
-failed run rolls back, so it never leaves a partial result set; the dashboard keeps showing the last
+failed run rolls back, so it never leaves a partial result set. If collection fails for every channel (for example a
+rejected API key or exhausted quota), the run is recorded as failed instead of publishing old data as new; the dashboard keeps showing the last
 completed run and warns about the failure.
 
 ## API (read-only)
