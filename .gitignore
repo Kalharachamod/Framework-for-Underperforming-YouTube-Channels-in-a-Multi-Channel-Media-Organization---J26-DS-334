@@ -25,6 +25,9 @@ coverage/
 .ipynb_checkpoints/
 .DS_Store
 
+# Research documents
+Research Documents/
+
 # Data (privacy: never commit collected YouTube data) - keep folder markers only
 data/raw/*
 data/processed/*
