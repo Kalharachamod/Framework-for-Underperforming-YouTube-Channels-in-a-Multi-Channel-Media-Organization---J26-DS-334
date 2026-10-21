@@ -11,6 +11,7 @@
 | The framework provides interpretable score components | Decomposition reconstructs every score exactly (error 0); 306 complete explanations |
 | On the evaluated data, the score's ranking is more stable under 50 % comment subsampling than Louvain or node2vec | Spearman 0.814 vs 0.506 / 0.631 (2 seeds) |
 | The pipeline is reproducible from a snapshot, configuration and seeds | Content-addressed experiment IDs; STEP 34 re-runs |
+| The system can keep potential-bridge estimates current with an unattended nightly pipeline over a same-period rolling window | `research.c3_live_runs`; first full run `live-20261020T215831Z` (18 channels, 0 collection failures) |
 
 Always state the scope with these claims: one snapshot, 18 Derana channels, no labels.
 
@@ -32,6 +33,7 @@ Always state the scope with these claims: one snapshot, 18 Derana channels, no l
 | That HGT is an effective channel representation here | Channel vectors collapsed (Finding 3) |
 | That the score identifies bridges a simple shared-commenter count would miss | On this data it closely follows the count (≈0.8 among evidence pairs) and changes the top bridge for only 3–4 of 13 channels (Finding 6) |
 | Long-term stability | One comparable snapshot pair, 1.5 days apart |
+| That nightly score changes show audiences changing, or that live results are thesis results | Consecutive 90-day windows overlap by 89 days; changes mostly reflect new and late comments. Live runs are monitoring output, not evaluated |
 
 ## Preferred terminology
 

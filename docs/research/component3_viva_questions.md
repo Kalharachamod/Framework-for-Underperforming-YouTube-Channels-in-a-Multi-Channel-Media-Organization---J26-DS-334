@@ -101,6 +101,24 @@ Correctness would need expert labels, which is future work.
 **Can you prove audience migration?**
 No. The system identifies potential audience bridges based on observed public interaction and content evidence. A snapshot of shared commenters shows co-activity, not movement, and no causal or subscription data is observed.
 
+## Live results
+
+**Is the system real-time?**
+It is updated nightly, not in real time. A GitHub Actions job runs at midnight every night:
+- it collects new public data into Supabase;
+- it rescores a rolling 90-day window, the same period for every channel;
+- it publishes aggregate results for the dashboard.
+
+No analyst computer has to be on. A night uses about 600 of the 10,000 daily YouTube quota units.
+
+**Why are the thesis results not the live results?**
+Thesis results must be fixed and reproducible, so they come from a frozen snapshot with a completed evaluation. The live job:
+- uses the same frozen pipeline, without the evaluation;
+- recomputes every night;
+- is reported as a monitoring extension.
+
+Its nightly changes are not evidence of audience movement: consecutive windows share 89 of 90 days.
+
 ## HGT finding
 
 **Why did HGT produce highly similar channel vectors?**
