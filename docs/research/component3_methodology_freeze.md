@@ -103,6 +103,13 @@ ABS(s → d) = [ w_d·norm_PPR(s→d) + w_e·norm_emb(s,d) + w_t·norm_topic(s,d
 
 No code logic, formula, configuration or component was changed or removed.
 
+## Extensions after the freeze (no frozen setting changed)
+
+- **Simple-overlap baseline** (evaluation version 1.2): ranks pairs by the shared-commenter count (Finding 6). It is added next to Louvain and node2vec; it does not replace them.
+- **Nightly live results** ([live_results.md](../architecture/live_results.md)) run the frozen pipeline on a rolling 90-day window.
+  - Their snapshot source is `supabase_postgresql_live`.
+  - They are kept apart from the thesis snapshots and are not used as reported results.
+
 ## Freeze rule
 
 From this point:

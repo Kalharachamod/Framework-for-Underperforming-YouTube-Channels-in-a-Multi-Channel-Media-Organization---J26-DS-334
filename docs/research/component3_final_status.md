@@ -108,7 +108,30 @@ Exact package versions are pinned in `requirements-lock.txt`.
 - All pages render real stored results from the API, with correct empty states when an artifact is missing.
 - Direction (source → destination) is shown explicitly.
 - No mock data is shown as real.
-- Frontend tests pass (48/48) and the build is clean.
+- Pairs with no shared commenters are labelled "No bridge evidence" instead of a rank.
+- Frontend tests pass (64/64) and the build is clean.
+
+## Live Results (extension, not thesis results)
+
+A nightly GitHub Actions job keeps the dashboard current without any analyst computer running ([live_results.md](../architecture/live_results.md)):
+- **Schedule:** 00:00 Sri Lanka time.
+- **Collection:** new public data for the 18 research channels goes into Supabase.
+- **Window:** the job scores a rolling 90-day window, the same period for every channel.
+- **Publishing:** aggregates only, to `research.c3_live_*`.
+
+First full run (`live-20261020T215831Z`):
+
+| Measure | Value |
+|---|---|
+| Collection failures | 0 |
+| New videos fetched | 851 |
+| New comments collected | 14,323 |
+| YouTube quota used | 622 of 10,000 units |
+| Window contents | 1,071 videos, 18,783 comments, 11,454 unique commenters |
+| Directed pairs scored | 306 (56 with shared commenters) |
+| Runtime | about 19 min |
+
+The job uses the frozen pipeline (quick stages, no evaluation) and changes no formula or setting. Live results are monitoring output; the reported thesis results stay on `rs-20261010T081534Z`.
 
 ## Known Technical Issues
 
@@ -117,7 +140,7 @@ See [known_findings_and_limitations](component3_known_findings_and_limitations.m
 1. **Evaluation runtime:** 18.75 h recorded, dominated by one outlier step; about 1.4 h without it. The newest full evaluation (9 sparse runs) took 2.5 h with no outlier.
 2. **Incomplete snapshot:** `rs-20261015T174938Z` is missing 718 comments and must be labelled as partial.
 3. **HGT collapse:** HGT channel representations collapse. This is a negative result and does not affect the primary score.
-4. **Zero-evidence channels:** they still show ranks 1–17 in the dashboard. Showing "No bridge evidence" instead is recommended.
+4. **Zero-evidence channels:** resolved. The dashboard shows "No bridge evidence" instead of a rank when a pair has no shared commenters.
 5. **Bridges table columns:** "Diffusion" is a weighted component and "Topic sim." is the raw cosine. Both are explained by tooltips.
 
 ## Research Risks
@@ -136,5 +159,4 @@ The research pipeline, results and documentation are complete and consistent, an
 
 **Remaining issues** (none critical; all documented):
 - The newest snapshot is incomplete.
-- Zero-evidence rows still show ranks in the dashboard.
 - A systematic literature review must precede thesis submission.
