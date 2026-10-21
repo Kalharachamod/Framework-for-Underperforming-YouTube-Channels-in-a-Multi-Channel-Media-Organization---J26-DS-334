@@ -44,6 +44,18 @@ N_TOPICS = 15
 SENSITIVITY_K = (10, 15, 20, 25)
 # Share of actionable requests among meaningful comments in the random batch-1 sample (12/110).
 NATURAL_REQUEST_PRIOR = 12 / 110
+# Sinhala-script and romanised-Sinhala (Singlish) function words: pronouns, particles,
+# auxiliaries and fillers. Used only for comment-topic labels; clustering uses embeddings.
+COMMENT_STOPWORDS = frozenset(
+    """
+    eka ekak eke ekata ekka ekk me mee na naa nae ne neh nehe wage oya oyata oyage mama mata mage api ape apita
+    nam kiyala kiyana kiyanna karana karanna karala inna innawa inne una une unaa giya yanna wenna ko bn da ow
+    thama tama dan ithin ane hari nathi nedda nisa mokada mokakda kohomada ewa eya eyage meka oka okkoma
+    """.split()
+) | frozenset(
+    "එක එකක් එකේ එකට නෑ නැහැ නැති නම් ඔයා ඔයාට ඔයාගේ වගේ තමයි තමා කියලා කියන්න කරන්න ඉන්න අපි අපේ මම මට මගේ "
+    "ඒක මේක හරි දැන් අද අනේ යන්න වෙන්න ඕන ගැන එක්ක නිසා විතර වඩා".split()
+)
 PACKAGE_DIR = Path(__file__).resolve().parent
 DEFAULT_OUTPUT_DIR = PACKAGE_DIR / "outputs" / "experiment_4a"
 # Dream Star season structure observed in the upload history (Experiment 3A).
@@ -51,6 +63,15 @@ DEFAULT_WINDOWS = {
     "season_2025": ("2025-04-01", "2026-02-01"),
     "off_season_2026": ("2026-02-01", "2026-09-15"),
     "new_season_2026": ("2026-09-15", "2026-11-01"),
+}
+# Channels without seasons use half-year windows with similar upload counts.
+CHANNEL_WINDOWS: dict[str, dict[str, tuple[str, str]]] = {
+    "Dream Star": DEFAULT_WINDOWS,
+    "FM Derana": {
+        "apr_sep_2025": ("2025-04-01", "2025-10-01"),
+        "oct_2025_mar_2026": ("2025-10-01", "2026-04-01"),
+        "apr_oct_2026": ("2026-04-01", "2026-11-01"),
+    },
 }
 
 
@@ -127,13 +148,11 @@ def fit_topics(texts: list[str], embeddings: np.ndarray, k: int = N_TOPICS) -> t
     from sklearn.cluster import KMeans
     from sklearn.feature_extraction.text import CountVectorizer
 
-    from .supply_topics import tokenize
-
     model = BERTopic(
         embedding_model=None,
         umap_model=BaseDimensionalityReduction(),
         hdbscan_model=KMeans(n_clusters=k, random_state=SEED, n_init=10),
-        vectorizer_model=CountVectorizer(tokenizer=tokenize, lowercase=False, token_pattern=None, min_df=3),
+        vectorizer_model=CountVectorizer(tokenizer=tokenize_comment, lowercase=False, token_pattern=None, min_df=3),
         top_n_words=10,
     )
     topics, _ = model.fit_transform(texts, embeddings=embeddings)
@@ -272,17 +291,22 @@ def run(channel: str = "Dream Star", output_dir: Path = DEFAULT_OUTPUT_DIR, wind
     return summary
 
 
-def tokenize_title(title: str) -> list[str]:
+def tokenize_comment(text: str) -> list[str]:
     from .supply_topics import tokenize
 
-    return tokenize(str(title))
+    return [token for token in tokenize(str(text)) if token not in COMMENT_STOPWORDS]
+
+
+def tokenize_title(title: str) -> list[str]:
+    return tokenize_comment(title)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Experiment 4A demand-anchored topics and JSD gaps.")
     parser.add_argument("--channel", default="Dream Star")
     args = parser.parse_args()
-    print(json.dumps(run(channel=args.channel), indent=2))
+    windows = CHANNEL_WINDOWS.get(args.channel, DEFAULT_WINDOWS)
+    print(json.dumps(run(channel=args.channel, windows=windows), indent=2))
     return 0
 
 
