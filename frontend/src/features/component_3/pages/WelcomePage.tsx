@@ -6,7 +6,7 @@ export function WelcomePage() {
     <main className="welcome" aria-labelledby="welcome-title">
       <div className="welcome__inner">
         <img className="welcome__logo" src="/brand/logo.png" alt="Growth Intelligence logo" width={180} height={180} />
-        <span className="welcome__kicker">SLIIT · J26-DS-334 · Component 3</span>
+        <span className="welcome__kicker">SLIIT · J26-DS-334</span>
         <h1 id="welcome-title">Growth Intelligence</h1>
         <p>Cross-channel audience bridge analysis for YouTube media organizations.</p>
         <Link to="/analyze" className="welcome__tile" aria-label="Enter Dashboard" title="Enter Dashboard">
