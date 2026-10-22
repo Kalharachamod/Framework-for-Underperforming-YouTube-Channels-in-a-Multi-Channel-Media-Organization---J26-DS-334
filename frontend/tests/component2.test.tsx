@@ -28,8 +28,16 @@ describe("Component 2 research evidence", () => {
     expect(sectionNav).not.toHaveTextContent(/viva/i);
     expect(within(screen.getByRole("navigation", { name: "Primary" })).getByRole("link", { name: COMPONENT_TITLE })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: /Open Methodology Explorer/ })).toHaveAttribute("href", "/component-2/methodology");
-    expect(screen.getByText("84,002")).toBeVisible();
-    expect(screen.getByText("0.54")).toBeVisible();
+    const flow = screen.getByRole("region", { name: /How 84,002 comments become the gap chart/ });
+    expect(within(flow).getByText("84,002")).toBeVisible();
+    expect(within(flow).getByText("10,104")).toBeVisible();
+    expect(within(flow).getByText("70,184")).toBeVisible();
+    expect(within(flow).getByText("11,710")).toBeVisible();
+    expect(within(flow).getByText("0.54")).toBeVisible();
+    expect(within(flow).getByText("44,070")).toBeVisible();
+    expect(within(flow).getByText("13,249")).toBeVisible();
+    expect(within(flow).getByText("12,239")).toBeVisible();
+    expect(within(flow).getByText(/these scores are not the accuracy on all comments/)).toBeVisible();
     expect(document.body).not.toHaveTextContent(/supervisor|ethics|macOS|awaiting validation/i);
   });
 
@@ -87,8 +95,8 @@ describe("Component 2 research evidence", () => {
       expect(within(examples).getAllByRole("article")).toHaveLength(1);
     }
     await userEvent.selectOptions(select, "UNCLEAR");
-    expect(within(examples).getByText("An ambiguous short question")).toBeVisible();
-    expect(within(examples).queryByText("A specific re-upload request")).not.toBeInTheDocument();
+    expect(within(examples).getByText("A comment that cannot be interpreted")).toBeVisible();
+    expect(within(examples).queryByText("Request for the full performance")).not.toBeInTheDocument();
     await userEvent.selectOptions(select, "SPAM_OR_IRRELEVANT");
     expect(within(examples).getByText("Self-promotion phrased as a request")).toBeVisible();
     expect(examples).not.toHaveTextContent(/illustrative|Earn Rs/);
@@ -118,12 +126,16 @@ describe("Component 2 research evidence", () => {
     expect(within(gap).getByLabelText(/0 to 1 scale.*Season 2025: 0.155\./)).toBeInTheDocument();
     expect(within(gap).getByText(/Dream Star · Season 2025 \(Apr 2025 – Jan 2026\)/)).toBeVisible();
     expect(within(gap).queryByRole("group", { name: "Analysis period" })).not.toBeInTheDocument();
-    expect(within(gap).getByLabelText(/Voting: audience interest 6.1%, published supply 0.4%, gap \+5.7 pp/)).toBeInTheDocument();
+    expect(within(gap).getByLabelText(/Voting: audience interest 6.1%, published supply 0.4%, 13.6% of the JSD/)).toBeInTheDocument();
+    expect(within(gap).getByLabelText(/Songs and lyrics: audience interest 4.6%, published supply 16%, 15.6% of the JSD/)).toBeInTheDocument();
+    expect(within(gap).queryByText(/Largest attention gap/)).not.toBeInTheDocument();
+    expect(within(gap).queryByText(/pp$/)).not.toBeInTheDocument();
     expect(within(gap).getByText("0.155", { selector: ".stat-card *, [class*=stat] *" })).toBeVisible();
     await userEvent.click(within(gap).getByRole("button", { name: "Show data table" }));
     expect(within(gap).getByRole("region", { name: "Season 2025 topic shares" })).toHaveTextContent("Songs and lyrics");
     await userEvent.click(within(gap).getByText("How these numbers were produced"));
     expect(within(gap).getByText(/890 of 967 videos fell into one topic/)).toBeVisible();
+    expect(within(gap).getByText(/which is 15.6%/)).toBeVisible();
     await userEvent.click(within(gap).getByText("What the checks showed"));
     expect(within(gap).getByText(/Video placement is the weak step/)).toBeVisible();
     await userEvent.click(within(gap).getByText("Terms and methods compared"));
@@ -138,7 +150,7 @@ describe("Component 2 research evidence", () => {
   it("demo view shows only the demo sections and links back to the full view", async () => {
     await openPage("/component-2?view=demo");
     const nav = screen.getByRole("navigation", { name: "Component 2 sections" });
-    expect(within(nav).getAllByRole("link").map((link) => link.textContent)).toEqual(["Annotated examples", "Viewer requests", "Gap analysis", "Validation"]);
+    expect(within(nav).getAllByRole("link").map((link) => link.textContent)).toEqual(["Gap and novelty", "Data flow", "Annotated examples", "Viewer requests", "Gap analysis", "Validation"]);
     const requests = screen.getByRole("region", { name: "What viewers asked for, and whether the channel can supply it" });
     expect(within(requests).getByLabelText("Upload missing songs and performances: 27 requests")).toBeInTheDocument();
     expect(within(requests).getAllByText("Channel can supply")).toHaveLength(4); // legend + three themes
@@ -147,11 +159,10 @@ describe("Component 2 research evidence", () => {
     expect(screen.getByRole("region", { name: "Usefulness over time: do highlighted gaps matter later?" })).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: /How the methodology evolved/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Methodology questions and evidence-based answers" })).not.toBeInTheDocument();
-    expect(screen.getByText("84,002")).toBeVisible();
+    expect(screen.getByRole("region", { name: /How 84,002 comments become the gap chart/ })).toBeVisible();
     const why = screen.getByRole("region", { name: "What is missing, and what this component adds" });
     expect(within(why).getByText(/A script-normalised, demand-anchored divergence method/)).toBeVisible();
     expect(within(why).getByText("Unstudied population")).toBeVisible();
-    expect(within(screen.getByRole("region", { name: "Component 2 evidence snapshot" })).getByText("12,239")).toBeVisible();
     expect(document.body).not.toHaveTextContent(/integrated demand-to-supply|Supply topic coherence/);
     await userEvent.click(screen.getByRole("link", { name: "Show full research view" }));
     expect(await screen.findByRole("region", { name: /How the methodology evolved/ })).toBeInTheDocument();

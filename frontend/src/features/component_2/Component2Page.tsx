@@ -4,9 +4,10 @@ import { Fold } from "../../components/common/Fold";
 import { Icon } from "../../components/common/Icon";
 import { Badge, Card, Notice, Select, StatCard, StatGrid, TableWrap, type Tone } from "../../components/common/ui";
 import {
-  COMPONENT_TITLE, EVIDENCE_DATE, annotationBatch, dreamStarGap, bestClassifier, calibration, comparisons, corpus, evidenceUrl, examples,
+  COMPONENT_TITLE, EVIDENCE_DATE, dreamStarGap, calibration, comparisons, evidenceUrl, examples,
   futurePipeline, partitionFingerprint, partitions, pilot, researchQuestions, reviewQueue, stages, taxonomy,
   type ResearchStage, type StageStatus,
+  dataFlow,
   novelty,
   requestThemes,
   researchGap,
@@ -136,7 +137,6 @@ function ComparisonPanel() {
 }
 
 const GAP_AXIS_MAX = 50;
-const signed = (value: number) => `${value > 0 ? "+" : value < 0 ? "−" : ""}${Math.abs(value).toFixed(1)} pp`;
 
 function JsdScale({ selected }: { selected: string }) {
   const ticks = [0, 0.25, 0.5, 0.75, 1];
@@ -148,6 +148,43 @@ function JsdScale({ selected }: { selected: string }) {
     </div>
     <div className="c2-jsd-scale__ticks" aria-hidden="true">{ticks.map((tick) => <span key={tick} style={{ left: `${tick * 100}%` }}>{tick}</span>)}</div>
   </figure>;
+}
+
+function DataFlowPanel() {
+  const flow = dataFlow;
+  const splitTotal = flow.split.reduce((sum, part) => sum + part.comments, 0);
+  const pct = (value: number, total: number) => `${((value / total) * 100).toFixed(1)}%`;
+  return <section id="c2-flow" className="c2-stack c2-section" aria-labelledby="c2-flow-title"><div className="c2-section-heading"><div><span className="c2-kicker">The data, step by step</span><h2 id="c2-flow-title">How {number(flow.collected.comments)} comments become the gap chart</h2><p>Each number below comes from the step before it.</p></div></div>
+    <ol className="c2-flow">
+      <li className="c2-flow__step"><span className="c2-flow__num" aria-hidden="true">1</span><div className="c2-flow__body"><h3>Collect public comments and videos</h3>
+        <div className="c2-flow__bignums"><span><b>{number(flow.collected.comments)}</b> comments</span><span><b>{number(flow.collected.videos)}</b> videos</span><span><b>{flow.collected.channels}</b> Derana channels</span></div>
+        <p>From the YouTube Data API, April 2025 to October 2026. Only public data is used, and commenter IDs are stored as salted hashes.</p></div></li>
+      <li className="c2-flow__step"><span className="c2-flow__num" aria-hidden="true">2</span><div className="c2-flow__body"><h3>Split by video: train, test and set aside</h3>
+        <div className="c2-flow__split" role="img" aria-label={`The ${number(splitTotal)} comments are split into ${flow.split.map((part) => `${part.label} ${number(part.comments)}`).join(", ")}`}>{flow.split.map((part) => <span key={part.key} className={`c2-flow__seg c2-flow__seg--${part.key}`} style={{ flexGrow: part.comments }} />)}</div>
+        <ul className="c2-flow__legend">{flow.split.map((part) => <li key={part.key}><i className={`c2-flow__dot c2-flow__seg--${part.key}`} /><b>{number(part.comments)}</b> {part.label} <small>{pct(part.comments, splitTotal)} · {part.note}</small></li>)}</ul>
+        <p>Whole videos go to one group, so no video is in both training and testing. 15% of videos were held out at random, and a code check blocks them from training.</p></div></li>
+      <li className="c2-flow__step"><span className="c2-flow__num" aria-hidden="true">3</span><div className="c2-flow__body"><h3>Label a sample by hand</h3>
+        <div className="c2-flow__bignums"><span><b>{flow.labelled.batch + flow.labelled.calibration}</b> comments labelled</span><span><b>{flow.labelled.binary}</b> with a clear YES or NO</span></div>
+        <div className="c2-flow__split c2-flow__split--thin" role="img" aria-label={`${flow.labelled.yes} requests and ${flow.labelled.no} non-requests`}><span className="c2-flow__seg c2-flow__seg--yes" style={{ flexGrow: flow.labelled.yes }} /><span className="c2-flow__seg c2-flow__seg--no" style={{ flexGrow: flow.labelled.no }} /></div>
+        <ul className="c2-flow__legend"><li><i className="c2-flow__dot c2-flow__seg--yes" /><b>{flow.labelled.yes}</b> requests (YES)</li><li><i className="c2-flow__dot c2-flow__seg--no" /><b>{flow.labelled.no}</b> not requests (NO)</li></ul>
+        <p>Each comment got one of eight audience signals and a request label. These labels are the answer key the models learn from and are tested against.</p></div></li>
+      <li className="c2-flow__step"><span className="c2-flow__num" aria-hidden="true">4</span><div className="c2-flow__body"><h3>Compare four ways to find requests</h3>
+        <ol className="c2-flow__f1" aria-label="F1 score of each method on the 490 labelled comments">{flow.methods.map((method) => <li key={method.name} className={method.chosen ? "is-chosen" : undefined}><span>{method.name}</span><div className="c2-flow__f1bar" aria-hidden="true"><span style={{ width: `${method.f1 * 100}%` }} /></div><b>{method.f1.toFixed(2)}</b><small>precision {method.precision.toFixed(2)} · recall {method.recall.toFixed(2)}</small></li>)}</ol>
+        <p>All four were scored on the same 490 comments. The trained methods were tested on videos they were not trained on (5 splits, repeated 5 times). The keyword rules have no training, so they were run once.</p>
+        <div className="c2-flow__note"><strong>Score meanings</strong><dl><div><dt>Precision</dt><dd>Of the comments flagged as requests, how many really are.</dd></div><div><dt>Recall</dt><dd>Of all the real requests, how many were found.</dd></div><div><dt>F1</dt><dd>Both combined into one score from 0 to 1. It is high only when both are good.</dd></div></dl><p>The rules flag many wrong comments and miss over half the requests (F1 0.35). The e5 model finds about 8 in 10 requests, with some false flags (F1 0.54).</p></div></div></li>
+      <li className="c2-flow__step"><span className="c2-flow__num" aria-hidden="true">5</span><div className="c2-flow__body"><h3>Train two models on the labels</h3>
+        <div className="c2-two">{flow.models.map((model) => <div key={model.name} className="c2-flow__model"><strong>{model.name}</strong><p>{model.question}</p><dl><div><dt>Trained on</dt><dd>{model.labels}</dd></div><div><dt>Used for</dt><dd>{model.use}</dd></div><div><dt>Score</dt><dd>{model.score}</dd></div></dl></div>)}</div>
+        <p>Both use e5 embeddings with logistic regression, the best method in step 4. Once chosen, each was retrained on all of its labels.</p></div></li>
+      <li className="c2-flow__step"><span className="c2-flow__num" aria-hidden="true">6</span><div className="c2-flow__body"><h3>Apply to Dream Star</h3>
+        <ol className="c2-flow__funnel" aria-label="Dream Star comments kept at each stage">
+          <li><span className="c2-flow__funnelbar" style={{ width: "100%" }}><b>{number(flow.dreamStar.pool)}</b>&nbsp;training comments</span></li>
+          <li><span className="c2-flow__funnelbar c2-flow__funnelbar--b" style={{ width: pct(flow.dreamStar.meaningful, flow.dreamStar.pool) }} /><span className="c2-flow__funnellabel"><b>{number(flow.dreamStar.meaningful)}</b> meaningful</span></li>
+          <li><span className="c2-flow__funnelbar c2-flow__funnelbar--c" style={{ width: pct(flow.dreamStar.season2025, flow.dreamStar.pool) }} /><span className="c2-flow__funnellabel"><b>{number(flow.dreamStar.season2025)}</b> posted in Season 2025</span></li>
+        </ol>
+        <p>The meaningful-comment filter reads Dream Star's training comments and drops reactions, emoji and spam. The Season 2025 comments feed the topics and the gap chart below.</p></div></li>
+    </ol>
+    <Notice><strong>How to read the scores.</strong> The F1 values come from the 490 labelled comments, where requests are over-represented ({pct(flow.labelled.yes, flow.labelled.binary)} against 6% in a random sample). The other comments are unlabelled and the held-out comments are not labelled yet, so these scores are not the accuracy on all comments.</Notice>
+  </section>;
 }
 
 function GapNoveltyPanel() {
@@ -179,32 +216,34 @@ function GapPanel() {
   const [selected, setSelected] = useState(dreamStarGap.windows[0].id);
   const [showTable, setShowTable] = useState(false);
   const period = dreamStarGap.windows.find((item) => item.id === selected)!;
-  const topics = [...period.topics].sort((a, b) => (b.interest - b.supply) - (a.interest - a.supply));
-  return <section id="c2-gap" className="c2-stack c2-section" aria-labelledby="c2-gap-title"><div className="c2-section-heading"><div><span className="c2-kicker">E · Demand–supply gap · {dreamStarGap.channel} · {period.label} ({period.period})</span><h2 id="c2-gap-title">Where audience attention and published content differ</h2><p>Topics are discovered from meaningful audience comments; each video is placed in its nearest topic. The JSD score measures the overall difference and the bars show where it comes from.</p></div></div>
+  const topics = [...period.topics].sort((a, b) => b.jsdContribution - a.jsdContribution);
+  const share = (topic: { jsdContribution: number }) => (topic.jsdContribution / period.jsdExact) * 100;
+  const shownShare = topics.reduce((sum, topic) => sum + share(topic), 0);
+  return <section id="c2-gap" className="c2-stack c2-section" aria-labelledby="c2-gap-title"><div className="c2-section-heading"><div><span className="c2-kicker">E · Demand–supply gap · {dreamStarGap.channel} · {period.label} ({period.period})</span><h2 id="c2-gap-title">Where audience attention and published content differ</h2><p>Topics are discovered from meaningful audience comments; each video is placed in its nearest topic. The JSD score measures the overall difference, and each topic's share of it shows where it comes from.</p></div></div>
     {dreamStarGap.windows.length > 1 && <div className="c2-segmented" role="group" aria-label="Analysis period">{dreamStarGap.windows.map((item) => <button type="button" key={item.id} aria-pressed={item.id === selected} onClick={() => setSelected(item.id)}>{item.label}<small>{item.period}</small></button>)}</div>}
-    <StatGrid label={`${period.label} gap summary`}><StatCard label="JSD (interest vs supply)" value={period.jsd.toFixed(3)} hint={`stable ${period.jsdRange[0].toFixed(2)}–${period.jsdRange[1].toFixed(2)} across 10–25 topics`} /><StatCard label="Meaningful comments" value={number(period.comments)} hint="audience interest" /><StatCard label="Videos" value={number(period.videos)} hint="published supply" /><StatCard label="Largest attention gap" value={signed(topics[0].interest - topics[0].supply)} hint={topics[0].name} /></StatGrid>
+    <StatGrid label={`${period.label} gap summary`}><StatCard label="JSD (interest vs supply)" value={period.jsd.toFixed(3)} hint={`stable ${period.jsdRange[0].toFixed(2)}–${period.jsdRange[1].toFixed(2)} across 10–25 topics`} /><StatCard label="Meaningful comments" value={number(period.comments)} hint="audience interest" /><StatCard label="Videos" value={number(period.videos)} hint="published supply" /></StatGrid>
     <JsdScale selected={selected} />
     <figure className="c2-gap-chart" aria-labelledby="c2-gap-chart-title">
       <div className="c2-row"><figcaption id="c2-gap-chart-title"><strong>Audience interest vs published supply by topic</strong> <span className="muted">· share of each side, %</span></figcaption><div className="c2-gap-legend" aria-hidden="true"><span><i className="c2-swatch c2-swatch--interest" />Audience interest</span><span><i className="c2-swatch c2-swatch--supply" />Published supply</span></div></div>
-      <ol className="c2-gap-rows">{topics.map((topic) => { const gap = topic.interest - topic.supply; return <li key={topic.name} className="c2-gap-row" aria-label={`${topic.name}: audience interest ${topic.interest}%, published supply ${topic.supply}%, gap ${signed(gap)}`}>
+      <ol className="c2-gap-rows">{topics.map((topic) => <li key={topic.name} className="c2-gap-row" aria-label={`${topic.name}: audience interest ${topic.interest}%, published supply ${topic.supply}%, ${share(topic).toFixed(1)}% of the JSD`}>
         <div className="c2-gap-row__label"><strong>{topic.name}</strong><small>{topic.keywords}</small></div>
         <div className="c2-gap-row__bars" aria-hidden="true">
           <div className="c2-gap-bar"><span className="c2-gap-bar__fill c2-gap-bar__fill--interest" style={{ width: `${(topic.interest / GAP_AXIS_MAX) * 100}%` }} title={`Audience interest ${topic.interest}% · ${number(topic.comments)} comments`} /><b>{topic.interest.toFixed(1)}%</b></div>
           <div className="c2-gap-bar"><span className="c2-gap-bar__fill c2-gap-bar__fill--supply" style={{ width: `${(topic.supply / GAP_AXIS_MAX) * 100}%` }} title={`Published supply ${topic.supply}% · ${number(topic.videos)} videos`} /><b>{topic.supply.toFixed(1)}%</b></div>
         </div>
-        <span className={`c2-gap-value ${gap > 0 ? "is-positive" : "is-negative"}`}><span aria-hidden="true">{gap > 0 ? "▲" : "▼"}</span> {signed(gap)}</span>
-      </li>; })}</ol>
-      <p className="c2-gap-axis">Bar scale 0–{GAP_AXIS_MAX}% · ▲ more audience attention than coverage · ▼ more coverage than attention.</p>
+        <span className="c2-gap-value"><b>{share(topic).toFixed(1)}%</b><small>of the JSD</small></span>
+      </li>)}</ol>
+      <p className="c2-gap-axis">Bar scale 0–{GAP_AXIS_MAX}% · the right-hand figure is each topic's share of the overall JSD, so the larger it is, the more of the mismatch that topic explains.</p>
     </figure>
     <button type="button" className="button c2-table-toggle" aria-expanded={showTable} onClick={() => setShowTable(!showTable)}>{showTable ? "Hide data table" : "Show data table"}</button>
-    {showTable && <TableWrap label={`${period.label} topic shares`}><table className="table"><thead><tr><th scope="col">Topic</th><th scope="col">Comments</th><th scope="col">Interest %</th><th scope="col">Videos</th><th scope="col">Supply %</th><th scope="col">Gap</th></tr></thead><tbody>{topics.map((topic) => <tr key={topic.name}><th scope="row">{topic.name}</th><td className="num">{number(topic.comments)}</td><td className="num">{topic.interest.toFixed(1)}</td><td className="num">{topic.videos}</td><td className="num">{topic.supply.toFixed(1)}</td><td className="num">{signed(topic.interest - topic.supply)}</td></tr>)}</tbody></table></TableWrap>}
+    {showTable && <TableWrap label={`${period.label} topic shares`}><table className="table"><thead><tr><th scope="col">Topic</th><th scope="col">Comments</th><th scope="col">Interest %</th><th scope="col">Videos</th><th scope="col">Supply %</th><th scope="col">Share of JSD</th></tr></thead><tbody>{topics.map((topic) => <tr key={topic.name}><th scope="row">{topic.name}</th><td className="num">{number(topic.comments)}</td><td className="num">{topic.interest.toFixed(1)}</td><td className="num">{topic.videos}</td><td className="num">{topic.supply.toFixed(1)}</td><td className="num">{share(topic).toFixed(1)}%</td></tr>)}</tbody></table></TableWrap>}
     <Fold title="How these numbers were produced" hint="Method"><div className="c2-stack">
       <p><strong>Why Dream Star.</strong> It holds 51,742 of the 84,002 collected comments (44,070 in the training pool), runs in clear seasons, and its titles name the song and contestant, so the supply text describes the content. It is the proof-of-concept case, not an underperforming channel.</p>
       <p><strong>Meaningful comments.</strong> Held-out comments are excluded. A multilingual-e5 + logistic regression filter (F1 0.88) keeps comments that say something about content; 12,239 of them were posted in Season 2025.</p>
       <p><strong>Why multilingual-e5.</strong> It reads Sinhala script, Singlish and English in one model, places comments and video text in one shared space, and found the most requests in the classifier tests (recall 0.79 against 0.37–0.43 for TF-IDF). It runs on a laptop CPU and is pinned to one model revision.</p>
       <p><strong>Script normalisation.</strong> Embeddings are centred within each script group and each domain (comments, videos). Without this, 890 of 967 videos fell into one topic because of writing style alone.</p>
       <p><strong>Why k-means.</strong> BERTopic's default density clustering (HDBSCAN) put 80% of comments into one topic. k-means assigns every comment to one of 15 topics, gives each topic a centre that videos can be matched to, and allows the stability check over 10–25 topics. Topic labels are each topic's top words.</p>
-      <p><strong>Supply and gap.</strong> Each of the 896 Season 2025 videos (title and cleaned description) is placed in its nearest topic. Interest % = topic comments ÷ 12,239; supply % = topic videos ÷ 896; gap = interest % − supply %. Example: 1,261 ÷ 12,239 = 10.3% and 20 ÷ 896 = 2.2%, a gap of +8.1 points. JSD = ½ Σ P·log₂(P/M) + ½ Σ Q·log₂(Q/M) with M = (P + Q) ÷ 2; the 15 topic contributions add up to 0.155.</p>
+      <p><strong>Supply and JSD.</strong> Each of the 896 Season 2025 videos (title and cleaned description) is placed in its nearest topic. Interest % = topic comments ÷ 12,239 and supply % = topic videos ÷ 896, so each side sums to 100%. Example: 1,261 ÷ 12,239 = 10.3% and 20 ÷ 896 = 2.2%. JSD = ½ Σ P·log₂(P/M) + ½ Σ Q·log₂(Q/M) with M = (P + Q) ÷ 2. Each topic adds a term to the sum; the 15 terms add up to 0.155, and the chart shows each topic's share of it (for example, "Songs and lyrics" adds 0.024, which is 15.6%).</p>
     </div></Fold>
     <Fold title="What the checks showed" hint="Limitations"><div className="c2-stack">
       <p><strong>A topic label is not demand.</strong> Viewers are asked to vote every week, so "vote" comments are campaigning, reactions or complaints about the system. A contestant's name appears in criticism as well as support.</p>
@@ -232,7 +271,7 @@ function GapPanel() {
       <p><strong>Requests.</strong> Request probabilities from the e5 classifier are corrected to the natural request rate (prior shift) and summed per topic. The request-vs-supply JSD is 0.140, close to the interest JSD, because the classifier separates requests only weakly, so the chart shows interest only.</p>
       <p><strong>Not yet compared.</strong> Other embedding models, other gap measures (KL, Hellinger, Wasserstein) and LLM extraction.</p>
     </div></Fold>
-    <p className="provenance">Interest =share of meaningful comments in the period; supply = share of videos published in the period; gap = interest − supply in percentage points. The ten topics with the largest gaps are shown. The output is evidence for content planning, not a fixed threshold. Season 2025 runs from April 2025 to January 2026; Season 13 is not shown yet.</p>
+    <p className="provenance">Interest = share of meaningful comments in the period; supply = share of videos published in the period. Each topic's share of the JSD is its contribution to the overall mismatch. The ten topics shown account for {shownShare.toFixed(1)}% of the JSD; the other five add {(100 - shownShare).toFixed(1)}%. The output is evidence for content planning, not a fixed threshold. Season 2025 runs from April 2025 to January 2026; Season 13 is not shown yet.</p>
   </section>;
 }
 
@@ -264,20 +303,20 @@ export function Component2Page() {
   const [params] = useSearchParams();
   const demo = params.get("view") === "demo";
   const sections = demo
-    ? [["examples", "Annotated examples"], ["requests", "Viewer requests"], ["gap", "Gap analysis"], ["validation", "Validation"]]
-    : [["overview", "Study overview"], ["progress", "Development stages"], ["examples", "Annotated examples"], ["requests", "Viewer requests"], ["methods", "Design comparisons"], ["gap", "Gap analysis"], ["validation", "Validation"], ["pipeline", "Analysis pipeline"], ["questions", "Research Q&A"]];
+    ? [["why", "Gap and novelty"], ["flow", "Data flow"], ["examples", "Annotated examples"], ["requests", "Viewer requests"], ["gap", "Gap analysis"], ["validation", "Validation"]]
+    : [["why", "Gap and novelty"], ["flow", "Data flow"], ["overview", "Study overview"], ["progress", "Development stages"], ["examples", "Annotated examples"], ["requests", "Viewer requests"], ["methods", "Design comparisons"], ["gap", "Gap analysis"], ["validation", "Validation"], ["pipeline", "Analysis pipeline"], ["questions", "Research Q&A"]];
   const viewSwitch = demo
     ? <Link className="button c2-view-switch" to="/component-2">Show full research view</Link>
     : <Link className="button c2-view-switch" to="/component-2?view=demo"><Icon name="play" size={16} /> Demo view</Link>;
   return <div className={`c2-page${demo ? " c2-page--demo" : ""}`}>
     <header className="c2-hero"><div className="c2-hero__body"><p className="c2-kicker">J26-DS-334 · {demo ? "Prototype demo" : `Research progress · Evidence as of ${EVIDENCE_DATE}`}</p><h1>{COMPONENT_TITLE}</h1><p>Identify genuine multilingual audience content demands, model audience demand and channel content supply in a shared semantic topic space, and quantify gaps using Jensen–Shannon Divergence.</p><div className="c2-hero__actions"><Link className="button c2-methodology-cta" to="/component-2/methodology"><Icon name="flow" size={18} /> Open Methodology Explorer <span aria-hidden="true">→</span></Link>{viewSwitch}</div>{!demo && <div className="c2-hero__tags"><Badge tone="ok">Corpus frozen</Badge><Badge tone="ok">Classifiers trained</Badge><Badge tone="ok">Supply topics modelled</Badge><Badge tone="warn">Gap analysis in progress</Badge></div>}</div><div className="c2-hero__aside"><Icon name="topic" size={30} /><strong>Demand topics and JSD</strong><span>Current milestone</span><p>Channel-specific demand topics compared with supply, validated season to season.</p></div></header>
     <nav className="c2-section-nav" aria-label="Component 2 sections">{sections.map(([id, label]) => <a key={id} href={`#c2-${id}`}>{label}</a>)}</nav>
-    <StatGrid label="Component 2 evidence snapshot"><StatCard label="Comments collected" value={number(corpus.comments)} hint={`${corpus.channels} Derana channels · ${corpus.months} months`} /><StatCard label="Labelled comments" value={number(annotationBatch.rows + calibration.total)} hint={`${annotationBatch.yes + calibration.yes} actionable requests`} /><StatCard label="Best classifier F1" value={bestClassifier.f1.toFixed(2)} hint={`vs ${bestClassifier.ruleF1.toFixed(2)} for keyword rules`} tone="ok" /><StatCard label="Meaningful comments" value={number(dreamStarGap.windows[0].comments)} hint="Dream Star · Season 2025 (gap analysis)" /></StatGrid>
-    {demo && <><GapNoveltyPanel /><ExamplesPanel /><RequestsPanel /><GapPanel /><ValidationPanel /></>}
+    <GapNoveltyPanel />
+    <DataFlowPanel />
+    {demo && <><ExamplesPanel /><RequestsPanel /><GapPanel /><ValidationPanel /></>}
     {!demo && <>
     <section id="c2-overview" className="c2-stack c2-section" aria-labelledby="c2-overview-title"><div className="c2-section-heading"><div><span className="c2-kicker">A · Research purpose and current scope</span><h2 id="c2-overview-title">Research question and implementation boundary</h2><p>Does a channel publish what its audience talks about and asks for? The gap and novelty are below; then what has been built.</p></div></div></section>
-    <GapNoveltyPanel />
-    <section className="c2-stack c2-section" aria-label="Current implementation boundary"><Card title="Current implementation boundary"><div className="c2-two"><div className="c2-stack"><Badge tone="ok">Implemented / verified software</Badge><p>Collection, validation, multilingual preprocessing, the Streamlit annotation portal, rule screening, leakage audits, frozen partitions, the expanded 84k-comment corpus, 544 labelled comments, trained demand classifiers and supply topic modelling.</p></div><div className="c2-stack"><Badge tone="warn">In progress</Badge><p>Channel-specific demand topics, aligned demand and supply distributions, Jensen–Shannon Divergence with per-topic gaps, season-to-season validation and the final blind held-out evaluation.</p></div></div></Card><div className="c2-data-strip"><span><b>{number(corpus.videos)}</b> videos modelled</span><span><b>{number(corpus.trainingPool)}</b> training-pool comments</span><span><b>{number(corpus.expandedHeldOut + 311)}</b> held-out comments</span><span><b>0</b> duplicate comment IDs</span></div><p className="provenance">Channels: Dream Star, Derana 60 Plus, Derana Little Star, FM Derana, Ada Derana Sports, Lokaya Saha Lokayo, TV Derana and Ada Derana. Conservative normalization preserves original language and emoji; exact source text is retained separately from NFC text. <EvidenceLink /></p></section>
+    <section className="c2-stack c2-section" aria-label="Current implementation boundary"><Card title="Current implementation boundary"><div className="c2-two"><div className="c2-stack"><Badge tone="ok">Implemented / verified software</Badge><p>Collection, validation, multilingual preprocessing, the Streamlit annotation portal, rule screening, leakage audits, frozen partitions, the expanded 84k-comment corpus, 544 labelled comments, trained demand classifiers and supply topic modelling.</p></div><div className="c2-stack"><Badge tone="warn">In progress</Badge><p>Channel-specific demand topics, aligned demand and supply distributions, Jensen–Shannon Divergence with per-topic gaps, season-to-season validation and the final blind held-out evaluation.</p></div></div></Card><p className="provenance">Channels: Dream Star, Derana 60 Plus, Derana Little Star, FM Derana, Ada Derana Sports, Lokaya Saha Lokayo, TV Derana and Ada Derana. Conservative normalization preserves original language and emoji; exact source text is retained separately from NFC text. <EvidenceLink /></p></section>
     <ResearchTimeline />
     <ExamplesPanel />
     <RequestsPanel />
