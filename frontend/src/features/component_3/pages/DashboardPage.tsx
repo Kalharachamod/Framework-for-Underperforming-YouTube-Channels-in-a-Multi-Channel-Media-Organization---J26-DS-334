@@ -4,8 +4,10 @@ import { ChannelAvatar, ChannelIconContext, colorFor, initials } from "../../../
 import { Icon } from "../../../components/common/Icon";
 import { EmptyState, ErrorState, Loading } from "../../../components/common/States";
 import { useApi } from "../../../hooks/useApi";
-import { date, int, num, pct } from "../../../utils/format";
+import { date, int, label, num, pct } from "../../../utils/format";
+import { TableWrap } from "../../../components/common/ui";
 import { component3Api } from "../api";
+import { liveApi } from "../liveApi";
 import { LIMITATIONS, Provenance } from "../ContextBar";
 import { useResearch } from "../ResearchContext";
 import type { BridgePairRow, GraphSummaryResponse, ResearchStatusResponse } from "../types";
@@ -45,13 +47,12 @@ function models(status: ResearchStatusResponse | null, graph: GraphSummaryRespon
   ];
 }
 
-const NODE_COLORS: Record<string, string> = { commenter: "#93c5fd", video: "#3b82f6", channel: "#1e3a8a", topic: "#94a3b8" };
-
 /** Circular gauge for a stored 0–1 score. */
 function ScoreRing({ value, size = 124 }: { value: number | null; size?: number }) {
   const r = size / 2 - 9, c = 2 * Math.PI * r, v = Math.max(0, Math.min(1, value ?? 0));
   return (
     <svg className="ring" width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={`Audience Bridge Score ${num(value, 3)} of 1`}>
+      <defs><linearGradient id="gi-ring" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stopColor="#2563eb" /><stop offset=".6" stopColor="#7c3aed" /><stop offset="1" stopColor="#db2777" /></linearGradient></defs>
       <circle cx={size / 2} cy={size / 2} r={r} className="ring__track" />
       <circle cx={size / 2} cy={size / 2} r={r} className="ring__value" strokeDasharray={`${c * v} ${c}`} transform={`rotate(-90 ${size / 2} ${size / 2})`} />
       <text x="50%" y="48%" textAnchor="middle" className="ring__num">{num(value, 3)}</text>
@@ -67,8 +68,82 @@ function ScoreHistogram({ rows }: { rows: BridgePairRow[] }) {
   const max = Math.max(1, ...bins);
   return (
     <div className="mini-hist" role="img" aria-label={`Stored scores per 0.1 bin: ${bins.join(", ")}`}>
-      {bins.map((b, i) => <span key={i} style={{ height: `${Math.max(4, (b / max) * 100)}%` }} className={b === 0 ? "is-empty" : ""} title={`${(i / 10).toFixed(1)}–${((i + 1) / 10).toFixed(1)}: ${b}`} />)}
+      {bins.map((b, i) => <span key={i} style={{ height: `${Math.max(4, Math.sqrt(b / max) * 100)}%` }} className={b === 0 ? "is-empty" : ""} title={`${(i / 10).toFixed(1)}–${((i + 1) / 10).toFixed(1)}: ${b}`} />)}
     </div>
+  );
+}
+
+const compact = (n: number) => new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(n);
+
+/** Small vertical bars (real values), lightest first. */
+function MiniBars({ values, label: aria }: { values: number[]; label: string }) {
+  const max = Math.max(1, ...values);
+  return (
+    <div className="gi-bars" role="img" aria-label={aria}>
+      {values.map((v, i) => <i key={i} style={{ height: `${Math.max(8, Math.sqrt(v / max) * 100)}%`, opacity: 0.35 + (0.65 * (i + 1)) / values.length }} />)}
+    </div>
+  );
+}
+
+/** Small area line (real values, square-root scaled so small values stay visible). */
+function MiniArea({ values, label: aria, id }: { values: number[]; label: string; id: string }) {
+  if (values.length < 2) return <div className="gi-area" />;
+  const W = 160, H = 64, max = Math.max(1, ...values);
+  const pts = values.map((v, i) => [(i / (values.length - 1)) * W, H - 4 - Math.sqrt(v / max) * (H - 10)] as const);
+  const line = pts.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+  return (
+    <svg className="gi-area" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={aria}>
+      <defs><linearGradient id={`gia-${id}`} x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="var(--c)" stopOpacity=".3" /><stop offset="1" stopColor="var(--c)" stopOpacity="0" /></linearGradient></defs>
+      <path d={`${line} L${W},${H} L0,${H} Z`} fill={`url(#gia-${id})`} />
+      <path d={line} fill="none" stroke="var(--c)" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+}
+
+const TREND_COLORS = ["#2563eb", "#db2777", "#7c3aed", "#0891b2"];
+
+/** Bridge-score trend of the four strongest live pairs over the nightly runs (research.c3_live_*). */
+function LiveTrend() {
+  const live = useApi((sg) => liveApi.bridges(500, sg), []);
+  const top = live.status === "success" ? live.data.items.filter((b) => (b.audience_bridge_score ?? 0) > 0).slice(0, 4) : [];
+  const key = top.map((b) => `${b.source_channel_id}>${b.destination_channel_id}`).join("|");
+  const hist = useApi((sg) => Promise.all(top.map((b) => liveApi.history(b.source_channel_id, b.destination_channel_id, sg))), [key], top.length > 0);
+  const runs = hist.status === "success" ? [...new Set(hist.data.flatMap((h) => h.items.map((p) => p.finished_at)))].sort() : [];
+  const W = 520, H = 210, L = 34, R = 34, T = 12, B = 28;
+  const x = (t: string) => L + (runs.length > 1 ? (runs.indexOf(t) / (runs.length - 1)) * (W - L - R) : (W - L - R) / 2);
+  const y = (v: number) => T + (1 - v) * (H - T - B);
+  return (
+    <section className="panel gi-panel" aria-label="Live bridge trend">
+      <header className="panel__head">
+        <div><h2><Icon name="status" size={17} /> Audience bridge trend</h2><p>Strongest live pairs across the nightly runs{live.status === "success" && live.data.offline ? " · offline copy" : ""}.</p></div>
+        <Link to="/live">Live results <Icon name="arrow" size={14} /></Link>
+      </header>
+      {live.status === "loading" || hist.status === "loading" ? <Loading variant="chart" label="Loading live trend…" /> :
+        live.status === "error" ? <p className="muted gi-note">{live.error.code === "storage_unavailable" ? "The shared database is not reachable from this network. Switch network to load the live trend." : "Live results are not available yet."}</p> :
+        top.length === 0 ? <p className="muted gi-note">No live bridge evidence yet.</p> : hist.status === "success" && (
+          <>
+            <svg className="gi-trend" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Bridge score of ${top.length} live pairs over ${runs.length} nightly runs`}>
+              {[0, 0.25, 0.5, 0.75, 1].map((v) => (
+                <g key={v}><line x1={L} x2={W - R} y1={y(v)} y2={y(v)} className="gi-trend__grid" /><text x={L - 6} y={y(v) + 3} textAnchor="end" className="gi-trend__ax">{v.toFixed(2)}</text></g>
+              ))}
+              {runs.map((t) => <text key={t} x={x(t)} y={H - 8} textAnchor="middle" className="gi-trend__ax">{date(t).slice(5, 16)}</text>)}
+              {hist.data.map((h, k) => {
+                const pts = h.items.filter((p) => p.audience_bridge_score !== null);
+                const d = pts.map((p, i) => `${i ? "L" : "M"}${x(p.finished_at)},${y(p.audience_bridge_score as number)}`).join(" ");
+                return (
+                  <g key={k}>
+                    {pts.length > 1 && <path d={d} fill="none" stroke={TREND_COLORS[k]} strokeWidth="2.2" />}
+                    {pts.map((p) => <circle key={p.run_id} cx={x(p.finished_at)} cy={y(p.audience_bridge_score as number)} r="3.5" fill="#fff" stroke={TREND_COLORS[k]} strokeWidth="2" />)}
+                  </g>
+                );
+              })}
+            </svg>
+            <ul className="gi-legend">
+              {top.map((b, k) => <li key={k}><i style={{ background: TREND_COLORS[k] }} />{b.source_channel_name} → {b.destination_channel_name}</li>)}
+            </ul>
+          </>
+        )}
+    </section>
   );
 }
 
@@ -151,7 +226,6 @@ function ScoreDistribution({ rows }: { rows: BridgePairRow[] }) {
         <li><b>{int(scored.length - zero)}</b><span>pairs with a positive score</span></li>
         <li><b>{num(median, 3)}</b><span>median score</span></li>
       </ul>
-      <p className="xnote">Bar heights use a square-root scale so small bins stay visible; counts are exact.</p>
     </div>
   );
 }
@@ -181,90 +255,135 @@ export function DashboardPage() {
   const order = byAudience.map((ch) => ch.channel_id);
   const maxAudience = Math.max(1, ...byAudience.map((ch) => ch.unique_commenters ?? 0));
   const multi = g?.commenters_on_multiple_channels != null && s?.unique_commenters ? g.commenters_on_multiple_channels / s.unique_commenters : null;
-  const totalNodes = g ? Object.values(g.node_counts).reduce((a, b) => a + b, 0) : 0;
   const steps = researchStatus(st, g);
   const open = (src: string, dst: string) => navigate(`/bridges?source=${encodeURIComponent(src)}&destination=${encodeURIComponent(dst)}`);
   const pending = (failed: boolean) => (failed ? "n/a" : "…");
+  const subs = new Map(byAudience.map((ch) => [ch.channel_id, ch.subscriber_count]));
+  const byBridges = [...positive.reduce((m, r) => {
+    const e = m.get(r.source_channel_id) ?? { id: r.source_channel_id, name: r.source_channel_name ?? r.source_channel_id, bridges: 0, conf: 0 };
+    e.bridges += 1; e.conf += r.confidence_component ?? 0;
+    return m.set(r.source_channel_id, e);
+  }, new Map<string, { id: string; name: string; bridges: number; conf: number }>()).values()]
+    .map((e) => ({ ...e, confidence: e.bridges ? e.conf / e.bridges : null, subscribers: subs.get(e.id) ?? null }))
+    .sort((x, y) => y.bridges - x.bridges || (y.confidence ?? 0) - (x.confidence ?? 0));
 
   return (
-    <div className="ov">
-      <header className="ov-banner">
-        <div className="ov-banner__text">
-          <span className="ov-banner__kicker">Component 3 · Growth Intelligence</span>
-          <h1>Audience bridge research</h1>
-          <p>Diffusion-based cross-channel audience bridge scoring across {s ? int(s.channels) : "the"} research channels: which channels share public commenters, how strongly, and why.</p>
-          {s && (
-            <ul className="ov-banner__tags">
-              <li><span>Snapshot</span><b className="mono">{s.snapshot_id}</b></li>
-              <li><span>Observation period</span><b>{s.first_video?.slice(0, 10)} – {s.last_video?.slice(0, 10)}</b></li>
-              <li><span>Extracted</span><b>{date(s.extracted_at)}</b></li>
-            </ul>
-          )}
-          <div className="ov-banner__cta">
-            <Link to="/bridges" className="ov-btn ov-btn--solid"><Icon name="bridges" size={16} /> Explore bridges</Link>
-            <Link to="/channels" className="ov-btn"><Icon name="channels" size={16} /> Channels</Link>
-            <Link to="/neural" className="ov-btn"><Icon name="neural" size={16} /> Models</Link>
-          </div>
+    <div className="ov gi">
+      <header className="gi-hero">
+        <div className="gi-hero__text">
+          <span className="gi-kicker">Research dashboard</span>
+          <h1><span className="gi-grad">Cross-Channel</span><br /> Audience Bridge Analysis</h1>
+          <p>Directional, confidence-weighted scoring of potential audience bridges between {s ? int(s.channels) : "the"} YouTube channels,
+            built from public comment networks, graph diffusion and content similarity.</p>
+          <nav className="gi-tiles" aria-label="Explore">
+            <Link to="/graph" className="gi-tile" style={{ ["--c" as string]: "#2563eb" }}><span><Icon name="graph" size={17} /></span>Graph<br />analysis</Link>
+            <Link to="/channels" className="gi-tile" style={{ ["--c" as string]: "#7c3aed" }}><span><Icon name="evaluation" size={17} /></span>Audience<br />insights</Link>
+            <Link to="/bridges" className="gi-tile" style={{ ["--c" as string]: "#db2777" }}><span><Icon name="link" size={17} /></span>Cross-channel<br />connections</Link>
+            <Link to="/topics" className="gi-tile" style={{ ["--c" as string]: "#0891b2" }}><span><Icon name="topic" size={17} /></span>Content<br />similarity</Link>
+          </nav>
         </div>
-        <div className="ov-banner__art" aria-hidden="true">
-          {byAudience.slice(0, 8).map((ch, k) => {
-            const a = (-90 + k * 45) * (Math.PI / 180);
-            return <span key={ch.channel_id} style={{ left: `${50 + 38 * Math.cos(a)}%`, top: `${50 + 38 * Math.sin(a)}%` }}><ChannelAvatar id={ch.channel_id} name={ch.channel_name} order={order} size={34} /></span>;
+        <div className="gi-orbit" aria-hidden="true">
+          <span className="gi-orbit__ring gi-orbit__ring--1" />
+          <span className="gi-orbit__ring gi-orbit__ring--2" />
+          {["#3b82f6", "#ec4899", "#8b5cf6", "#06b6d4", "#3b82f6", "#ec4899"].map((col, k) => {
+            const ang = (20 + k * 60) * (Math.PI / 180);
+            return <i key={k} className="gi-orbit__dot" style={{ background: col, left: `${50 + 33 * Math.cos(ang)}%`, top: `${50 + 33 * Math.sin(ang)}%` }} />;
           })}
-          <span className="ov-banner__core"><Icon name="bridges" size={30} /></span>
+          <span className="gi-orbit__yt"><svg viewBox="0 0 68 48" width="58" height="41"><rect width="68" height="48" rx="12" fill="#ef4444" /><path d="M27 14v20l18-10z" fill="#fff" /></svg></span>
+          {byAudience.slice(0, 5).map((ch, k) => {
+            const ang = (-90 + k * 72) * (Math.PI / 180);
+            return <span key={ch.channel_id} className="gi-orbit__ch" style={{ left: `${50 + 41 * Math.cos(ang)}%`, top: `${50 + 41 * Math.sin(ang)}%` }}><ChannelAvatar id={ch.channel_id} name={ch.channel_name} order={order} size={k === 0 ? 58 : 50} /></span>;
+          })}
         </div>
       </header>
 
       {summary.status === "error" ? <ErrorState error={summary.error} onRetry={summary.reload} what="Snapshot totals" /> :
         summary.status === "loading" ? <Loading variant="cards" rows={4} label="Loading research metrics…" /> : (
-          <section className="vcards" aria-label="Research metrics">
-            <article className="vcard vcard--c" style={{ ["--c" as string]: "#2563eb" }}>
-              <span className="vcard__icon" aria-hidden="true"><Icon name="users" size={18} /></span>
-              <span className="vcard__label">Research channels</span>
-              <strong className="vcard__value">{s ? int(s.channels) : "—"}</strong>
-              <div className="avatar-stack" aria-label="Channels with the largest audience">
-                {byAudience.slice(0, 7).map((ch) => <ChannelAvatar key={ch.channel_id} id={ch.channel_id} name={ch.channel_name} order={order} size={30} />)}
-                {byAudience.length > 7 && <span className="avatar-stack__more">+{byAudience.length - 7}</span>}
+          <section className="gi-kpis" aria-label="Research metrics">
+            <article className="gi-kpi" style={{ ["--c" as string]: "#2563eb" }}>
+              <header><span className="gi-kpi__ic"><Icon name="users" size={17} /></span>Channels analysed</header>
+              <div className="gi-kpi__body">
+                <div>
+                  <strong className="gi-kpi__value">{s ? int(s.channels) : "—"}</strong>
+                  <small className="gi-kpi__sub"><b>{s?.subscribers != null ? compact(s.subscribers) : "—"}</b> public subscribers</small>
+                </div>
+                <MiniBars values={byAudience.slice(0, 10).map((ch) => ch.unique_commenters ?? 0).reverse()} label="Unique commenters of the ten largest channels" />
               </div>
-              <small className="vcard__sub">{s ? `${int(s.subscribers)} public subscribers in total` : ""}</small>
             </article>
-            <article className="vcard vcard--c" style={{ ["--c" as string]: "#8b5cf6" }}>
-              <span className="vcard__icon" aria-hidden="true"><Icon name="comment" size={18} /></span>
-              <span className="vcard__label">Public comments</span>
-              <strong className="vcard__value">{s ? int(s.collected_comments) : "—"}</strong>
-              <div className="meter" role="img" aria-label={`${pct(multi, 1)} of commenters appear on two or more channels`}><i style={{ width: `${Math.max(2, (multi ?? 0) * 100)}%` }} /></div>
-              <small className="vcard__sub">{g && s ? `${int(g.commenters_on_multiple_channels)} of ${int(s.unique_commenters)} commenters on 2+ channels` : s ? `${int(s.unique_commenters)} unique commenters` : ""}</small>
+            <article className="gi-kpi" style={{ ["--c" as string]: "#db2777" }}>
+              <header><span className="gi-kpi__ic"><Icon name="comment" size={17} /></span>Public comments</header>
+              <div className="gi-kpi__body">
+                <div>
+                  <strong className="gi-kpi__value">{s ? int(s.collected_comments) : "—"}</strong>
+                  <small className="gi-kpi__sub"><b>{pct(multi, 1)}</b> cross-channel commenters</small>
+                </div>
+                <MiniArea values={byAudience.map((ch) => ch.collected_comments ?? 0).reverse()} label="Collected comments per channel" id="cm" />
+              </div>
             </article>
-            <article className="vcard vcard--c" style={{ ["--c" as string]: "#0ea5e9" }}>
-              <span className="vcard__icon" aria-hidden="true"><Icon name="graph" size={18} /></span>
-              <span className="vcard__label">Graph nodes</span>
-              <strong className="vcard__value">{g ? int(g.total_nodes) : pending(graph.status === "error")}</strong>
-              {g && (
-                <>
-                  <div className="stackbar" role="img" aria-label={Object.entries(g.node_counts).map(([t, n]) => `${t} ${n}`).join(", ")}>
-                    {Object.entries(g.node_counts).map(([t, n]) => <i key={t} style={{ width: `${(n / Math.max(1, totalNodes)) * 100}%`, background: NODE_COLORS[t] ?? "#cbd5e1" }} />)}
+            <article className="gi-kpi" style={{ ["--c" as string]: "#7c3aed" }}>
+              <header><span className="gi-kpi__ic"><Icon name="graph" size={17} /></span>Graph nodes</header>
+              <div className="gi-kpi__body">
+                <div>
+                  <strong className="gi-kpi__value">{g ? int(g.total_nodes) : pending(graph.status === "error")}</strong>
+                  <small className="gi-kpi__sub"><b>{g ? int(g.total_edges) : "—"}</b> edges · {g ? Object.keys(g.node_counts).length : "—"} node types</small>
+                </div>
+                {g && (
+                  <div className="gi-types" role="img" aria-label={Object.entries(g.node_counts).map(([t, n]) => `${t} ${n}`).join(", ")}>
+                    {Object.entries(g.node_counts).map(([t, n]) => {
+                      const mx = Math.max(1, ...Object.values(g.node_counts));
+                      return <span key={t} title={`${label(t)}: ${int(n)}`}><i style={{ height: `${Math.max(8, Math.sqrt(n / mx) * 100)}%` }} /><small>{label(t).slice(0, 4)}</small></span>;
+                    })}
                   </div>
-                  <small className="vcard__sub">{int(g.total_edges)} edges · {Object.keys(g.node_counts).length} node types</small>
-                </>
-              )}
+                )}
+              </div>
             </article>
-            <article className="vcard vcard--c" style={{ ["--c" as string]: "#16a34a" }}>
-              <span className="vcard__icon" aria-hidden="true"><Icon name="bridges" size={18} /></span>
-              <span className="vcard__label">Bridge pairs</span>
-              <strong className="vcard__value">{pairs.status === "success" ? int(scored.length) : pending(pairs.status === "error")}</strong>
-              {pairs.status === "success" && <ScoreHistogram rows={scored} />}
-              <small className="vcard__sub">{pairs.status === "success" ? `${int(positive.length)} with a positive score · score 0 → 1` : "scored directed pairs"}</small>
+            <article className="gi-kpi" style={{ ["--c" as string]: "#0891b2" }}>
+              <header><span className="gi-kpi__ic"><Icon name="target" size={17} /></span>Scored directed pairs</header>
+              <div className="gi-kpi__body">
+                <div>
+                  <strong className="gi-kpi__value">{pairs.status === "success" ? int(scored.length) : pending(pairs.status === "error")}</strong>
+                  <small className="gi-kpi__sub"><b>{pairs.status === "success" && scored.length ? pct(positive.length / scored.length, 1) : "—"}</b> with shared-audience evidence</small>
+                </div>
+                {pairs.status === "success" && <ScoreHistogram rows={scored} />}
+              </div>
             </article>
           </section>
         )}
 
-
+      <div className="gi-row">
+        <section className="panel gi-panel" aria-label="Top channels by potential bridges">
+          <header className="panel__head">
+            <div><h2><Icon name="evaluation" size={17} /> Top channels by potential bridges</h2></div>
+            <Link to="/bridges">View all <Icon name="arrow" size={14} /></Link>
+          </header>
+          {pairs.status === "loading" && <Loading variant="table" rows={5} />}
+          {pairs.status === "success" && (byBridges.length === 0 ? <EmptyState title="No bridge relationships are available for this snapshot." /> : (
+            <TableWrap label="Channels ranked by number of potential bridges">
+              <table className="gi-table">
+                <thead><tr><th>#</th><th>Channel</th><th className="num">Subscribers</th><th className="num">Potential bridges</th><th>Avg. confidence</th></tr></thead>
+                <tbody>
+                  {byBridges.slice(0, 5).map((r, i) => (
+                    <tr key={r.id}>
+                      <td>{i + 1}</td>
+                      <td><Link to={`/bridges?source=${encodeURIComponent(r.id)}`} className="gi-table__ch"><ChannelAvatar id={r.id} name={r.name} order={order} size={30} /> {r.name}</Link></td>
+                      <td className="num">{r.subscribers != null ? int(r.subscribers) : "—"}</td>
+                      <td className="num">{int(r.bridges)}</td>
+                      <td><span className="gi-conf"><b>{num(r.confidence, 2)}</b><span><i style={{ width: `${(r.confidence ?? 0) * 100}%` }} /></span></span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </TableWrap>
+          ))}
+        </section>
+        <LiveTrend />
+      </div>
 
       {pairs.status === "success" && positive.length > 0 && (
         <section className="panel" aria-label="Bridge network">
           <header className="panel__head">
-            <div><h2>Bridge network</h2><p>The {Math.min(16, positive.length)} strongest directed bridges. Icon size = unique commenters; arrow = source → destination; thicker = stronger. Click an arrow to open it.</p></div>
-            <Link to="/bridges">Full bridge graph</Link>
+            <div><h2><Icon name="graph" size={17} /> Bridge network</h2><p>The {Math.min(16, positive.length)} strongest directed bridges. Arrow = source → destination; thicker = stronger.</p></div>
+            <Link to="/bridges">Full bridge graph <Icon name="arrow" size={14} /></Link>
           </header>
           <BridgeNet rows={positive.slice(0, 16)} order={order} onOpen={open} size={new Map(byAudience.map((c) => [c.channel_id, c.unique_commenters ?? 0]))} />
         </section>
@@ -273,7 +392,7 @@ export function DashboardPage() {
       <div className="ov-hero">
         <section className="panel spotlight" aria-label="Strongest bridge">
           <header className="panel__head">
-            <div><h2>Strongest audience bridge</h2><p>The directed pair with the highest stored score in this experiment.</p></div>
+            <div><h2><Icon name="target" size={17} /> Strongest audience bridge</h2><p>Highest-scoring directed pair.</p></div>
           </header>
           {pairs.status === "loading" && <Loading variant="block" />}
           {pairs.status === "error" && <ErrorState error={pairs.error} onRetry={pairs.reload} what={`Bridge scores${experimentId ? ` for experiment ${experimentId}` : ""}`} />}
@@ -318,8 +437,8 @@ export function DashboardPage() {
 
         <section className="panel" aria-label="Ranked opportunities">
           <header className="panel__head">
-            <div><h2>Top bridges</h2><p>Directed pairs with the highest stored score.</p></div>
-            <Link to="/bridges">Open bridge graph</Link>
+            <div><h2><Icon name="bridges" size={17} /> Top bridges</h2><p>Highest-scoring directed pairs.</p></div>
+            <Link to="/bridges">Open bridge graph <Icon name="arrow" size={14} /></Link>
           </header>
           {pairs.status === "loading" && <Loading variant="table" rows={6} />}
           {pairs.status === "success" && (scored.length === 0 ? <EmptyState title="No bridge relationships are available for this snapshot." /> : (
@@ -348,8 +467,8 @@ export function DashboardPage() {
       <div className="ov-net">
         <section className="panel" aria-label="Channels by audience">
           <header className="panel__head">
-            <div><h2>Channels by audience</h2><p>Unique public commenters collected per channel.</p></div>
-            <Link to="/channels">Channel explorer</Link>
+            <div><h2><Icon name="users" size={17} /> Channels by audience</h2><p>Unique public commenters collected per channel.</p></div>
+            <Link to="/channels">Channel explorer <Icon name="arrow" size={14} /></Link>
           </header>
           {perf.status === "loading" && <Loading variant="cards" rows={3} />}
           {perf.status === "error" && <ErrorState error={perf.error} onRetry={perf.reload} what="Channel totals" />}
@@ -391,7 +510,7 @@ export function DashboardPage() {
         </section>
         {pairs.status === "success" && (
           <section className="panel" aria-label="Score distribution">
-            <header className="panel__head"><div><h2>Score distribution</h2><p>All {int(scored.length)} scored directed pairs.</p></div></header>
+            <header className="panel__head"><div><h2><Icon name="evaluation" size={17} /> Score distribution</h2><p>All {int(scored.length)} scored directed pairs.</p></div></header>
             <ScoreDistribution rows={scored} />
           </section>
         )}
@@ -399,8 +518,8 @@ export function DashboardPage() {
 
       <section className="panel ov-pipe-panel">
         <header className="panel__head">
-          <div><h2>Research pipeline</h2><p>Each stage of the method, from stored artifacts. Running jobs are not reported, so only stored runs are shown.</p></div>
-          <Link to="/pipeline">Pipeline graph</Link>
+          <div><h2><Icon name="flow" size={17} /> Research pipeline</h2><p>Each stage of the method.</p></div>
+          <Link to="/pipeline">Pipeline graph <Icon name="arrow" size={14} /></Link>
         </header>
         <section aria-label="Research status">
           {status.status === "loading" ? <Loading variant="table" rows={2} /> : status.status === "error" ? <ErrorState error={status.error} onRetry={status.reload} what="Research status" /> : (
