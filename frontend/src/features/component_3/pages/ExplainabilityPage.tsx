@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ComponentBar } from "../../../components/charts/BarChart";
 import { EmptyState, ErrorState, Loading } from "../../../components/common/States";
@@ -95,6 +96,14 @@ export function ExplainabilityPage() {
   const source = params.get("source") ?? "";
   const destination = params.get("destination") ?? "";
   const ready = source !== "" && destination !== "" && source !== destination;
+  // with no pair chosen, open on the strongest stored bridge
+  const top = useApi((s) => component3Api.topBridges({ snapshotId, experimentId }, 1, s), [snapshotId, experimentId], !source && !destination);
+  useEffect(() => {
+    const b = top.status === "success" ? top.data.items[0] : undefined;
+    if (!source && !destination && b?.audience_bridge_score) {
+      setParams({ source: b.source_channel_id, destination: b.destination_channel_id }, { replace: true });
+    }
+  }, [top, source, destination, setParams]);
   const pair = useApi(
     (s) => component3Api.pair(source, destination, { snapshotId, experimentId }, s),
     [source, destination, snapshotId, experimentId],
@@ -134,8 +143,8 @@ export function ExplainabilityPage() {
         <span className="gx__mark gx__mark--xpl" aria-hidden="true"><Icon name="explain" size={32} /></span>
         <div className="xhero__id">
           <h1>Why this score?</h1>
-          <p>Pick a directed pair to see how its stored Audience Bridge Score is built, the evidence behind it, the reasons recorded for it and its uncertainty.</p>
-          <p className="tx-note">{LIMITATIONS} Explanations describe the method's behaviour; they are not empirical validation.</p>
+          <p>How a pair's Audience Bridge Score is built and the evidence behind it.</p>
+          <p className="tx-note">{LIMITATIONS}</p>
         </div>
       </section>
 
@@ -189,13 +198,13 @@ export function ExplainabilityPage() {
           </section>
 
           <section className="xblock" aria-label="How the score is built">
-            <header className="xblock__head"><div><h3>How the score is built</h3><p>Each component is weight × normalised signal; they add up to the base score, which the confidence multiplies into the final score.</p></div></header>
+            <header className="xblock__head"><div><h3>How the score is built</h3><p>Weighted components form the base score; confidence scales it.</p></div></header>
             <DecompositionFlow p={p} />
           </section>
 
           <div className="xgrid xgrid--2">
             <section className="xblock" aria-label="Interpretation">
-              <header className="xblock__head"><div><h3>What it means</h3><p>Generated only from the stored values; descriptive, not causal.</p></div></header>
+              <header className="xblock__head"><div><h3>What it means</h3><p>Generated from the stored values.</p></div></header>
               <ul className="xp-insights">
                 {interpretation(p).map((t, i) => (
                   <li key={t}><span className="xp-insights__icon"><Icon name={["bridges", "graph", "evaluation", "explain"][i % 4]} size={16} /></span><p>{t}</p></li>
@@ -278,7 +287,7 @@ export function ExplainabilityPage() {
 
               <div className="xgrid xp-split">
                 <section className="xblock" aria-label="Aggregate evidence">
-                  <header className="xblock__head"><div><h3>Aggregate evidence</h3><p>Counts and similarities behind the confidence; no commenter is identified.</p></div></header>
+                  <header className="xblock__head"><div><h3>Aggregate evidence</h3><p>Aggregate counts behind the confidence.</p></div></header>
                   {e === null ? <p className="muted">No evidence row for this pair.</p> : (
                     <ul className="xp-evidence">
                       {evidenceRows.map((r) => (
@@ -291,7 +300,6 @@ export function ExplainabilityPage() {
                       ))}
                     </ul>
                   )}
-                  <p className="xnote">States: observed · zero (observed, value 0) · insufficient coverage (absence not informative) · missing (input unavailable).</p>
                 </section>
                 <section className="xblock" aria-label="Uncertainty">
                   <header className="xblock__head"><div><h3>Uncertainty</h3><p>Caveats recorded with this explanation.</p></div></header>
