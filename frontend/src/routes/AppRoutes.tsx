@@ -7,6 +7,7 @@ import { BridgesPage } from "../features/component_3/pages/BridgesPage";
 import { DashboardPage } from "../features/component_3/pages/DashboardPage";
 import { ResearchProvider, useResearch } from "../features/component_3/ResearchContext";
 import { ChannelSearch } from "../features/component_3/TrackedChannels";
+import { WelcomePage } from "../features/component_3/pages/WelcomePage";
 
 // Secondary pages load on first visit; Overview and Audience Bridges ship in the main bundle.
 const ChannelExplorerPage = lazy(() => import("../features/component_3/pages/ChannelExplorerPage").then((m) => ({ default: m.ChannelExplorerPage })));
@@ -23,18 +24,18 @@ const AnalyzePage = lazy(() => import("../features/component_3/pages/AnalyzePage
 const TopicsPage = lazy(() => import("../features/component_3/pages/TopicsPage").then((m) => ({ default: m.TopicsPage })));
 
 export const NAV: NavItem[] = [
-  { to: "/", label: "Overview", group: "Core workspace", icon: "dashboard" },
-  { to: "/bridges", label: "Audience Bridges", group: "Core workspace", icon: "bridges" },
-  { to: "/channels", label: "Channel Explorer", group: "Core workspace", icon: "channels" },
-  { to: "/live", label: "Live Results", group: "Core workspace", icon: "ripple" },
-  { to: "/analyze", label: "Analyze Organization", group: "Core workspace", icon: "search" },
-  { to: "/pipeline", label: "Pipeline Graph", group: "Research models", icon: "flow" },
-  { to: "/graph", label: "Graph Intelligence", group: "Research models", icon: "graph" },
-  { to: "/neural", label: "Neural Models", group: "Research models", icon: "neural" },
-  { to: "/topics", label: "Topic Intelligence", group: "Research models", icon: "topic" },
+  { to: "/dashboard", label: "Overview", group: "Results", icon: "dashboard" },
+  { to: "/bridges", label: "Audience Bridges", group: "Results", icon: "bridges" },
+  { to: "/explainability", label: "Explainability", group: "Results", icon: "explain" },
+  { to: "/channels", label: "Channel Explorer", group: "Results", icon: "channels" },
+  { to: "/pipeline", label: "Pipeline Graph", group: "Method", icon: "flow" },
+  { to: "/graph", label: "Graph Intelligence", group: "Method", icon: "graph" },
+  { to: "/topics", label: "Topic Intelligence", group: "Method", icon: "topic" },
+  { to: "/neural", label: "Neural Models", group: "Method", icon: "neural" },
   { to: "/evaluation", label: "Baselines & Evaluation", group: "Validation", icon: "evaluation" },
-  { to: "/explainability", label: "Explainability", group: "Validation", icon: "explain" },
   { to: "/experiments", label: "Experiments", group: "Validation", icon: "overview" },
+  { to: "/live", label: "Live Results", group: "Live system", icon: "ripple" },
+  { to: "/analyze", label: "Analyze Organization", group: "Live system", icon: "search" },
   { to: "/status", label: "System Status", group: "System", icon: "status" },
 ];
 /* Deep link (not in the menu): /overview (artifact list). */
@@ -64,10 +65,22 @@ function TopBar() {
 export function AppRoutes() {
   return (
     <ResearchProvider>
+      <Routes>
+        {/* start screen (no sidebar): logo + "Analyze an organization" */}
+        <Route path="/" element={<WelcomePage />} />
+        <Route path="*" element={<Workspace />} />
+      </Routes>
+    </ResearchProvider>
+  );
+}
+
+/** The research workspace: sidebar, top bar and every dashboard page. */
+function Workspace() {
+  return (
       <AppShell nav={NAV} header={<TopBar />}>
         <Suspense fallback={<Loading variant="block" label="Loading page…" />}>
         <Routes>
-          <Route path="/" element={<DashboardPage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/overview" element={<OverviewPage />} />
           <Route path="/bridges" element={<BridgesPage />} />
           <Route path="/channels" element={<ChannelExplorerPage />} />
@@ -81,10 +94,9 @@ export function AppRoutes() {
           <Route path="/status" element={<StatusPage />} />
           <Route path="/analyze" element={<AnalyzePage />} />
           <Route path="/live" element={<LivePage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
         </Suspense>
       </AppShell>
-    </ResearchProvider>
   );
 }
