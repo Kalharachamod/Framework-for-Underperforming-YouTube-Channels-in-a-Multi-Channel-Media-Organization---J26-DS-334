@@ -79,7 +79,6 @@ export function FlowCanvas({ width, height, nodes, edges, lanes = [], onSelect, 
   return (
     <div className="flow" aria-label={label} role="group">
       <div className="flow__tools">
-        <span className="flow__hint">Ctrl + scroll or pinch to zoom · click a card for details</span>
         <button type="button" onClick={() => setZoom((z) => Math.max(0.5, z * 0.85))} aria-label="Zoom out">−</button>
         <button type="button" onClick={() => setZoom(1)} aria-label="Fit to width">Fit</button>
         <button type="button" onClick={() => setZoom((z) => Math.min(2, z * 1.15))} aria-label="Zoom in">+</button>

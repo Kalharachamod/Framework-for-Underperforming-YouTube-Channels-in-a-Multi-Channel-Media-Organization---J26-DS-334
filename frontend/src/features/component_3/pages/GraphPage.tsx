@@ -299,7 +299,7 @@ export function GraphPage() {
             </section>
 
             <section className="xblock" aria-label="Graph map">
-              <header className="xblock__head"><div><h3>Graph map</h3><p>The graph and everything built on it. Click a card for its details.</p></div></header>
+              <header className="xblock__head"><div><h3>Graph map</h3><p>The graph and the models built on it.</p></div></header>
               <GraphMap d={d} selected={selected} onSelect={(id) => setParams(id === selected ? {} : { node: id })} />
             </section>
 
@@ -312,7 +312,6 @@ export function GraphPage() {
                 <Details id={selected} d={d} />
               </section>
             )}
-            <p className="xnote">{d.note}</p>
             <Provenance snapshotId={d.snapshot_id} />
           </div>
         );

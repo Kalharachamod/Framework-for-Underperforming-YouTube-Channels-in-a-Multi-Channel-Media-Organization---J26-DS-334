@@ -245,10 +245,10 @@ export function ChannelExplorerPage() {
               </section>
 
               <div className="xgrid xgrid--2">
-                <Block title="Audience ladder" hint="Public reach down to repeat commenters. Widths on a log scale.">
+                <Block title="Audience ladder" hint="From public views to repeat commenters (log scale).">
                   <AudienceLadder d={d} />
                 </Block>
-                <Block title="Data coverage" hint="How much of this channel the research data covers.">
+                <Block title="Data coverage" hint="Share of this channel in the collected data.">
                   <div className="gauges">
                     <Gauge value={d.collection_coverage} label="Videos collected" caption={`${int(d.stored_video_count)} of ${int(d.observed_api_video_count)} public`} />
                     <Gauge value={topicCoverage ? topicCoverage.coverage_ratio : null} label="Topic profile" caption={topicCoverage?.profile_available ? "videos with usable text" : "not available"} />
@@ -262,7 +262,7 @@ export function ChannelExplorerPage() {
                 </Block>
               </div>
 
-              <Block title="Bridge position" hint="Potential audience bridges into and out of this channel (stored scores). Each card is one stored directed bridge."
+              <Block title="Bridge position" hint="Bridges into and out of this channel."
                 action={<Link to={`/bridges?source=${encodeURIComponent(channel)}`} className="card-link">Open bridge graph</Link>}>
                 {allPairs.status === "loading" && <Loading variant="graph" label="Loading bridges…" />}
                 {allPairs.status === "error" && <ErrorState error={allPairs.error} onRetry={allPairs.reload} what="Bridge scores" />}
@@ -270,19 +270,19 @@ export function ChannelExplorerPage() {
               </Block>
 
               <div className="xgrid xgrid--2">
-                <Block title="Content neighbours" hint="Channels whose video text is most similar (topic similarity, symmetric).">
+                <Block title="Content neighbours" hint="Channels with the most similar content.">
                   {topicSim.status === "loading" && <Loading variant="chart" />}
                   {topicSim.status === "error" && <ErrorState error={topicSim.error} onRetry={topicSim.reload} what="Topic similarity" />}
                   {topicSim.status === "success" && (related.length === 0 ? <EmptyState title="No topic profile for this channel." /> : <Orbit channel={channel} name={nm} rows={related} />)}
                 </Block>
-                <Block title="Publishing rhythm" hint="Collected videos by publish month (last 12 months).">
+                <Block title="Publishing rhythm" hint="Collected videos per month (last 12 months).">
                   {timeline.status === "loading" && <Loading variant="chart" />}
                   {timeline.status === "error" && <ErrorState error={timeline.error} onRetry={timeline.reload} what="Timeline" />}
                   {timeline.status === "success" && (!series ? <EmptyState title="No collected video in the last 12 publish months." /> : <MonthStrip periods={timeline.data.periods} values={series.videos} />)}
                 </Block>
               </div>
 
-              <Block title="Shared commenters" hint="Other research channels with at least one commenter in common. Bubble size: shared commenters." label="Channels sharing commenters">
+              <Block title="Shared commenters" hint="Channels sharing commenters with this one." label="Channels sharing commenters">
                 {pairs.status === "loading" && <Loading variant="cards" rows={6} />}
                 {pairs.status === "error" && <ErrorState error={pairs.error} onRetry={pairs.reload} what="Shared commenters" />}
                 {pairs.status === "success" && (shared.length === 0 ? (
@@ -307,7 +307,6 @@ export function ChannelExplorerPage() {
                         );
                       })}
                     </ul>
-                    <p className="xnote">{pairs.data.note}</p>
                   </>
                 ))}
               </Block>

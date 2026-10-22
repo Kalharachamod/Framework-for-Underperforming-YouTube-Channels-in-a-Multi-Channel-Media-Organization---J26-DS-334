@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { HorizontalBarChart } from "../../../components/charts/BarChart";
 import { EmptyState, ErrorState, Loading } from "../../../components/common/States";
 import { Icon } from "../../../components/common/Icon";
 import { Badge, TableWrap } from "../../../components/common/ui";
@@ -126,8 +125,8 @@ export function EvaluationPage() {
         <span className="gx__mark gx__mark--eval" aria-hidden="true"><Icon name="evaluation" size={32} /></span>
         <div className="xhero__id">
           <h1>Baselines &amp; evaluation</h1>
-          <p>Stored STEP 21 results comparing the proposed Audience Bridge Score with the Louvain and node2vec baselines and its own components.</p>
-          <p className="tx-note">Without relevance labels these results measure consistency between methods (agreement, stability, robustness), not correctness. Agreement with a baseline does not prove either method is right.</p>
+          <p>The Audience Bridge Score compared with baselines and with its own components.</p>
+          <p className="tx-note">No relevance labels: results show agreement between methods, not accuracy.</p>
         </div>
         {meta.status === "success" && (
           <div className="xhero__facts">
@@ -159,7 +158,7 @@ export function EvaluationPage() {
 
           {meta.status === "success" && (
             <section className="xblock" aria-label="Methods compared">
-              <header className="xblock__head"><div><h3>Methods compared</h3><p>The proposed score in the middle; each connector shows its Spearman rank agreement with a baseline.</p></div></header>
+              <header className="xblock__head"><div><h3>Methods compared</h3><p>Spearman rank agreement with each baseline.</p></div></header>
               <div className="ev-compare">
                 {(["louvain", "audience_bridge_score", "node2vec"] as const).map((key, idx) => {
                   const g = METHOD_GROUPS.find((x) => x.method === key)!;
@@ -188,7 +187,7 @@ export function EvaluationPage() {
 
           {ranking.status === "success" && proposedVs.length > 0 && (
             <section className="xblock" aria-label="Key results">
-              <header className="xblock__head"><div><h3>Agreement with the proposed score</h3><p>Every stored agreement metric between the proposed score and each other method. Bars run from −1 to 1; consistency, not correctness.</p></div></header>
+              <header className="xblock__head"><div><h3>Agreement with the proposed score</h3><p>Agreement metrics, from −1 to 1.</p></div></header>
               <div className="ev-agree">
                 {proposedVs.map((a) => {
                   const other = String(a.method === "audience_bridge_score" ? a.reference_method : a.method);
@@ -225,7 +224,7 @@ export function EvaluationPage() {
               {ranking.status === "loading" && <Loading variant="block" />}
               {ranking.status === "error" && <ErrorState error={ranking.error} onRetry={ranking.reload} what="Ranking results" />}
               {ranking.status === "success" && (labelsMissing ? (
-                <p><Badge tone="neutral">Not available</Badge> Ground-truth relevance labels unavailable. Precision@k, Recall@k, NDCG@k and MRR need explicit relevance labels, so no accuracy is reported.</p>
+                <p><Badge tone="neutral">Not available</Badge> No ground-truth labels, so accuracy metrics (Precision@k, NDCG@k, MRR) are not reported.</p>
               ) : (
                 <RowsTable caption="Relevance metrics" rows={relevance} columns={["method", "metric", "k", "value", "n_sources", "status"]} />
               ))}
@@ -256,49 +255,21 @@ export function EvaluationPage() {
           </div>
           {temporal.status === "success" && temporal.data.items.some((r) => r.status === "ok") && (
             <section className="xblock" aria-label="Temporal stability results">
-              <header className="xblock__head"><div><h3>Temporal stability results</h3><p>How each method's rankings change between an earlier and a later snapshot of the same channels.</p></div></header>
+              <header className="xblock__head"><div><h3>Temporal stability results</h3><p>Ranking change between an earlier and a later snapshot.</p></div></header>
               <RowsTable caption="Temporal stability" rows={temporal.data.items.filter((r) => r.status === "ok")} columns={["method", "earlier_snapshot_id", "later_snapshot_id", "metric", "k", "value", "n_sources"]} />
             </section>
           )}
           {sparse.status === "success" && sparse.data.items.length > 0 && (
             <section className="xblock" aria-label="Sparse-data robustness results">
-              <header className="xblock__head"><div><h3>Sparse-data robustness results</h3><p>Agreement of each method's rankings with the full-data rankings when only part of the comments is kept.</p></div></header>
+              <header className="xblock__head"><div><h3>Sparse-data robustness results</h3><p>Agreement with full-data rankings when only part of the comments is kept.</p></div></header>
               <RowsTable caption="Sparse-data robustness" rows={sparse.data.items} columns={["method", "unit", "retain_fraction", "seed", "metric", "k", "value", "n_sources", "status"]} />
             </section>
           )}
           {statusRows.length > 0 && <RowsTable caption="Unavailable methods" rows={statusRows} columns={["method", "status", "reason"]} />}
 
-          <div className="xgrid xgrid--2">
-            <section className="xblock" aria-label="Ranking consistency between methods">
-              <header className="xblock__head"><div><h3>Spearman agreement</h3><p>The proposed score against each baseline and component.</p></div></header>
-              {ranking.status === "success" && agreement.length === 0 && <p className="muted">No agreement results in this run.</p>}
-              {proposedVs.length > 0 && (
-                <HorizontalBarChart title="Spearman agreement of the Audience Bridge Score with each method" unit="correlation" min={-1} max={1}
-                  bars={proposedVs.map((a) => {
-                    const other = a.method === "audience_bridge_score" ? a.reference_method : a.method;
-                    return { key: String(other), label: label(String(other)), value: typeof a.spearman === "number" ? a.spearman : null };
-                  })} />
-              )}
-            </section>
-            {meta.status === "success" && (
-              <section className="xblock" aria-label="All methods in this run">
-                <header className="xblock__head"><div><h3>All methods in this run</h3><p>{meta.data.interpretation ? scalar(meta.data.interpretation) : "Each method's role and status."}</p></div></header>
-                <ul className="ev-methods">
-                  {Object.entries(meta.data.methods).map(([m, v]) => (
-                    <li key={m}>
-                      <span className={`ev-methods__dot ${v.status === "ok" ? "is-ok" : ""}`} />
-                      <span className="ev-methods__name"><b>{label(m)}</b><small>{scalar(v.role)}{v.reason ? ` · ${scalar(v.reason)}` : ""}</small></span>
-                      <Badge tone={v.status === "ok" ? "ok" : "warn"}>{scalar(v.status)}</Badge>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
-          </div>
-
           {agreement.length > 0 && (
             <section className="xblock" aria-label="Agreement table">
-              <header className="xblock__head"><div><h3>All agreement results</h3><p>Every stored pairwise agreement metric, with the number of source channels compared.</p></div></header>
+              <header className="xblock__head"><div><h3>All agreement results</h3><p>Pairwise agreement between all methods.</p></div></header>
               <TableWrap label="Agreement">
                 <table className="table table--compact">
                   <thead>
@@ -324,7 +295,7 @@ export function EvaluationPage() {
 
           <section className="xblock" aria-label="Top-k results">
             <header className="xblock__head">
-              <div><h3>Top-k results</h3><p>Summary of each method's top-k lists, and the stored lists themselves.</p></div>
+              <div><h3>Top-k results</h3><p>Each method's top-k lists.</p></div>
               <label className="tx-k"><span>Method</span>
                 <select id="topk-method" aria-label="Top-k lists for method" value={topkMethod} onChange={(e) => setTopkMethod(e.target.value)}>
                   {(meta.status === "success" ? Object.keys(meta.data.methods) : [topkMethod]).map((m) => <option key={m} value={m}>{label(m)}</option>)}

@@ -113,7 +113,7 @@ function TopicFlow({ items, flows, axis, selected, onSelect }: {
           );
         })}
       </svg>
-      <p className="xnote">Band width = collected videos from that channel in that topic ({int(total)} in total). Hover a channel or topic to trace it; click for details.</p>
+      <p className="xnote">Band width = collected videos from that channel in that topic ({int(total)} in total).</p>
     </div>
   );
 }
@@ -237,13 +237,13 @@ export function TopicsPage() {
             </div>
           </section>
 
-          <Block title="Channel → topic flow" label="Topic map" hint="Where the collected videos of each channel fall among the 10 unlabelled topic clusters.">
+          <Block title="Channel → topic flow" label="Topic map" hint="Each channel's videos across the topic clusters.">
             {clusters.status === "loading" && <Loading variant="graph" />}
             {clusters.status === "error" && <ErrorState error={clusters.error} onRetry={clusters.reload} what="Topic clusters" />}
             {clusters.status === "success" && <TopicFlow items={items} flows={clusters.data.flows ?? []} axis={axis} selected={mapSel} onSelect={pickMap} />}
           </Block>
 
-          <Block title="Content similarity wheel" hint="The 12 most similar channel pairs by content. Click a channel to highlight its links and see its neighbours.">
+          <Block title="Content similarity wheel" hint="The 12 most content-similar channel pairs.">
             <div className="sw-wrap">
               <SimilarityWheel axis={axis} focus={selectedChannel} onSelect={pickChannel}
                 pairs={[...allPairs.slice(0, 12), ...(selectedChannel ? allPairs.filter((p) => (p.a.id === selectedChannel || p.b.id === selectedChannel)).slice(0, 3) : [])]
@@ -267,7 +267,7 @@ export function TopicsPage() {
             </div>
           </Block>
 
-          <Block title="Topic similarity matrix" hint="Every pair's stored cosine similarity (STEP 18). Click a channel name to focus it.">
+          <Block title="Topic similarity matrix" hint="Content similarity (cosine) of every channel pair.">
             <Heatmap axis={axis} value={value} selected={selectedChannel} onSelect={pickChannel} caption="Topic similarity between research channels" />
           </Block>
 
@@ -310,7 +310,6 @@ export function TopicsPage() {
               <p className="small muted">Topic clusters are unlabelled KMeans clusters of video text embeddings; the numbers are cluster sizes, not trends.</p>
             </section>
           )}
-          <p className="xnote">{sim.data.note}</p>
           <Provenance snapshotId={sim.data.snapshot_id} extra={sim.data.experiment_id ? `Topic run ${sim.data.experiment_id}` : undefined} />
         </div>
       )}

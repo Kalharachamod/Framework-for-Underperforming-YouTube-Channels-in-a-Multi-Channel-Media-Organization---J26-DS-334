@@ -3,9 +3,7 @@ import { date } from "../../utils/format";
 import { useResearch } from "./ResearchContext";
 
 export const LIMITATIONS =
-  "Research estimates from a provisional scoring formula. A potential audience bridge is an audience-affinity " +
-  "signal (structural connectivity, learned graph similarity and topic similarity); it does not show audience migration, subscriber " +
-  "transfer, causal influence or future growth.";
+  "Potential audience bridges from public comment data: an affinity signal, not audience migration, causality or growth.";
 
 /** Snapshot and experiment selectors (defaults: latest, as chosen by the API). */
 export function ContextBar() {
