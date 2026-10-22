@@ -28,7 +28,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
 
-from shared.data_collection.youtube_api_client import YouTubeClient
+from shared.data_collection.youtube_api_client import NotFoundError, YouTubeClient
 from shared.utils import paths
 
 Confidence = Literal["high", "medium", "low"]
@@ -116,14 +116,14 @@ def discover_organization(
     linked_from: dict[str, list[str]] = {}
     links_out: dict[str, list[str]] = {}
     for seed in seeds:
-        links = client.get_linked_channels(seed)
+        links = _linked(client, seed)
         links_out[seed] = links
         for cid in links:
             linked_from.setdefault(cid, []).append(seed)
 
     # Does each linked candidate link back to a matching channel? (not expanded further)
     for cid in [c for c in linked_from if c not in links_out][:MAX_LINK_BACK_CHECKS]:
-        links_out[cid] = client.get_linked_channels(cid)
+        links_out[cid] = _linked(client, cid)
 
     new_ids = [cid for cid in linked_from if cid not in channels]
     for c in client.get_channels(new_ids):
@@ -141,6 +141,15 @@ def discover_organization(
         quota_used=client.quota_used - start_quota,
         candidates=candidates,
     )
+
+
+def _linked(client: YouTubeClient, channel_id: str) -> list[str]:
+    """Channels this channel links to. A channel YouTube no longer has (deleted, terminated or hidden)
+    answers 404 channelNotFound; it simply has no links, so one dead link never stops a search."""
+    try:
+        return client.get_linked_channels(channel_id)
+    except NotFoundError:
+        return []
 
 
 def _score(org, ch, channels, seeds, linked_from, links_out, seed_countries) -> Candidate:

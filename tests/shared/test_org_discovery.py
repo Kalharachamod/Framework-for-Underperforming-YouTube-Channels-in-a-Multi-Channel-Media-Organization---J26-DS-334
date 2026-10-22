@@ -274,3 +274,20 @@ def test_review_without_icons_still_loads(project, result):
     save_review(result)
     assert all(c.icon_url is None for c in load_review(result.organization).candidates)
     assert "icon_url" in asdict(result.candidates[0])
+
+
+def test_a_deleted_linked_channel_does_not_stop_discovery(monkeypatch):
+    """channelSections.list answers 404 channelNotFound for a channel YouTube no longer has."""
+    monkeypatch.setitem(LINKS, "UC_main", ["UC_news", "UC_pulse", "UC_edu", "UC_gone"])
+
+    class DeadLinks(FakeYouTube):
+        def __call__(self, url, params, timeout):
+            if url.endswith("channelSections") and params.get("channelId") in ("UC_gone", "UC_pulse"):
+                self.calls.append(("channelSections", dict(params)))
+                body = {"error": {"code": 404, "message": "The channel is not found.",
+                                  "errors": [{"reason": "channelNotFound"}]}}
+                return HttpResult(404, {}, json.dumps(body).encode())
+            return super().__call__(url, params, timeout)
+
+    found = by_id(od.discover_organization("Testorg", make_client(DeadLinks())))
+    assert "UC_pulse" in found and "UC_gone" not in found      # the dead channel is simply absent
