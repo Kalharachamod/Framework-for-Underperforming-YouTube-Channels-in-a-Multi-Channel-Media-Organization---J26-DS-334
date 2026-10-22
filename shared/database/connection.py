@@ -76,14 +76,14 @@ def redact_url(url: str) -> str:
     return _PASSWORD_IN_URL.sub(r"\1***\2", url)
 
 
-def connect(db_url: str | None = None, *, autocommit: bool = False) -> psycopg.Connection:
+def connect(db_url: str | None = None, *, autocommit: bool = False, timeout: int | None = None) -> psycopg.Connection:
     """Open a PostgreSQL connection (UTC session, short connect timeout).
 
     Supabase hosts get ``sslmode=require`` unless the URL sets it. Prepared
     statements are disabled so the Supabase connection pooler is supported.
     """
     url = db_url or require_db_url()
-    kwargs: dict = {"connect_timeout": CONNECT_TIMEOUT_SECONDS, "application_name": "j26-ds-334",
+    kwargs: dict = {"connect_timeout": timeout or CONNECT_TIMEOUT_SECONDS, "application_name": "j26-ds-334",
                     "autocommit": autocommit, "prepare_threshold": None,
                     # Detect a dead network within ~1 minute instead of hanging (TCP keepalives).
                     "keepalives": 1, "keepalives_idle": 30, "keepalives_interval": 10, "keepalives_count": 3}

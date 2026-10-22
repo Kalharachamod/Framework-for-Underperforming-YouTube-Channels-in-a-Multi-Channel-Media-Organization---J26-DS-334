@@ -78,3 +78,24 @@ def test_unconfigured_database_is_a_clear_503():
     r = c.get(f"{API}/bridges")
     assert r.status_code == 503 and r.json()["error"]["code"] == "storage_unavailable"
     assert "postgresql://" not in r.text
+
+
+def test_offline_copy_is_served_when_the_database_is_unreachable(db, tmp_path):
+    seed(db)
+    state = {"up": True}
+
+    def connect():
+        if not state["up"]:
+            raise RuntimeError("network blocks PostgreSQL")
+        return db
+
+    c = TestClient(create_app(Settings(), live=LiveResults(connect=connect, cache_dir=tmp_path)))
+    first = c.get(f"{API}/bridges").json()
+    assert "offline" not in first
+    state["up"] = False
+    r = c.get(f"{API}/bridges")
+    assert r.status_code == 200 and r.json()["offline"]["saved_at"]
+    assert r.json()["items"] == first["items"]
+    never_saved = c.get(f"{API}/history", params={"source": A, "destination": B})
+    assert never_saved.status_code == 503 and "not reachable" in never_saved.json()["error"]["message"]
+    assert not any("anon_" in p.read_text() for p in tmp_path.iterdir())   # aggregates only
