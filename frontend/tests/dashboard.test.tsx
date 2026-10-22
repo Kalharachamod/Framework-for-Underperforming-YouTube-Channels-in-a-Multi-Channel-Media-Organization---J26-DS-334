@@ -15,10 +15,20 @@ function renderAt(path: string) {
   );
 }
 
+describe("welcome screen", () => {
+  it("shows the logo and leads to organization analysis", async () => {
+    mockFetch(defaultRoutes());
+    renderAt("/");
+    expect(screen.getByRole("img", { name: "Growth Intelligence logo" })).toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "Primary" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Enter Dashboard" })).toHaveAttribute("href", "/analyze");
+  });
+});
+
 describe("navigation and layout", () => {
   it("offers every section as an accessible link", async () => {
     mockFetch(defaultRoutes());
-    renderAt("/");
+    renderAt("/dashboard");
     const nav = screen.getByRole("navigation", { name: "Primary" });
     for (const item of NAV) expect(within(nav).getByRole("link", { name: item.label })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Menu" })).toHaveAttribute("aria-expanded", "false");
@@ -157,6 +167,12 @@ describe("Audience Bridges", () => {
 });
 
 describe("Explainability", () => {
+  it("opens on the strongest stored bridge when no pair is chosen", async () => {
+    mockFetch(defaultRoutes());
+    renderAt("/explainability");
+    expect((await screen.findAllByText("0.4321")).length).toBeGreaterThan(0);
+  });
+
   it("shows decomposition, evidence states, reasons and uncertainty", async () => {
     mockFetch(defaultRoutes());
     renderAt(`/explainability?source=${A}&destination=${C}`);
@@ -201,13 +217,13 @@ describe("Evaluation", () => {
   it("shows backend metrics and labels unavailable ones", async () => {
     mockFetch(defaultRoutes());
     renderAt("/evaluation");
-    expect(await screen.findByText(/Ground-truth relevance labels unavailable/)).toBeInTheDocument();
+    expect(await screen.findByText(/No ground-truth labels/)).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Methods compared" })).toHaveTextContent(/Structural baseline/);
     expect((await screen.findAllByText("0.314")).length).toBeGreaterThan(0);
     expect(screen.getAllByText("-0.272").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Insufficient temporal data").length).toBeGreaterThan(0);
     expect(screen.getByText(/run without sparse-data simulations/)).toBeInTheDocument();
-    expect(screen.getAllByText(/not correctness/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/agreement between methods, not accuracy/)).toBeInTheDocument();
   });
 
   it("shows an empty state when no evaluation has run", async () => {
@@ -251,11 +267,11 @@ describe("privacy", () => {
 describe("Overview", () => {
   it("shows research status from the API: snapshot, totals, graph size and strongest bridge", async () => {
     mockFetch(defaultRoutes());
-    renderAt("/");
-    expect(await screen.findByRole("heading", { level: 1, name: "Audience bridge research" })).toBeInTheDocument();
+    renderAt("/dashboard");
+    expect(await screen.findByRole("heading", { level: 1, name: "Cross-Channel Audience Bridge Analysis" })).toBeInTheDocument();
     const metrics = await screen.findByRole("region", { name: "Research metrics" });
     expect(await within(metrics).findByText("23")).toBeInTheDocument();                  // graph nodes
-    expect(within(metrics).getByText("46 edges · 4 node types")).toBeInTheDocument();
+    expect(within(metrics).getByText(/edges · 4 node types/)).toHaveTextContent("46 edges · 4 node types");
     expect(within(metrics).getByText("40")).toBeInTheDocument();                         // collected comments
     expect(await within(metrics).findByText("5")).toBeInTheDocument();                   // scored bridge pairs
     expect(within(metrics).getByRole("img", { name: /Stored scores per 0.1 bin/ })).toBeInTheDocument();
@@ -268,7 +284,7 @@ describe("Overview", () => {
 
   it("shows public channel icons when stored, and initials otherwise", async () => {
     mockFetch(defaultRoutes({ channelIcons: { fetched_at: null, note: "", items: [{ channel_id: A, icon_url: "https://yt3.ggpht.com/test-a" }] } }));
-    renderAt("/");
+    renderAt("/dashboard");
     const audience = await screen.findByRole("region", { name: "Channels by audience" });
     await waitFor(() => expect(audience.querySelector('img[src="https://yt3.ggpht.com/test-a"]')).not.toBeNull());
     expect(within(audience).getAllByText("TC").length).toBeGreaterThan(0);              // channels without an icon keep initials
@@ -276,7 +292,7 @@ describe("Overview", () => {
 
   it("derives research status from stored artifacts and never claims a running job", async () => {
     mockFetch(defaultRoutes());
-    renderAt("/");
+    renderAt("/dashboard");
     const box = await screen.findByRole("region", { name: "Research status" });
     expect((await within(box).findByRole("link", { name: "Scoring" })).closest("li")).toHaveTextContent("Ready");
     expect(within(box).getByRole("link", { name: "Evaluation" }).closest("li")).toHaveTextContent("Incomplete");
@@ -285,7 +301,7 @@ describe("Overview", () => {
 
   it("opens a ranked bridge in the bridge graph with its inspection panel", async () => {
     const fetchMock = mockFetch(defaultRoutes());
-    renderAt("/");
+    renderAt("/dashboard");
     const ranked = await screen.findByRole("region", { name: "Ranked opportunities" });
     await userEvent.click(await within(ranked).findByRole("button", { name: /Test Channel A.*Test Channel C/ }));
     const readout = await screen.findByRole("complementary", { name: "Selected bridge" });
@@ -295,13 +311,13 @@ describe("Overview", () => {
 
   it("states clearly when the snapshot has no research data", async () => {
     mockFetch(defaultRoutes({ status: status({ research_data: "missing", snapshots: [], latest_snapshot_id: null, snapshot_id: null, artifacts: [] }) }));
-    renderAt("/");
+    renderAt("/dashboard");
     expect(await screen.findByText("No research data available for this snapshot.")).toBeInTheDocument();
   });
 
   it("shows the page title and live API status in the top bar", async () => {
     mockFetch(defaultRoutes());
-    renderAt("/");
+    renderAt("/dashboard");
     const live = screen.getByRole("group", { name: "Live status" });
     expect(await within(live).findByText("Connected")).toBeInTheDocument();
     expect(await within(live).findByText("Available")).toBeInTheDocument();
