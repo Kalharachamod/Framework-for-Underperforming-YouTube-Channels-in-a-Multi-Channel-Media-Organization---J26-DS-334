@@ -33,7 +33,6 @@ export const NAV: NavItem[] = [
   { to: "/topics", label: "Topic Intelligence", group: "Method", icon: "topic" },
   { to: "/neural", label: "Neural Models", group: "Method", icon: "neural" },
   { to: "/evaluation", label: "Baselines & Evaluation", group: "Validation", icon: "evaluation" },
-  { to: "/experiments", label: "Experiments", group: "Validation", icon: "overview" },
   { to: "/live", label: "Live Results", group: "Live system", icon: "ripple" },
   { to: "/analyze", label: "Analyze Organization", group: "Live system", icon: "search" },
   { to: "/status", label: "System Status", group: "System", icon: "status" },
