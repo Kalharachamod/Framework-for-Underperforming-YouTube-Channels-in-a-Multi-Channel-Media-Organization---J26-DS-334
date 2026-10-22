@@ -250,7 +250,7 @@ export function AnalyzePage() {
     }
   };
 
-  const open = (snapshotId: string, page = "/") => {
+  const open = (snapshotId: string, page = "/dashboard") => {
     setSnapshotId(snapshotId);
     navigate(page);
   };
@@ -369,11 +369,6 @@ export function AnalyzePage() {
                 <button key={s} type="button" className="az-chip" disabled={!enabled || searching} onClick={() => setQuery(s)}>{s}</button>
               ))}
             </div>
-            <ul className="az-pills">
-              <li><Icon name="status" size={14} /> ~100–150 of 10,000 daily quota units per search</li>
-              <li><Icon name="users" size={14} /> you confirm which channels belong</li>
-              <li><Icon name="play" size={14} /> {cfg?.limits.max_videos_per_channel ?? 15} videos · {cfg?.limits.max_threads_per_video ?? 50} comment threads per video</li>
-            </ul>
             {searching && <Loading label="Searching YouTube for channels…" variant="cards" rows={6} />}
             {searchError && <p className="az-error" role="alert">{searchError}</p>}
           </section>
@@ -451,7 +446,7 @@ export function AnalyzePage() {
       {orgs.length > 0 && (
         <section className="az-panel" aria-label="Recent analyses">
           <header className="az-panel__head az-panel__head--row">
-            <div><h2>Recent analyses</h2><p>One card per organization: its latest analysis, its strongest bridge and whether it was completed.</p></div>
+            <div><h2>Recent analyses</h2><p>Latest analysis and strongest bridge per organization.</p></div>
             {compare.length > 0 && <span className="az-cmp__hint">{compare.length === 1 ? "Pick one more organization to compare" : "Comparing 2 organizations"}</span>}
           </header>
           {compare.length === 2 && (() => {
