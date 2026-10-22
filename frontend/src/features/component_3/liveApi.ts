@@ -44,7 +44,14 @@ export interface LiveChannel {
   unique_commenters: number;
 }
 
+/** Present when the backend could not reach the database and served its last saved copy. */
+export interface LiveOffline {
+  saved_at: string;
+  reason: string;
+}
+
 export interface LiveBridgesResponse {
+  offline?: LiveOffline;
   run: LiveRun;
   items: LiveBridge[];
   channels: LiveChannel[];

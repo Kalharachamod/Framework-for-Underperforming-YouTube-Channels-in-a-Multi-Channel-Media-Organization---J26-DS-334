@@ -5,6 +5,7 @@ import { Icon } from "../../../components/common/Icon";
 import { Badge, type Tone } from "../../../components/common/ui";
 import { useApi } from "../../../hooks/useApi";
 import { date, int, num, pct } from "../../../utils/format";
+import { LIMITATIONS } from "../ContextBar";
 import { liveApi, type LiveBridge, type LiveRun } from "../liveApi";
 
 const STATUS_TONE: Record<LiveRun["status"], Tone> = { completed: "ok", running: "warn", failed: "bad" };
@@ -48,7 +49,9 @@ export function LivePage() {
   const [picked, setPicked] = useState<string | null>(null);
 
   const latestRun = runs.status === "success" ? runs.data.items[0] : undefined;
-  const notReady = bridges.status === "error" && (bridges.error.code === "not_found" || bridges.error.code === "storage_unavailable");
+  const unreachable = bridges.status === "error" && bridges.error.code === "storage_unavailable" && /not reachable|not configured/.test(bridges.error.message);
+  const notReady = bridges.status === "error" && !unreachable && (bridges.error.code === "not_found" || bridges.error.code === "storage_unavailable");
+  const offline = bridges.status === "success" ? bridges.data.offline : undefined;
 
   return (
     <div className="az lv">
@@ -56,8 +59,7 @@ export function LivePage() {
         <div className="az-hero2__text">
           <span className="az-hero2__kicker"><span className="lv-dot" aria-hidden="true" /> Live · updated nightly</span>
           <h1>Live audience bridges</h1>
-          <p>Every night the system collects new public YouTube data, recomputes the Audience Bridge Score on a rolling window
-            (the same period for every channel) and publishes the results here.</p>
+          <p>New public YouTube data every night, scored over the same rolling window for every channel.</p>
           {bridges.status === "success" && (
             <div className="az-hero2__stats">
               <span><b>{ago(bridges.data.run.finished_at)}</b> last update</span>
@@ -80,6 +82,17 @@ export function LivePage() {
         <p className="lv-alert" role="alert"><Icon name="status" size={16} /> Last night's run failed: {latestRun.error ?? "unknown error"}. The results below are from the last successful run.</p>
       )}
 
+      {offline && <p className="lv-offline" role="status"><Icon name="clock" size={15} /> Offline copy saved {ago(offline.saved_at)}: the shared database is not reachable from this network, so the last saved live results are shown.</p>}
+      {unreachable && (
+        <section className="az-panel lv-setup" aria-label="Database not reachable">
+          <header className="az-panel__head"><h2>Database not reachable from this network</h2>
+            <p>Live results are stored in Supabase. This network blocks the database connection, and no saved copy exists on this computer yet.</p></header>
+          <ol>
+            <li>Switch to another network (for example a mobile hotspot) and reload. The results are then also saved for offline use.</li>
+            <li>The nightly job is not affected: it runs on GitHub's servers.</li>
+          </ol>
+        </section>
+      )}
       {(bridges.status === "loading" || bridges.status === "idle") && <Loading variant="cards" rows={6} label="Loading live results…" />}
       {notReady && (
         <section className="az-panel lv-setup" aria-label="Live results not available yet">
@@ -100,7 +113,7 @@ export function LivePage() {
           <>
             <div className="lv-grid">
               <section className="az-panel" aria-label="Top live bridges">
-                <header className="az-panel__head"><h2>Top bridges right now</h2><p>Strongest potential audience bridges in the current window. Select one to see its trend.</p></header>
+                <header className="az-panel__head"><h2>Top bridges right now</h2><p>Select a bridge to see its trend.</p></header>
                 {top.length === 0 ? <p className="muted">No bridge evidence in the current window yet.</p> : (
                   <ol className="lv-bridges">
                     {top.map((b, i) => {
@@ -131,7 +144,7 @@ export function LivePage() {
             </div>
 
             <section className="az-panel" aria-label="Channels in the window">
-              <header className="az-panel__head"><h2>Channels in the window</h2><p>Collected public data per channel for the current run.</p></header>
+              <header className="az-panel__head"><h2>Channels in the window</h2><p>Collected public data per channel.</p></header>
               <div className="lv-channels">
                 {bridges.data.channels.map((c) => (
                   <div key={c.channel_id} className="lv-channel">
@@ -147,7 +160,7 @@ export function LivePage() {
 
       {runs.status === "success" && runs.data.items.length > 0 && (
         <section className="az-panel" aria-label="Nightly runs">
-          <header className="az-panel__head"><h2>Nightly runs</h2><p>Each night's run, newest first.</p></header>
+          <header className="az-panel__head"><h2>Nightly runs</h2><p>Newest first.</p></header>
           <ul className="lv-runs">
             {runs.data.items.map((r) => (
               <li key={r.run_id}>
@@ -159,7 +172,7 @@ export function LivePage() {
           </ul>
         </section>
       )}
-      <p className="muted az-hint">Live results are monitoring results on a rolling window of the newest data; the frozen thesis results remain the research snapshots. Scores are potential audience bridges, not audience migration or causality.</p>
+      <p className="muted az-hint">{LIMITATIONS}</p>
     </div>
   );
 }

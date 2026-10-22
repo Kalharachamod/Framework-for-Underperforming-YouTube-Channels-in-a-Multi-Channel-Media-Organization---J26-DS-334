@@ -77,4 +77,26 @@ describe("Live Results", () => {
     expect(await screen.findByRole("alert", undefined, { timeout: 4000 })).toHaveTextContent("network failure");
     expect(screen.getByRole("button", { name: "Live a to Live b" })).toBeInTheDocument();
   });
+  it("explains a blocked network instead of the setup steps", async () => {
+    mock((url) => {
+      if (url.pathname === `${L}/bridges`) return { status: 503, body: { error: { code: "storage_unavailable", message: "live results are unavailable: the shared database is not reachable from this network" } } };
+      if (url.pathname === `${L}/runs`) return { status: 503, body: { error: { code: "storage_unavailable", message: "not reachable" } } };
+      return undefined;
+    });
+    renderLive();
+    expect(await screen.findByText("Database not reachable from this network", undefined, { timeout: 4000 })).toBeInTheDocument();
+    expect(screen.queryByText(/python -m shared.database.migrate/)).not.toBeInTheDocument();
+  });
+
+  it("marks an offline copy served when the database is unreachable", async () => {
+    mock((url) => {
+      if (url.pathname === `${L}/bridges`) return { body: { ...bridges, offline: { saved_at: "2026-10-20T19:10:00Z", reason: "saved copy" } } };
+      if (url.pathname === `${L}/runs`) return { body: { items: [run()], latest_completed_run_id: "live-20261020T183000Z", note: "" } };
+      if (url.pathname === `${L}/history`) return { body: { items: [] } };
+      return undefined;
+    });
+    renderLive();
+    expect(await screen.findByText(/Offline copy saved/, undefined, { timeout: 4000 })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Live a to Live b" })).toBeInTheDocument();
+  });
 });
