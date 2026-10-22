@@ -185,11 +185,6 @@ export function HgtRadial({ features, hidden, layers, heads, dropout, dims }: {
           </g>
         </svg>
       </div>
-      <figcaption className="nn__caption">
-        Read from the outside in: the run's {total} recorded input features (coloured by node type) are projected per node type into {hidden ?? "—"} hidden
-        units, pass through {layers} HGT layers with {heads} attention heads, and end as the {dims ?? "—"}-dimensional channel embedding in the centre.
-        Inner rings draw a few neurons and each is linked to its nearest neighbours on the next ring; the key gives the true sizes from the stored run.
-      </figcaption>
     </figure>
   );
 }

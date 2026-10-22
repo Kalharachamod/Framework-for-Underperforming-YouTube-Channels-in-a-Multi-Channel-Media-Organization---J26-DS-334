@@ -139,11 +139,6 @@ export function SkipGram({ metapaths, window, negative, dims, walkLength }: {
           <text x={880} y={H - 18} textAnchor="middle" className="hf__small">score per node: σ(⟨u, v⟩)</text>
         </svg>
       </div>
-      <figcaption className="nn__caption">
-        Walks follow each metapath; within a window of {window ?? "—"}, the centre node is trained to score its window neighbours high (green ring)
-        and {negative ?? "—"} randomly sampled nodes low (red ring). The trained weights are the {dims ?? "—"}-dimensional embeddings; channel embeddings are
-        compared by cosine similarity in the score. Walk counts and settings are from the stored run; the example walk and drawn nodes are schematic.
-      </figcaption>
     </figure>
   );
 }
