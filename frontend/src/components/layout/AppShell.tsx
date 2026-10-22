@@ -30,8 +30,7 @@ export function AppShell({ nav, header, children }: {
       <aside className={`sidebar${open ? " sidebar--open" : ""}`}>
         <div className="sidebar__top">
           <NavLink to="/" className="sidebar__brand" aria-label="Growth Intelligence, overview">
-            <span className="sidebar__mark"><img src="/brand/logo-mark.png" alt="Growth Intelligence" width={30} height={30} /></span>
-            <span className="sidebar__word"><strong>Growth Intelligence</strong><span>Audience bridge research</span></span>
+            <span className="sidebar__mark"><img src="/brand/logo-mark.png" alt="Growth Intelligence" width={56} height={56} /></span>
           </NavLink>
           <button type="button" className="button nav-toggle" aria-expanded={open} aria-controls="primary-nav" onClick={() => setOpen((o) => !o)}>
             <Icon name="overview" size={16} /> {open ? "Close" : "Menu"}
@@ -44,7 +43,7 @@ export function AppShell({ nav, header, children }: {
               <ul className="nav">
                 {nav.filter((item) => (item.group ?? "") === g).map((item) => (
                   <li key={item.to}>
-                    <NavLink to={item.to} end={item.to === "/"} className="nav__link" onClick={() => setOpen(false)}>
+                    <NavLink to={item.to} end={item.to === "/dashboard"} className="nav__link" onClick={() => setOpen(false)}>
                       {item.icon && <Icon name={item.icon} />}
                       <span>{item.label}</span>
                     </NavLink>
@@ -54,7 +53,6 @@ export function AppShell({ nav, header, children }: {
             </div>
           ))}
         </nav>
-        <p className="sidebar__foot"><span>Component 3 · SLIIT J26-DS-334</span><span className="mono">v0.1.0</span></p>
       </aside>
       {open && <button type="button" className="backdrop" aria-label="Close menu" onClick={() => setOpen(false)} />}
       <div className="content">
